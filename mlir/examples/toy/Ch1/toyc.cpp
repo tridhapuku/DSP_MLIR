@@ -9,6 +9,7 @@
 // This file implements the entry point for the Toy compiler.
 //
 //===----------------------------------------------------------------------===//
+#include <iostream>
 
 #include "toy/Parser.h"
 
@@ -18,6 +19,7 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
 
+using namespace std;
 using namespace toy;
 namespace cl = llvm::cl;
 
@@ -26,12 +28,13 @@ static cl::opt<std::string> inputFilename(cl::Positional,
                                           cl::init("-"),
                                           cl::value_desc("filename"));
 namespace {
-enum Action { None, DumpAST };
+enum Action { None, DumpAST , CustomAbhinav};
 } // namespace
 
 static cl::opt<enum Action>
     emitAction("emit", cl::desc("Select the kind of output desired"),
-               cl::values(clEnumValN(DumpAST, "ast", "output the AST dump")));
+               cl::values(clEnumValN(DumpAST, "ast", "output the AST dump")),
+               cl::values(clEnumValN(CustomAbhinav, "abhi", "Just a custom print")));
 
 /// Returns a Toy AST resulting from parsing the file or a nullptr on error.
 std::unique_ptr<toy::ModuleAST> parseInputFile(llvm::StringRef filename) {
@@ -58,6 +61,11 @@ int main(int argc, char **argv) {
   case Action::DumpAST:
     dump(*moduleAST);
     return 0;
+  
+  case Action::CustomAbhinav:
+      cout << "Just A custom print\n";
+      break;
+      
   default:
     llvm::errs() << "No action specified (parsing only?), use -emit=<action>\n";
   }
