@@ -1,0 +1,10 @@
+#!/bin/bash
+
+echo "Building Standalone dialect"
+PREFIX=/home/abhinav/ForMLIR/SourceCode/llvm-project/build
+
+cd build/
+echo "Path of llvm-build directory: $PREFIX" 
+cmake -G Ninja .. -DMLIR_DIR=$PREFIX/lib/cmake/mlir -DLLVM_EXTERNAL_LIT=$PREFIX/bin/llvm-lit
+
+echo "DOone!! -- check for any error prints above"
