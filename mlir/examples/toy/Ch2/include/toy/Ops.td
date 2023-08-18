@@ -23,6 +23,9 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 def Toy_Dialect : Dialect {
   let name = "toy";
   let cppNamespace = "::mlir::toy";
+  let summary = "A high level dialect for "
+                "analyzing toy langg";
+
 }
 
 // Base class for toy dialect operations. This operation inherits from the base
@@ -45,7 +48,7 @@ class Toy_Op<string mnemonic, list<Trait> traits = []> :
 // Here we provide the mnemonic and a list of traits for the operation. The
 // constant operation is marked as 'Pure' as it is a pure operation
 // and may be removed if dead.
-def ConstantOp : Toy_Op<"constant", [Pure]> {
+def ConstantOp : Toy_Op<"constant1", [Pure]> {
   // Provide a summary and description for this operation. This can be used to
   // auto-generate documentation of the operations within our dialect.
   let summary = "constant";
@@ -107,6 +110,32 @@ def AddOp : Toy_Op<"add"> {
     OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
   ];
 }
+
+//===----------------------------------------------------------------------===//
+// SubtractOp -- Added by Abhinav
+//===----------------------------------------------------------------------===//
+def SubtractOp: Toy_Op<"subtract">{
+  //add summary & description
+  let summary = "element-wise subtraction operation";
+  let description = [{
+    The "subtract" operation performs element-wise addition between two tensors.
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  // add arguments & result-types
+  let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs);
+  let results = (outs F64Tensor);
+
+  //enable customAssembly Parser & printer 
+  let hasCustomAssemblyFormat = 1;
+
+  //Allow 2 operands for SubtractOp building
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+}
+
+
 
 //===----------------------------------------------------------------------===//
 // FuncOp

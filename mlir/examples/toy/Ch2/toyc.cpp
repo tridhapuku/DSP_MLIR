@@ -82,6 +82,7 @@ int dumpMLIR() {
     if (!module)
       return 1;
 
+    llvm::errs() << "Going for module dump\n" ;
     module->dump();
     return 0;
   }
@@ -124,7 +125,8 @@ int dumpAST() {
 
 int main(int argc, char **argv) {
   // Register any command line options.
-  mlir::registerAsmPrinterCLOptions();
+  
+  mlir::registerAsmPrinterCLOptions(); //clOptions struct has been initialized​
   mlir::registerMLIRContextCLOptions();
   cl::ParseCommandLineOptions(argc, argv, "toy compiler\n");
 

@@ -56,7 +56,9 @@ public:
     // We create an empty MLIR module and codegen functions one at a time and
     // add them to the module.
     theModule = mlir::ModuleOp::create(builder.getUnknownLoc());
-
+    llvm::errs() << "IN modulegen - mlirGen(ModuleAST) \n";
+    llvm::errs() << "fileName " << __FILE__ << " func " << __func__ << " line: " \
+            << __LINE__ << "\n";
     for (FunctionAST &f : moduleAST)
       mlirGen(f);
 
@@ -195,6 +197,8 @@ private:
       return builder.create<AddOp>(location, lhs, rhs);
     case '*':
       return builder.create<MulOp>(location, lhs, rhs);
+    case '-':
+      return builder.create<SubtractOp>(location, lhs, rhs);
     }
 
     emitError(location, "invalid binary operator '") << binop.getOp() << "'";
@@ -250,7 +254,7 @@ private:
   ///
   mlir::Value mlirGen(LiteralExprAST &lit) {
     auto type = getType(lit.getDims());
-
+    llvm::errs() << "IN modulegen - mlirGen(LiteralExprAST) & line " << __LINE__ << "\n";
     // The attribute is a vector with a floating point value per element
     // (number) in the array, see `collectData()` below for more details.
     std::vector<double> data;
@@ -331,6 +335,7 @@ private:
     if (!arg)
       return mlir::failure();
 
+    llvm::errs() << "IN modulegen - mlirGen(PrintExpr) & line " << __LINE__ << "\n";
     builder.create<PrintOp>(loc(call.loc()), arg);
     return mlir::success();
   }
@@ -340,7 +345,7 @@ private:
     return builder.create<ConstantOp>(loc(num.loc()), num.getValue());
   }
 
-  /// Dispatch codegen for the right expression subclass using RTTI.
+  /// Dispatch codegen for the right expression subclass using RTTI- Run-Time Type Information
   mlir::Value mlirGen(ExprAST &expr) {
     switch (expr.getKind()) {
     case toy::ExprAST::Expr_BinOp:

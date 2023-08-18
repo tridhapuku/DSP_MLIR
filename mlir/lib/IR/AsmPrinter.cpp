@@ -44,6 +44,8 @@
 #include "llvm/Support/SaveAndRestore.h"
 #include "llvm/Support/Threading.h"
 
+#include "llvm/Support/raw_ostream.h" //Added by Abhinav
+
 #include <optional>
 #include <tuple>
 
@@ -3710,6 +3712,7 @@ void Operation::print(raw_ostream &os, const OpPrintingFlags &printerFlags) {
   // Find the operation to number from based upon the provided flags.
   Operation *op = findParent(this, printerFlags.shouldUseLocalScope());
   AsmState state(op, printerFlags);
+  llvm::errs() << "Abhinav: In Operation::print Asmprinter.cpp\n";
   print(os, state);
 }
 void Operation::print(raw_ostream &os, AsmState &state) {

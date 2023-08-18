@@ -54,6 +54,8 @@ int main(int argc, char **argv) {
   cl::ParseCommandLineOptions(argc, argv, "toy compiler\n");
 
   auto moduleAST = parseInputFile(inputFilename);
+  // cout << "moduleAST -type" << typeid(moduleAST).name() << endl;
+
   if (!moduleAST)
     return 1;
 

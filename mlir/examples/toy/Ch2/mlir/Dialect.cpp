@@ -73,6 +73,7 @@ static mlir::ParseResult parseBinaryOp(mlir::OpAsmParser &parser,
 /// forms depending on if all of the types match.
 static void printBinaryOp(mlir::OpAsmPrinter &printer, mlir::Operation *op) {
   printer << " " << op->getOperands();
+  printer << " Abhinav ";
   printer.printOptionalAttrDict(op->getAttrs());
   printer << " : ";
 
@@ -99,6 +100,8 @@ void ConstantOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                        double value) {
   auto dataType = RankedTensorType::get({}, builder.getF64Type());
   auto dataAttribute = DenseElementsAttr::get(dataType, value);
+
+  llvm::errs() << "IN Dialect.cpp - ConstantOp::build & line " << __LINE__ << "\n";
   ConstantOp::build(builder, state, dataType, dataAttribute);
 }
 
@@ -112,6 +115,8 @@ void ConstantOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
 mlir::ParseResult ConstantOp::parse(mlir::OpAsmParser &parser,
                                     mlir::OperationState &result) {
   mlir::DenseElementsAttr value;
+
+  llvm::errs() << "IN Dialect.cpp - ConstantOp::parse & line " << __LINE__ << "\n";
   if (parser.parseOptionalAttrDict(result.attributes) ||
       parser.parseAttribute(value, "value", result.attributes))
     return failure();
@@ -123,8 +128,10 @@ mlir::ParseResult ConstantOp::parse(mlir::OpAsmParser &parser,
 /// The 'OpAsmPrinter' class is a stream that allows for formatting
 /// strings, attributes, operands, types, etc.
 void ConstantOp::print(mlir::OpAsmPrinter &printer) {
+  // llvm::errs() << "IN Dialect.cpp - ConstantOp::print & line " << __LINE__ << "\n";
   printer << " ";
   printer.printOptionalAttrDict((*this)->getAttrs(), /*elidedAttrs=*/{"value"});
+
   printer << getValue();
 }
 
@@ -175,6 +182,29 @@ mlir::ParseResult AddOp::parse(mlir::OpAsmParser &parser,
 
 void AddOp::print(mlir::OpAsmPrinter &p) { printBinaryOp(p, *this); }
 
+
+
+//===----------------------------------------------------------------------===//
+// SubtractOp - Added by ABhinav
+//===----------------------------------------------------------------------===//
+void SubtractOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                        mlir::Value lhs, mlir::Value rhs){
+    //add types for arguments
+    state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+
+    //add values for arguments
+    state.addOperands({lhs, rhs});
+}
+
+void SubtractOp::print(mlir::OpAsmPrinter &p){
+  printBinaryOp(p, *this);
+}
+
+mlir::ParseResult SubtractOp::parse(mlir::OpAsmParser &parser, 
+                                    mlir::OperationState &result)
+{
+  return parseBinaryOp(parser, result);
+}
 //===----------------------------------------------------------------------===//
 // GenericCallOp
 //===----------------------------------------------------------------------===//
