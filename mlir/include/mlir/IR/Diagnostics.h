@@ -552,7 +552,7 @@ struct SourceMgrDiagnosticHandlerImpl;
 /// This class is a utility diagnostic handler for use with llvm::SourceMgr.
 class SourceMgrDiagnosticHandler : public ScopedDiagnosticHandler {
 public:
-  /// This type represents a functor used to filter out locations when printing
+  /// This type represents a functor(a class that acts like a function) used to filter out locations when printing
   /// a diagnostic. It should return true if the provided location is okay to
   /// display, false otherwise. If all locations in a diagnostic are filtered
   /// out, the first location is used as the sole location. When deciding

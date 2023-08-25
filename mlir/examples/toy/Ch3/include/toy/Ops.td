@@ -218,6 +218,10 @@ def MulOp : Toy_Op<"mul", [Pure]> {
   let builders = [
     OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
   ];
+
+  //Added by Abhinav
+  // Enable registering canonicalization patterns with this operation.
+  let hasCanonicalizer = 1;
 }
 
 //===----------------------------------------------------------------------===//

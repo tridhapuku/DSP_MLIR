@@ -16,6 +16,7 @@
 
 include "mlir/IR/PatternBase.td"
 include "toy/Ops.td"
+// include "mlir/examples/toy/Ch3/include/toy/Ops.td" //Added by abhinav
 
 /// Note: The DRR definition used for defining patterns is shown below:
 ///
