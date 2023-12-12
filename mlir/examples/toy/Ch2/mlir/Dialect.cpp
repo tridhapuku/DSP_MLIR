@@ -73,7 +73,7 @@ static mlir::ParseResult parseBinaryOp(mlir::OpAsmParser &parser,
 /// forms depending on if all of the types match.
 static void printBinaryOp(mlir::OpAsmPrinter &printer, mlir::Operation *op) {
   printer << " " << op->getOperands();
-  printer << " Abhinav ";
+  // printer << " Abhinav ";
   printer.printOptionalAttrDict(op->getAttrs());
   printer << " : ";
 
@@ -101,7 +101,7 @@ void ConstantOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
   auto dataType = RankedTensorType::get({}, builder.getF64Type());
   auto dataAttribute = DenseElementsAttr::get(dataType, value);
 
-  llvm::errs() << "IN Dialect.cpp - ConstantOp::build & line " << __LINE__ << "\n";
+  //llvm::errs() << "IN Dialect.cpp - ConstantOp::build & line " << __LINE__ << "\n";
   ConstantOp::build(builder, state, dataType, dataAttribute);
 }
 
@@ -116,7 +116,7 @@ mlir::ParseResult ConstantOp::parse(mlir::OpAsmParser &parser,
                                     mlir::OperationState &result) {
   mlir::DenseElementsAttr value;
 
-  llvm::errs() << "IN Dialect.cpp - ConstantOp::parse & line " << __LINE__ << "\n";
+  //llvm::errs() << "IN Dialect.cpp - ConstantOp::parse & line " << __LINE__ << "\n";
   if (parser.parseOptionalAttrDict(result.attributes) ||
       parser.parseAttribute(value, "value", result.attributes))
     return failure();
@@ -128,7 +128,7 @@ mlir::ParseResult ConstantOp::parse(mlir::OpAsmParser &parser,
 /// The 'OpAsmPrinter' class is a stream that allows for formatting
 /// strings, attributes, operands, types, etc.
 void ConstantOp::print(mlir::OpAsmPrinter &printer) {
-  // llvm::errs() << "IN Dialect.cpp - ConstantOp::print & line " << __LINE__ << "\n";
+  // //llvm::errs() << "IN Dialect.cpp - ConstantOp::print & line " << __LINE__ << "\n";
   printer << " ";
   printer.printOptionalAttrDict((*this)->getAttrs(), /*elidedAttrs=*/{"value"});
 
@@ -330,6 +330,34 @@ mlir::LogicalResult TransposeOp::verify() {
     return emitError()
            << "expected result shape to be a transpose of the input";
   }
+  return mlir::success();
+}
+
+
+//===----------------------------------------------------------------------===//
+// DelayOp
+//===----------------------------------------------------------------------===//
+void DelayOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                    mlir::Value value){
+
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands(value);
+}
+
+mlir::LogicalResult DelayOp::verify(){
+  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
+  auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+  if(!inputType || !resultType)
+    return mlir::success();
+
+  // auto inputShape = inputType.getShape();
+  // auto resultShape = resultType.getShape();
+
+  // if(!std::equal(inputShape.begin(), inputShape.end(),
+  //                 resultShape.begin())){
+  //   return emitError() << "expected result shape to be a transpose of the input";
+  // }
+
   return mlir::success();
 }
 

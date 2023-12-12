@@ -56,8 +56,8 @@ public:
     // We create an empty MLIR module and codegen functions one at a time and
     // add them to the module.
     theModule = mlir::ModuleOp::create(builder.getUnknownLoc());
-    llvm::errs() << "IN modulegen - mlirGen(ModuleAST) \n";
-    llvm::errs() << "fileName " << __FILE__ << " func " << __func__ << " line: " \
+    //llvm::errs() << "IN modulegen - mlirGen(ModuleAST) \n";
+    //llvm::errs() << "fileName " << __FILE__ << " func " << __func__ << " line: " \
             << __LINE__ << "\n";
     for (FunctionAST &f : moduleAST)
       mlirGen(f);
@@ -191,7 +191,7 @@ private:
     auto location = loc(binop.loc());
 
     // Derive the operation name from the binary operator. At the moment we only
-    // support '+' and '*'.
+    // support '+' and '*' and '-' added by Abhinav
     switch (binop.getOp()) {
     case '+':
       return builder.create<AddOp>(location, lhs, rhs);
@@ -254,7 +254,7 @@ private:
   ///
   mlir::Value mlirGen(LiteralExprAST &lit) {
     auto type = getType(lit.getDims());
-    llvm::errs() << "IN modulegen - mlirGen(LiteralExprAST) & line " << __LINE__ << "\n";
+    //llvm::errs() << "IN modulegen - mlirGen(LiteralExprAST) & line " << __LINE__ << "\n";
     // The attribute is a vector with a floating point value per element
     // (number) in the array, see `collectData()` below for more details.
     std::vector<double> data;
@@ -322,6 +322,17 @@ private:
       return builder.create<TransposeOp>(location, operands[0]);
     }
 
+    // Builtin calls have their custom operation, meaning this is a
+    // straightforward emission.
+    if(callee == "delay"){
+      if(call.getArgs().size() != 1){
+        emitError(location, "MLIR codegen encountered an error: toy.delay "
+                            "does not accept multiple arguments");
+        return nullptr;
+      }
+      return builder.create<DelayOp>(location, operands[0]);
+    }
+
     // Otherwise this is a call to a user-defined function. Calls to
     // user-defined functions are mapped to a custom call that takes the callee
     // name as an attribute.
@@ -335,7 +346,7 @@ private:
     if (!arg)
       return mlir::failure();
 
-    llvm::errs() << "IN modulegen - mlirGen(PrintExpr) & line " << __LINE__ << "\n";
+    //llvm::errs() << "IN modulegen - mlirGen(PrintExpr) & line " << __LINE__ << "\n";
     builder.create<PrintOp>(loc(call.loc()), arg);
     return mlir::success();
   }

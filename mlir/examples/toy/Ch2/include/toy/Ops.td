@@ -48,7 +48,7 @@ class Toy_Op<string mnemonic, list<Trait> traits = []> :
 // Here we provide the mnemonic and a list of traits for the operation. The
 // constant operation is marked as 'Pure' as it is a pure operation
 // and may be removed if dead.
-def ConstantOp : Toy_Op<"constant1", [Pure]> {
+def ConstantOp : Toy_Op<"constant", [Pure]> {
   // Provide a summary and description for this operation. This can be used to
   // auto-generate documentation of the operations within our dialect.
   let summary = "constant";
@@ -354,6 +354,38 @@ def TransposeOp : Toy_Op<"transpose"> {
   ];
 
   // Invoke a static verify method to verify this transpose operation.
+  let hasVerifier = 1;
+}
+
+// ---------   Signal Processing Operations -Abhinav-------------------------
+
+//===----------------------------------------------------------------------===//
+// DelayOp
+//===----------------------------------------------------------------------===//
+
+//Add definition inheriting from Toy_Op Name
+//Then add summary and description
+//Add input arguments
+//add results
+//give option for building with input operand
+//add static verify method to verify this operation
+ 
+def DelayOp : Toy_Op<"delay"> {
+  let summary = "delay operation";
+
+  let arguments = (ins F64Tensor:$input);
+  let results = (outs F64Tensor);
+
+  let assemblyFormat = [{
+    `(` $input `:` type($input) `)` attr-dict `to` type(results)
+  }];
+
+  // Allow building a TransposeOp with from the input operand.
+  let builders = [
+    OpBuilder<(ins "Value":$input)>
+  ];
+  
+  // Invoke a static verify method to verify this delay operation.
   let hasVerifier = 1;
 }
 
