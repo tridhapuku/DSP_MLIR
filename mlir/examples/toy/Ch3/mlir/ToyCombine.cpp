@@ -141,16 +141,18 @@ bool isValueConstantOne(Value value) {
     // Check if second operand is a constant 1
     if(auto constOp = op.getOperand(1).getDefiningOp<mlir::toy::ConstantOp>()){
       llvm::errs() << "Line : " << __LINE__ << "\n";
-      if(constOp.getValue().isa<mlir::IntegerAttr>() || 
-          constOp.getValue().cast<mlir::IntegerAttr>().getInt() == 1){
-            //replace multiplication with other operand
-            cout << "replacing op with operand0\n"; 
-            rewriter.replaceOp(op, op.getOperand(0));
-            return true;
-          }
+      // if(constOp.getValue().isa<mlir::IntegerAttr>() || 
+      //     constOp.getValue().cast<mlir::IntegerAttr>().getInt() == 1)
+          // if( int(constOp.getValue()) == 1)
+          // {
+          //   //replace multiplication with other operand
+          //   cout << "replacing op with operand0\n"; 
+          //   rewriter.replaceOp(op, op.getOperand(0));
+          //   return true;
+          // }
     }
 
-    return false;
+    return true;
  }
 
 /// This is an example of a c++ rewrite pattern for the Multiply ie, MulOp. It
@@ -226,6 +228,6 @@ struct SimplifyMultiplyBy1 : public mlir::OpRewritePattern<MulOp> {
 /// that they can be picked up by the Canonicalization framework.
 void MulOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                               MLIRContext *context) {
-  // results.add<SimplifyRedundantTranspose>(context);
-  results.add<SimplifyMultiplyBy1>(context);
+  results.add<SimplifyRedundantTranspose>(context);
+  // results.add<SimplifyMultiplyBy1>(context);
 }

@@ -30,7 +30,8 @@ include "toy/Ops.td"
 // Basic Pattern-Match and Rewrite
 //===----------------------------------------------------------------------===//
 
-// Reshape(Reshape(x)) = Reshape(x)
+// Reshape(Reshape(x)) = Reshape(x) -- What does this mean ??
+//Abhinav -- var a1<1,2> = [1,2]; var a2<2,1> = [3,4];   
 def ReshapeReshapeOptPattern : Pat<(ReshapeOp(ReshapeOp $arg)),
                                    (ReshapeOp $arg)>;
 
@@ -55,10 +56,15 @@ def FoldConstantReshapeOptPattern : Pat<
 // DRR allows for constraint checking when the transformation is conditional
 // on operand properties.
 
-// Reshape(x) = x, where input and output shapes are identical
+// Reshape(x) = x, where input and output shapes are identical -- See below for more details
 def TypesAreIdentical : Constraint<CPred<"$0.getType() == $1.getType()">>;
 def RedundantReshapeOptPattern : Pat<
   (ReshapeOp:$res $arg), (replaceWithValue $arg),
   [(TypesAreIdentical $res, $arg)]>;
+
+// The TypesAreIdentical constraint checks if the types of two values are identical. It uses the CPred class to compare the types of the two values ( $0.getType() == $1.getType() ).
+
+// The RedundantReshapeOptPattern pattern matches a ReshapeOp operation on an argument $arg . If the type of the result of the ReshapeOp ( $res ) and the type of the argument ( $arg ) are identical (checked by the TypesAreIdentical constraint), it replaces the ReshapeOp with the argument $arg itself.
+
 
 #endif // TOY_COMBINE
