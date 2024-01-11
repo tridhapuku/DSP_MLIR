@@ -12,6 +12,9 @@ def main() {
   var b<1,4> = [1,2,3,4];
 
   var c = delay(b);
+  var d = delay2args(b, a);
+  var e = transpose(b);
+  var f = b + b;
   print(a);
   print(b);
   # var a1 = 10;

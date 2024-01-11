@@ -322,6 +322,16 @@ private:
       return builder.create<TransposeOp>(location, operands[0]);
     }
 
+    //
+    if(callee == "delay2args"){
+      if(call.getArgs().size() != 2){
+        emitError(location, "MLIR codegen encountered an error: toy.delay2args "
+                            "accepts only 2 arguments");
+        return nullptr;
+      }
+      return builder.create<Delay2ArgsOp>(location, operands[0] , operands[1]);
+    }
+
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.
     if(callee == "delay"){
