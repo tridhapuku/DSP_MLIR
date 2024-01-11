@@ -19,9 +19,20 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
 
+//Added by ABhinav
+#include <iostream>
+#include <typeinfo>
+//end 
+
+
 using namespace std;
 using namespace toy;
 namespace cl = llvm::cl;
+
+//Added by ABhinav
+template <typename T> std::string type_name();
+//end
+
 
 static cl::opt<std::string> inputFilename(cl::Positional,
                                           cl::desc("<input toy file>"),
@@ -45,6 +56,8 @@ std::unique_ptr<toy::ModuleAST> parseInputFile(llvm::StringRef filename) {
     return nullptr;
   }
   auto buffer = fileOrErr.get()->getBuffer();
+  // llvm::errs() << "type of buffer " << typeid(buffer).name() << "\n";
+  // llvm::errs() << "type of buffer " << type_name<decltype(buffer)>() << "\n";
   LexerBuffer lexer(buffer.begin(), buffer.end(), std::string(filename));
   Parser parser(lexer);
   return parser.parseModule();
