@@ -1,6 +1,22 @@
 # RUN: toyc-ch6 -emit=jit %s
 # UNSUPPORTED: target={{.*windows.*}}
+def fun1(){
+    var x = [1,2,3,4,5];
+    print(x);
+    print(transpose(x));
+}
 
 def main() {
- print([[1, 2], [3, 4]]);
+ var a = [[1,1] , [2,2] , [3,3]];
+ var b = [[1, 2], [3, 4]];
+ var c = [[1,1] , [0,1]];
+ var d = b * c;
+#  var forPrint = 'c is'
+#  print([[1, 2], [3, 4]]);
+#  print(a);
+#  print(transpose(a));
+#  print('c is ');
+ print(c);
+ print(d);
+ fun1();
 }
