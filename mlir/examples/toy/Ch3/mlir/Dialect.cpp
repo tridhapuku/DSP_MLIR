@@ -304,6 +304,31 @@ mlir::LogicalResult TransposeOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
+// DelayOp
+//===----------------------------------------------------------------------===//
+// void DelayOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+//                          mlir::Value lhs, unsigned rhs){
+void DelayOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                         mlir::Value lhs, mlir::Value rhs){    
+    //
+    // state.addTypes(UnrankedTensorType::get(builder.getF64Type()), builder.getI32Type());
+    state.addTypes(UnrankedTensorType::get(builder.getF64Type())); //working
+    state.addOperands({lhs, rhs});
+    // state.addOperands(value);
+
+ }
+
+ mlir::LogicalResult DelayOp::verify(){
+    auto inputType1 = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
+    auto inputType2 = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
+    // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+    // if(!inputType || !resultType)
+    //   return mlir::success();
+
+    return mlir::success();
+ }
+
+//===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
 
