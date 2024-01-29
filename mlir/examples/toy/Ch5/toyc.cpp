@@ -186,6 +186,7 @@ int main(int argc, char **argv) {
 
   cl::ParseCommandLineOptions(argc, argv, "toy compiler\n");
 
+  llvm::errs() << "Abhinav Debug112\n";
   switch (emitAction) {
   case Action::DumpAST:
     return dumpAST();
