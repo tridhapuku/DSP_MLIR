@@ -1,0 +1,22 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C++ Launch",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/bin/toyc-ch6",
+      "args": [ "/home/local/ASUAD/akuma294/Proj1_LLVM/llvm-project/mlir/test/Examples/Toy/Ch6/dsp_op_delay_simple.py", 
+      "-emit=mlir-affine",  "-opt", 
+      ],
+      "cwd": "${workspaceFolder}/mlir/examples/toy/Ch2",
+      // "cwd": "${workspaceFolder}/",
+      // "launchCompleteCommand": "exec-run",
+      "linux": {
+        "MIMode": "gdb",
+        "miDebuggerPath": "/usr/bin/gdb"
+      },
+   }
+ ]
+}
+  

@@ -1,0 +1,55 @@
+{
+    //--------------------------------------------------------------------------
+    //              C++
+    //--------------------------------------------------------------------------
+    // "clang-format.fallbackStyle": "LLVM",
+    // "clang-format.style": "LLVM",
+    // "C_Cpp.clang_format_style": "LLVM",
+    // "C_Cpp.default.cppStandard": "c++14",
+    // "C_Cpp.default.cStandard": "c11",
+    //--------------------------------------------------------------------------
+    //              CMake
+    //--------------------------------------------------------------------------
+    "cmake.generator": "Ninja",
+    // Adjust this path to the expansion of $MYHOME/llvm-project/llvm.
+    "cmake.sourceDirectory": "/home/local/ASUAD/akuma294/Proj1_LLVM/llvm-project/llvm",
+    // Adjust this path to the expansion of $MYHOME/llvm-project/build.
+    "cmake.buildDirectory": "/home/local/ASUAD/akuma294/Proj1_LLVM/llvm-project/build",
+    "cmake.configureSettings": {
+        // "LLVM_ENABLE_PROJECTS": ["clang","clang-tools-extra","compiler-rt","lld","mlir"],
+        "LLVM_ENABLE_PROJECTS": ["mlir"],
+        "CMAKE_EXPORT_COMPILE_COMMANDS": 1,
+        "CMAKE_BUILD_TYPE" : "Debug",
+        "BUILD_SHARED_LIBS": "Off",
+        "LLVM_BUILD_LLVM_DYLIB": "On",
+        "LLVM_LINK_LLVM_DYLIB": "On",
+        "CLANG_LINK_CLANG_DYLIB": "On",
+        // I only need LLVM Backends to produce X86, decide what you need here!
+        "LLVM_TARGETS_TO_BUILD": "Native;NVPTX;AMDGPU", //  ""X86_64",
+        "LLVM_ENABLE_LDD": "On",
+        "LLVM_CCACHE_BUILD": "On",
+        // "LLVM_CCACHE_MAXSIZE": "20G",
+        "LLVM_ENABLE_IDE": "On",
+        "LLVM_ENABLE_ASSERTIONS": "On",
+        "LLVM_BUILD_EXAMPLES": "On",
+        "LLVM_LIT_ARGS": "-v --xunit-xml-output test-results.xml",
+        "PYTHON_EXECUTABLE": "/usr/bin/python3",
+    },
+    //--------------------------------------------------------------------------
+    //              Editor
+    //--------------------------------------------------------------------------
+    "editor.mouseWheelZoom": true,
+    // "editor.rulers": [80],
+    "editor.formatOnPaste": false,
+    "editor.renderWhitespace": "all",
+    //--------------------------------------------------------------------------
+    //              Misc
+    //--------------------------------------------------------------------------
+    // "telemetry.enableTelemetry": false,
+    // "telemetry.enableCrashReporter": false,
+    // "[cpp]": {
+    //     "editor.defaultFormatter": "xaver.clang-format"
+    // },
+    // "workbench.iconTheme": "material-icon-theme",
+    // "editor.guides.indentation": false,
+}
