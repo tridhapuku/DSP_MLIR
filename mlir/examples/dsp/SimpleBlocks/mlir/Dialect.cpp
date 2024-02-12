@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "toy/Dialect.h"
+#include "dsp/Dialect.h"
 
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -20,9 +20,9 @@
 #include "mlir/Transforms/InliningUtils.h"
 
 using namespace mlir;
-using namespace mlir::toy;
+using namespace mlir::dsp;
 
-#include "toy/Dialect.cpp.inc"
+#include "dsp/Dialect.cpp.inc"
 
 //===----------------------------------------------------------------------===//
 // ToyInlinerInterface
@@ -37,18 +37,18 @@ struct ToyInlinerInterface : public DialectInlinerInterface {
   // Analysis Hooks
   //===--------------------------------------------------------------------===//
 
-  /// All call operations within toy can be inlined.
+  /// All call operations within dsp can be inlined.
   bool isLegalToInline(Operation *call, Operation *callable,
                        bool wouldBeCloned) const final {
     return true;
   }
 
-  /// All operations within toy can be inlined.
+  /// All operations within dsp can be inlined.
   bool isLegalToInline(Operation *, Region *, bool, IRMapping &) const final {
     return true;
   }
 
-  // All functions within toy can be inlined.
+  // All functions within dsp can be inlined.
   bool isLegalToInline(Region *, Region *, bool, IRMapping &) const final {
     return true;
   }
@@ -57,11 +57,11 @@ struct ToyInlinerInterface : public DialectInlinerInterface {
   // Transformation Hooks
   //===--------------------------------------------------------------------===//
 
-  /// Handle the given inlined terminator(toy.return) by replacing it with a new
+  /// Handle the given inlined terminator(dsp.return) by replacing it with a new
   /// operation as necessary.
   void handleTerminator(Operation *op,
                         ArrayRef<Value> valuesToRepl) const final {
-    // Only "toy.return" needs to be handled here.
+    // Only "dsp.return" needs to be handled here.
     auto returnOp = cast<ReturnOp>(op);
 
     // Replace the values directly with the return operands.
@@ -91,7 +91,7 @@ struct ToyInlinerInterface : public DialectInlinerInterface {
 void DspDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
-#include "toy/Ops.cpp.inc"
+#include "dsp/Ops.cpp.inc"
       >();
   addInterfaces<ToyInlinerInterface>();
 }
@@ -476,4 +476,4 @@ void DelayOp::inferShapes() { getResult().setType(getLhs().getType()) ;}
 //===----------------------------------------------------------------------===//
 
 #define GET_OP_CLASSES
-#include "toy/Ops.cpp.inc"
+#include "dsp/Ops.cpp.inc"

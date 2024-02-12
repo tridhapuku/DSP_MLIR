@@ -13,8 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/IR/BuiltinDialect.h"
-#include "toy/Dialect.h"
-#include "toy/Passes.h"
+#include "dsp/Dialect.h"
+#include "dsp/Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -49,7 +49,7 @@ static Value insertAllocAndDealloc(MemRefType type, Location loc,
   alloc->moveBefore(&parentBlock->front());
 
   // Make sure to deallocate this alloc at the end of the block. This is fine
-  // as toy functions have no control flow.
+  // as dsp functions have no control flow.
   auto dealloc = rewriter.create<memref::DeallocOp>(loc, alloc);
   dealloc->moveBefore(&parentBlock->back());
   return alloc;
@@ -152,9 +152,9 @@ static void lowerOpToLoops3(Operation *op, ValueRange operands,
   //get definingOp & also, get the constant values from definingOp->operands
   // add those constant values 
   // use this sum for the de
-  // auto constantOp = dyn_cast_or_null<toy::ConstantOp>(definingOp);
-  toy::ConstantOp constantOp2ndArg = delaySecondArg.getDefiningOp<toy::ConstantOp>();
-  toy::AddOp addOp2ndArg = delaySecondArg.getDefiningOp<toy::AddOp>();
+  // auto constantOp = dyn_cast_or_null<dsp::ConstantOp>(definingOp);
+  dsp::ConstantOp constantOp2ndArg = delaySecondArg.getDefiningOp<dsp::ConstantOp>();
+  dsp::AddOp addOp2ndArg = delaySecondArg.getDefiningOp<dsp::AddOp>();
   
   int64_t SecondValueInt = 0;
   if(constantOp2ndArg)
@@ -171,8 +171,8 @@ static void lowerOpToLoops3(Operation *op, ValueRange operands,
     Value lhs = addOp2ndArg.getLhs();
     Value rhs = addOp2ndArg.getRhs();
 
-    toy::ConstantOp constantAdd1arg = lhs.getDefiningOp<toy::ConstantOp>();
-    toy::ConstantOp constantAdd2arg = rhs.getDefiningOp<toy::ConstantOp>();
+    dsp::ConstantOp constantAdd1arg = lhs.getDefiningOp<dsp::ConstantOp>();
+    dsp::ConstantOp constantAdd2arg = rhs.getDefiningOp<dsp::ConstantOp>();
 
     if(!constantAdd1arg || !constantAdd2arg)
     {
@@ -298,7 +298,7 @@ static void lowerOpToLoops3(Operation *op, ValueRange operands,
         //  [loc ] (OpBuilder &builder, ValueRange memRefOperands,
         //           ValueRange loopIvs) {
         //             //
-        //             toy::DelayOpAdaptor delayAdaptor(memRefOperands);
+        //             dsp::DelayOpAdaptor delayAdaptor(memRefOperands);
         //             Value input0 = delayAdaptor.getLhs();
 
         //             auto zeroValue = builder.create<arith::ConstantOp>(loc, builder.getF64Type(),
@@ -340,7 +340,7 @@ static void lowerOpToLoops3(Operation *op, ValueRange operands,
         // to store at the current index.
 
         //Get the input allocated space for the load
-        toy::DelayOpAdaptor delayAdaptor(operands);
+        dsp::DelayOpAdaptor delayAdaptor(operands);
         auto loadFromIP = nestedBuilder.create<affine::AffineLoadOp>(loc, delayAdaptor.getLhs(),ivs);
         // llvm::errs() << __LINE__ << "\n";
         // AffineExpr indx; 
@@ -382,8 +382,8 @@ static void lowerOpToLoops2(Operation *op, ValueRange operands,
   llvm::errs() << "delaySecondArg.getDefiningOp()= " << delaySecondArg.getDefiningOp() << "\n";
   // int64_t delayValue = delaySecondArg.getDefiningOp()->getAttrOfType<IntegerAttr>("value").getInt();
 
-  // auto constantOp = dyn_cast_or_null<toy::ConstantOp>(definingOp);
-  toy::ConstantOp constantOp2ndArg = delaySecondArg.getDefiningOp<toy::ConstantOp>();
+  // auto constantOp = dyn_cast_or_null<dsp::ConstantOp>(definingOp);
+  dsp::ConstantOp constantOp2ndArg = delaySecondArg.getDefiningOp<dsp::ConstantOp>();
   if(!constantOp2ndArg)
   {
     llvm::errs() << "Defining Opp is not constant so no lowering for now";
@@ -519,7 +519,7 @@ static void lowerOpToLoops2(Operation *op, ValueRange operands,
         //  [loc ] (OpBuilder &builder, ValueRange memRefOperands,
         //           ValueRange loopIvs) {
         //             //
-        //             toy::DelayOpAdaptor delayAdaptor(memRefOperands);
+        //             dsp::DelayOpAdaptor delayAdaptor(memRefOperands);
         //             Value input0 = delayAdaptor.getLhs();
 
         //             auto zeroValue = builder.create<arith::ConstantOp>(loc, builder.getF64Type(),
@@ -560,7 +560,7 @@ static void lowerOpToLoops2(Operation *op, ValueRange operands,
         // to store at the current index.
 
         //Get the input allocated space for the load
-        toy::DelayOpAdaptor delayAdaptor(operands);
+        dsp::DelayOpAdaptor delayAdaptor(operands);
         auto loadFromIP = nestedBuilder.create<affine::AffineLoadOp>(loc, delayAdaptor.getLhs(),ivs);
         // llvm::errs() << __LINE__ << "\n";
         // AffineExpr indx; 
@@ -588,12 +588,12 @@ namespace {
 //===----------------------------------------------------------------------===//
 struct DelayOpLowering: public ConversionPattern {
       DelayOpLowering(MLIRContext *ctx)
-        : ConversionPattern(toy::DelayOp::getOperationName(), 1 , ctx) {}
+        : ConversionPattern(dsp::DelayOp::getOperationName(), 1 , ctx) {}
 
     LogicalResult 
     matchAndRewrite(Operation *op, ArrayRef<Value> operands,
               ConversionPatternRewriter &rewriter) const final {
-      //toy.DelayOp has 2 operands -- both of type tensor f64
+      //dsp.DelayOp has 2 operands -- both of type tensor f64
 
       //Get the location of delayop
       auto loc = op->getLoc();
@@ -640,7 +640,7 @@ struct DelayOpLowering: public ConversionPattern {
       //       [loc ] (OpBuilder &builder, ValueRange memRefOperands,
       //             ValueRange loopIvs) {
       //               //
-      //               toy::DelayOpAdaptor delayAdaptor(memRefOperands);
+      //               dsp::DelayOpAdaptor delayAdaptor(memRefOperands);
       //               Value input0 = delayAdaptor.getLhs();
 
       //               auto zeroValue = builder.create<arith::ConstantOp>(loc, builder.getF64Type(),
@@ -654,7 +654,7 @@ struct DelayOpLowering: public ConversionPattern {
             [loc ] (OpBuilder &builder, ValueRange memRefOperands,
                   ValueRange loopIvs) {
                     //
-                    toy::DelayOpAdaptor delayAdaptor(memRefOperands);
+                    dsp::DelayOpAdaptor delayAdaptor(memRefOperands);
                     Value input0 = delayAdaptor.getLhs();
 
                     auto zeroValue = builder.create<arith::ConstantOp>(loc, builder.getF64Type(),
@@ -736,17 +736,17 @@ struct BinaryOpLowering : public ConversionPattern {
     return success();
   }
 };
-using AddOpLowering = BinaryOpLowering<toy::AddOp, arith::AddFOp>;
-using MulOpLowering = BinaryOpLowering<toy::MulOp, arith::MulFOp>;
+using AddOpLowering = BinaryOpLowering<dsp::AddOp, arith::AddFOp>;
+using MulOpLowering = BinaryOpLowering<dsp::MulOp, arith::MulFOp>;
 
 //===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: Constant operations
 //===----------------------------------------------------------------------===//
 
-struct ConstantOpLowering : public OpRewritePattern<toy::ConstantOp> {
-  using OpRewritePattern<toy::ConstantOp>::OpRewritePattern;
+struct ConstantOpLowering : public OpRewritePattern<dsp::ConstantOp> {
+  using OpRewritePattern<dsp::ConstantOp>::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(toy::ConstantOp op,
+  LogicalResult matchAndRewrite(dsp::ConstantOp op,
                                 PatternRewriter &rewriter) const final {
     DenseElementsAttr constantValue = op.getValue();
     Location loc = op.getLoc();
@@ -812,11 +812,11 @@ struct ConstantOpLowering : public OpRewritePattern<toy::ConstantOp> {
 // ToyToAffine RewritePatterns: Func operations
 //===----------------------------------------------------------------------===//
 
-struct FuncOpLowering : public OpConversionPattern<toy::FuncOp> {
-  using OpConversionPattern<toy::FuncOp>::OpConversionPattern;
+struct FuncOpLowering : public OpConversionPattern<dsp::FuncOp> {
+  using OpConversionPattern<dsp::FuncOp>::OpConversionPattern;
 
   LogicalResult
-  matchAndRewrite(toy::FuncOp op, OpAdaptor adaptor,
+  matchAndRewrite(dsp::FuncOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const final {
     // We only lower the main function as we expect that all other functions
     // have been inlined.
@@ -830,7 +830,7 @@ struct FuncOpLowering : public OpConversionPattern<toy::FuncOp> {
       });
     }
 
-    // Create a new non-toy function, with the same region.
+    // Create a new non-dsp function, with the same region.
     auto func = rewriter.create<mlir::func::FuncOp>(op.getLoc(), op.getName(),
                                                     op.getFunctionType());
     rewriter.inlineRegionBefore(op.getRegion(), func.getBody(), func.end());
@@ -843,13 +843,13 @@ struct FuncOpLowering : public OpConversionPattern<toy::FuncOp> {
 // ToyToAffine RewritePatterns: Print operations
 //===----------------------------------------------------------------------===//
 
-struct PrintOpLowering : public OpConversionPattern<toy::PrintOp> {
-  using OpConversionPattern<toy::PrintOp>::OpConversionPattern;
+struct PrintOpLowering : public OpConversionPattern<dsp::PrintOp> {
+  using OpConversionPattern<dsp::PrintOp>::OpConversionPattern;
 
   LogicalResult
-  matchAndRewrite(toy::PrintOp op, OpAdaptor adaptor,
+  matchAndRewrite(dsp::PrintOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const final {
-    // We don't lower "toy.print" in this pass, but we need to update its
+    // We don't lower "dsp.print" in this pass, but we need to update its
     // operands.
     rewriter.updateRootInPlace(op,
                                [&] { op->setOperands(adaptor.getOperands()); });
@@ -861,17 +861,17 @@ struct PrintOpLowering : public OpConversionPattern<toy::PrintOp> {
 // ToyToAffine RewritePatterns: Return operations
 //===----------------------------------------------------------------------===//
 
-struct ReturnOpLowering : public OpRewritePattern<toy::ReturnOp> {
-  using OpRewritePattern<toy::ReturnOp>::OpRewritePattern;
+struct ReturnOpLowering : public OpRewritePattern<dsp::ReturnOp> {
+  using OpRewritePattern<dsp::ReturnOp>::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(toy::ReturnOp op,
+  LogicalResult matchAndRewrite(dsp::ReturnOp op,
                                 PatternRewriter &rewriter) const final {
     // During this lowering, we expect that all function calls have been
     // inlined.
     if (op.hasOperand())
       return failure();
 
-    // We lower "toy.return" directly to "func.return".
+    // We lower "dsp.return" directly to "func.return".
     rewriter.replaceOpWithNewOp<func::ReturnOp>(op);
     return success();
   }
@@ -883,7 +883,7 @@ struct ReturnOpLowering : public OpRewritePattern<toy::ReturnOp> {
 
 struct TransposeOpLowering : public ConversionPattern {
   TransposeOpLowering(MLIRContext *ctx)
-      : ConversionPattern(toy::TransposeOp::getOperationName(), 1, ctx) {}
+      : ConversionPattern(dsp::TransposeOp::getOperationName(), 1, ctx) {}
 
   LogicalResult
   matchAndRewrite(Operation *op, ArrayRef<Value> operands,
@@ -895,7 +895,7 @@ struct TransposeOpLowering : public ConversionPattern {
                      // Generate an adaptor for the remapped operands of the
                      // TransposeOp. This allows for using the nice named
                      // accessors that are generated by the ODS.
-                     toy::TransposeOpAdaptor transposeAdaptor(memRefOperands);
+                     dsp::TransposeOpAdaptor transposeAdaptor(memRefOperands);
                      Value input = transposeAdaptor.getInput();
 
                      // Transpose the elements by generating a load from the
@@ -914,7 +914,7 @@ struct TransposeOpLowering : public ConversionPattern {
 // ToyToAffineLoweringPass
 //===----------------------------------------------------------------------===//
 
-/// This is a partial lowering to affine loops of the toy operations that are
+/// This is a partial lowering to affine loops of the dsp operations that are
 /// computationally intensive (like matmul for example...) while keeping the
 /// rest of the code in the Toy dialect.
 namespace {
@@ -945,11 +945,11 @@ void ToyToAffineLoweringPass::runOnOperation() {
   // We also define the Toy dialect as Illegal so that the conversion will fail
   // if any of these operations are *not* converted. Given that we actually want
   // a partial lowering, we explicitly mark the Toy operations that don't want
-  // to lower, `toy.print`, as `legal`. `toy.print` will still need its operands
+  // to lower, `dsp.print`, as `legal`. `dsp.print` will still need its operands
   // to be updated though (as we convert from TensorType to MemRefType), so we
   // only treat it as `legal` if its operands are legal.
-  target.addIllegalDialect<toy::DspDialect>();
-  target.addDynamicallyLegalOp<toy::PrintOp>([](toy::PrintOp op) {
+  target.addIllegalDialect<dsp::DspDialect>();
+  target.addDynamicallyLegalOp<dsp::PrintOp>([](dsp::PrintOp op) {
     return llvm::none_of(op->getOperandTypes(),
                          [](Type type) { return llvm::isa<TensorType>(type); });
   });
@@ -972,6 +972,6 @@ void ToyToAffineLoweringPass::runOnOperation() {
 
 /// Create a pass for lowering operations in the `Affine` and `Std` dialects,
 /// for a subset of the Toy IR (e.g. matmul).
-std::unique_ptr<Pass> mlir::toy::createLowerToAffinePass() {
+std::unique_ptr<Pass> mlir::dsp::createLowerToAffinePass() {
   return std::make_unique<ToyToAffineLoweringPass>();
 }

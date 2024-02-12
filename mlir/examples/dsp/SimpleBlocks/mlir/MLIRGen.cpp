@@ -11,9 +11,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "toy/MLIRGen.h"
-#include "toy/AST.h"
-#include "toy/Dialect.h"
+#include "dsp/MLIRGen.h"
+#include "dsp/AST.h"
+#include "dsp/Dialect.h"
 
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
@@ -27,8 +27,8 @@
 #include "llvm/Support/raw_ostream.h"
 #include <numeric>
 
-using namespace mlir::toy;
-using namespace toy;
+using namespace mlir::dsp;
+using namespace dsp;
 
 using llvm::ArrayRef;
 using llvm::cast;
@@ -103,7 +103,7 @@ private:
 
   /// Create the prototype for an MLIR function with as many arguments as the
   /// provided Toy AST prototype.
-  mlir::toy::FuncOp mlirGen(PrototypeAST &proto) {
+  mlir::dsp::FuncOp mlirGen(PrototypeAST &proto) {
     auto location = loc(proto.loc());
 
     // This is a generic function, the return type will be inferred later.
@@ -111,18 +111,18 @@ private:
     llvm::SmallVector<mlir::Type, 4> argTypes(proto.getArgs().size(),
                                               getType(VarType{}));
     auto funcType = builder.getFunctionType(argTypes, std::nullopt);
-    return builder.create<mlir::toy::FuncOp>(location, proto.getName(),
+    return builder.create<mlir::dsp::FuncOp>(location, proto.getName(),
                                              funcType);
   }
 
   /// Emit a new function and add it to the MLIR module.
-  mlir::toy::FuncOp mlirGen(FunctionAST &funcAST) {
+  mlir::dsp::FuncOp mlirGen(FunctionAST &funcAST) {
     // Create a scope in the symbol table to hold variable declarations.
     ScopedHashTableScope<llvm::StringRef, mlir::Value> varScope(symbolTable);
 
     // Create an MLIR function for the given prototype.
     builder.setInsertionPointToEnd(theModule.getBody());
-    mlir::toy::FuncOp function = mlirGen(*funcAST.getProto());
+    mlir::dsp::FuncOp function = mlirGen(*funcAST.getProto());
     if (!function)
       return nullptr;
 
@@ -235,7 +235,7 @@ private:
   }
 
   /// Emit a literal/constant array. It will be emitted as a flattened array of
-  /// data in an Attribute attached to a `toy.constant` operation.
+  /// data in an Attribute attached to a `dsp.constant` operation.
   /// See documentation on [Attributes](LangRef.md#attributes) for more details.
   /// Here is an excerpt:
   ///
@@ -248,7 +248,7 @@ private:
   /// Example, the source level statement:
   ///   var a<2, 3> = [[1, 2, 3], [4, 5, 6]];
   /// will be converted to:
-  ///   %0 = "toy.constant"() {value: dense<tensor<2x3xf64>,
+  ///   %0 = "dsp.constant"() {value: dense<tensor<2x3xf64>,
   ///     [[1.000000e+00, 2.000000e+00, 3.000000e+00],
   ///      [4.000000e+00, 5.000000e+00, 6.000000e+00]]>} : () -> tensor<2x3xf64>
   ///
@@ -272,7 +272,7 @@ private:
     auto dataAttribute =
         mlir::DenseElementsAttr::get(dataType, llvm::ArrayRef(data));
 
-    // Build the MLIR op `toy.constant`. This invokes the `ConstantOp::build`
+    // Build the MLIR op `dsp.constant`. This invokes the `ConstantOp::build`
     // method.
     return builder.create<ConstantOp>(loc(lit.loc()), type, dataAttribute);
   }
@@ -315,7 +315,7 @@ private:
     // straightforward emission.
     if (callee == "transpose") {
       if (call.getArgs().size() != 1) {
-        emitError(location, "MLIR codegen encountered an error: toy.transpose "
+        emitError(location, "MLIR codegen encountered an error: dsp.transpose "
                             "does not accept multiple arguments");
         return nullptr;
       }
@@ -325,7 +325,7 @@ private:
     //
     if(callee == "delay"){
       if(call.getArgs().size() != 2){
-        emitError(location, "MLIR codegen encountered an error: toy.delay "
+        emitError(location, "MLIR codegen encountered an error: dsp.delay "
                             "accepts only 2 arguments");
         return nullptr;
       }
@@ -336,7 +336,7 @@ private:
     // straightforward emission.
     // if(callee == "delay"){
     //   if(call.getArgs().size() != 1){
-    //     emitError(location, "MLIR codegen encountered an error: toy.delay "
+    //     emitError(location, "MLIR codegen encountered an error: dsp.delay "
     //                         "does not accept multiple arguments");
     //     return nullptr;
     //   }
@@ -368,15 +368,15 @@ private:
   /// Dispatch codegen for the right expression subclass using RTTI.
   mlir::Value mlirGen(ExprAST &expr) {
     switch (expr.getKind()) {
-    case toy::ExprAST::Expr_BinOp:
+    case dsp::ExprAST::Expr_BinOp:
       return mlirGen(cast<BinaryExprAST>(expr));
-    case toy::ExprAST::Expr_Var:
+    case dsp::ExprAST::Expr_Var:
       return mlirGen(cast<VariableExprAST>(expr));
-    case toy::ExprAST::Expr_Literal:
+    case dsp::ExprAST::Expr_Literal:
       return mlirGen(cast<LiteralExprAST>(expr));
-    case toy::ExprAST::Expr_Call:
+    case dsp::ExprAST::Expr_Call:
       return mlirGen(cast<CallExprAST>(expr));
-    case toy::ExprAST::Expr_Num:
+    case dsp::ExprAST::Expr_Num:
       return mlirGen(cast<NumberExprAST>(expr));
     default:
       emitError(loc(expr.loc()))
@@ -460,7 +460,7 @@ private:
 
 } // namespace
 
-namespace toy {
+namespace dsp {
 
 // The public API for codegen.
 mlir::OwningOpRef<mlir::ModuleOp> mlirGen(mlir::MLIRContext &context,
@@ -468,4 +468,4 @@ mlir::OwningOpRef<mlir::ModuleOp> mlirGen(mlir::MLIRContext &context,
   return MLIRGenImpl(context).mlirGen(moduleAST);
 }
 
-} // namespace toy
+} // namespace dsp

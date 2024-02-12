@@ -21,15 +21,15 @@
 #include "mlir/Interfaces/CallInterfaces.h"
 #include "mlir/Interfaces/CastInterfaces.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
-#include "toy/ShapeInferenceInterface.h"
+#include "dsp/ShapeInferenceInterface.h"
 
 /// Include the auto-generated header file containing the declaration of the toy
 /// dialect.
-#include "toy/Dialect.h.inc"
+#include "dsp/Dialect.h.inc"
 
 /// Include the auto-generated header file containing the declarations of the
 /// toy operations.
 #define GET_OP_CLASSES
-#include "toy/Ops.h.inc"
+#include "dsp/Ops.h.inc"
 
 #endif // MLIR_TUTORIAL_TOY_DIALECT_H_

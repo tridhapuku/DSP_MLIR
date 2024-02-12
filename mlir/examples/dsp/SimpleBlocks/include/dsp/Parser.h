@@ -14,8 +14,8 @@
 #ifndef TOY_PARSER_H
 #define TOY_PARSER_H
 
-#include "toy/AST.h"
-#include "toy/Lexer.h"
+#include "dsp/AST.h"
+#include "dsp/Lexer.h"
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
@@ -26,7 +26,7 @@
 #include <vector>
 #include <optional>
 
-namespace toy {
+namespace dsp {
 
 /// This is a simple recursive parser for the Toy language. It produces a well
 /// formed AST from a stream of Token supplied by the Lexer. No semantic checks
@@ -484,6 +484,6 @@ private:
   }
 };
 
-} // namespace toy
+} // namespace dsp
 
 #endif // TOY_PARSER_H

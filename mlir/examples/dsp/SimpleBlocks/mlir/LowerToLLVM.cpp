@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 //
 // This file implements full lowering of Toy operations to LLVM MLIR dialect.
-// 'toy.print' is lowered to a loop nest that calls `printf` on each element of
+// 'dsp.print' is lowered to a loop nest that calls `printf` on each element of
 // the input array. The file also sets up the ToyToLLVMLoweringPass. This pass
 // lowers the combination of Arithmetic + Affine + SCF + Func dialects to the
 // LLVM one:
@@ -18,12 +18,12 @@
 //                       Arithmetic + Func --> LLVM (Dialect)
 //                                  ^
 //                                  |
-//     'toy.print' --> Loop (SCF) --
+//     'dsp.print' --> Loop (SCF) --
 //
 //===----------------------------------------------------------------------===//
 
-#include "toy/Dialect.h"
-#include "toy/Passes.h"
+#include "dsp/Dialect.h"
+#include "dsp/Passes.h"
 
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
 #include "mlir/Conversion/ArithToLLVM/ArithToLLVM.h"
@@ -51,12 +51,12 @@ using namespace mlir;
 //===----------------------------------------------------------------------===//
 
 namespace {
-/// Lowers `toy.print` to a loop nest calling `printf` on each of the individual
+/// Lowers `dsp.print` to a loop nest calling `printf` on each of the individual
 /// elements of the array.
 class PrintOpLowering : public ConversionPattern {
 public:
   explicit PrintOpLowering(MLIRContext *context)
-      : ConversionPattern(toy::PrintOp::getOperationName(), 1, context) {}
+      : ConversionPattern(dsp::PrintOp::getOperationName(), 1, context) {}
 
   LogicalResult
   matchAndRewrite(Operation *op, ArrayRef<Value> operands,
@@ -99,7 +99,7 @@ public:
     }
 
     // Generate a call to printf for the current element of the loop.
-    auto printOp = cast<toy::PrintOp>(op);
+    auto printOp = cast<dsp::PrintOp>(op);
     auto elementLoad =
         rewriter.create<memref::LoadOp>(loc, printOp.getInput(), loopIvs);
     rewriter.create<func::CallOp>(
@@ -196,7 +196,7 @@ void ToyToLLVMLoweringPass::runOnOperation() {
 
   // Now that the conversion target has been defined, we need to provide the
   // patterns used for lowering. At this point of the compilation process, we
-  // have a combination of `toy`, `affine`, and `std` operations. Luckily, there
+  // have a combination of `dsp`, `affine`, and `std` operations. Luckily, there
   // are already exists a set of patterns to transform `affine` and `std`
   // dialects. These patterns lowering in multiple stages, relying on transitive
   // lowerings. Transitive lowering, or A->B->C lowering, is when multiple
@@ -210,7 +210,7 @@ void ToyToLLVMLoweringPass::runOnOperation() {
   cf::populateControlFlowToLLVMConversionPatterns(typeConverter, patterns);
   populateFuncToLLVMConversionPatterns(typeConverter, patterns);
 
-  // The only remaining operation to lower from the `toy` dialect, is the
+  // The only remaining operation to lower from the `dsp` dialect, is the
   // PrintOp.
   patterns.add<PrintOpLowering>(&getContext());
 
@@ -223,6 +223,6 @@ void ToyToLLVMLoweringPass::runOnOperation() {
 
 /// Create a pass for lowering operations the remaining `Toy` operations, as
 /// well as `Affine` and `Std`, to the LLVM dialect for codegen.
-std::unique_ptr<mlir::Pass> mlir::toy::createLowerToLLVMPass() {
+std::unique_ptr<mlir::Pass> mlir::dsp::createLowerToLLVMPass() {
   return std::make_unique<ToyToLLVMLoweringPass>();
 }

@@ -15,7 +15,7 @@
 #ifndef TOY_AST_H
 #define TOY_AST_H
 
-#include "toy/Lexer.h"
+#include "dsp/Lexer.h"
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
@@ -24,7 +24,7 @@
 #include <vector>
 #include <optional>
 
-namespace toy {
+namespace dsp {
 
 /// A variable type with shape information.
 struct VarType {
@@ -241,6 +241,6 @@ public:
 
 void dump(ModuleAST &);
 
-} // namespace toy
+} // namespace dsp
 
 #endif // TOY_AST_H

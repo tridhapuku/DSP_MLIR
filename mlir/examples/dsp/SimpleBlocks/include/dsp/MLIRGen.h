@@ -23,13 +23,13 @@ class OwningOpRef;
 class ModuleOp;
 } // namespace mlir
 
-namespace toy {
+namespace dsp {
 class ModuleAST;
 
 /// Emit IR for the given Toy moduleAST, returns a newly created MLIR module
 /// or nullptr on failure.
 mlir::OwningOpRef<mlir::ModuleOp> mlirGen(mlir::MLIRContext &context,
                                           ModuleAST &moduleAST);
-} // namespace toy
+} // namespace dsp
 
 #endif // TOY_MLIRGEN_H

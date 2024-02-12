@@ -12,9 +12,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Pass/Pass.h"
-#include "toy/Dialect.h"
-#include "toy/Passes.h"
-#include "toy/ShapeInferenceInterface.h"
+#include "dsp/Dialect.h"
+#include "dsp/Passes.h"
+#include "dsp/ShapeInferenceInterface.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -22,10 +22,10 @@
 #define DEBUG_TYPE "shape-inference"
 
 using namespace mlir;
-using namespace toy;
+using namespace dsp;
 
 /// Include the auto-generated definitions for the shape inference interfaces.
-#include "toy/ShapeInferenceOpInterfaces.cpp.inc"
+#include "dsp/ShapeInferenceOpInterfaces.cpp.inc"
 
 namespace {
 /// The ShapeInferencePass is a pass that performs intra-procedural
@@ -45,7 +45,7 @@ namespace {
 ///   3) If the worklist is empty, the algorithm succeeded.
 ///
 struct ShapeInferencePass
-    : public mlir::PassWrapper<ShapeInferencePass, OperationPass<toy::FuncOp>> {
+    : public mlir::PassWrapper<ShapeInferencePass, OperationPass<dsp::FuncOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(ShapeInferencePass)
 
   void runOnOperation() override {
@@ -109,6 +109,6 @@ struct ShapeInferencePass
 } // namespace
 
 /// Create a Shape Inference pass.
-std::unique_ptr<mlir::Pass> mlir::toy::createShapeInferencePass() {
+std::unique_ptr<mlir::Pass> mlir::dsp::createShapeInferencePass() {
   return std::make_unique<ShapeInferencePass>();
 }

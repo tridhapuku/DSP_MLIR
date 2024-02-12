@@ -18,13 +18,13 @@ include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
-include "toy/ShapeInferenceInterface.td"
+include "dsp/ShapeInferenceInterface.td"
 
 // Provide a definition of the 'toy' dialect in the ODS framework so that we
 // can define our operations.
 def Dsp_Dialect : Dialect {
   let name = "dsp";
-  let cppNamespace = "::mlir::toy";
+  let cppNamespace = "::mlir::dsp";
 }
 
 // Base class for toy dialect operations. This operation inherits from the base

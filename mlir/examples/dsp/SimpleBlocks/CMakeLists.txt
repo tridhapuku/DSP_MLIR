@@ -19,8 +19,8 @@ set(LLVM_TARGET_DEFINITIONS mlir/ToyCombine.td)
 mlir_tablegen(ToyCombine.inc -gen-rewriters)
 add_public_tablegen_target(DspSimpleBlocksCombineIncGen)
 
-add_toy_chapter(dsp1
-  toyc.cpp
+add_dsp_chapter(dsp1
+  dspMain.cpp
   parser/AST.cpp
   mlir/MLIRGen.cpp
   mlir/Dialect.cpp

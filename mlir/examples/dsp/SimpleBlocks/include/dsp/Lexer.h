@@ -18,7 +18,7 @@
 #include <memory>
 #include <string>
 
-namespace toy {
+namespace dsp {
 
 /// Structure definition a location in a file.
 struct Location {
@@ -227,6 +227,6 @@ private:
   }
   const char *current, *end;
 };
-} // namespace toy
+} // namespace dsp
 
 #endif // TOY_LEXER_H

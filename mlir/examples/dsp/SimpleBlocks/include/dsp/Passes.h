@@ -18,7 +18,7 @@
 namespace mlir {
 class Pass;
 
-namespace toy {
+namespace dsp {
 std::unique_ptr<Pass> createShapeInferencePass();
 
 /// Create a pass for lowering to operations in the `Affine` and `Std` dialects,
@@ -29,7 +29,7 @@ std::unique_ptr<mlir::Pass> createLowerToAffinePass();
 /// well as `Affine` and `Std`, to the LLVM dialect for codegen.
 std::unique_ptr<mlir::Pass> createLowerToLLVMPass();
 
-} // namespace toy
+} // namespace dsp
 } // namespace mlir
 
 #endif // TOY_PASSES_H

@@ -1,4 +1,4 @@
-//===- toyc.cpp - The Toy Compiler ----------------------------------------===//
+//===- dspc.cpp - The Toy Compiler ----------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -11,10 +11,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Dialect/Func/Extensions/AllExtensions.h"
-#include "toy/Dialect.h"
-#include "toy/MLIRGen.h"
-#include "toy/Parser.h"
-#include "toy/Passes.h"
+#include "dsp/Dialect.h"
+#include "dsp/MLIRGen.h"
+#include "dsp/Parser.h"
+#include "dsp/Passes.h"
 
 #include "mlir/Dialect/Affine/Passes.h"
 #include "mlir/Dialect/LLVMIR/Transforms/Passes.h"
@@ -48,11 +48,11 @@
 using namespace std;
 using namespace std::chrono;
 
-using namespace toy;
+using namespace dsp;
 namespace cl = llvm::cl;
 
 static cl::opt<std::string> inputFilename(cl::Positional,
-                                          cl::desc("<input toy file>"),
+                                          cl::desc("<input dsp file>"),
                                           cl::init("-"),
                                           cl::value_desc("filename"));
 
@@ -61,7 +61,7 @@ enum InputType { Toy, MLIR };
 } // namespace
 static cl::opt<enum InputType> inputType(
     "x", cl::init(Toy), cl::desc("Decided the kind of output desired"),
-    cl::values(clEnumValN(Toy, "toy", "load the input file as a Toy source.")),
+    cl::values(clEnumValN(Toy, "dsp", "load the input file as a Toy source.")),
     cl::values(clEnumValN(MLIR, "mlir",
                           "load the input file as an MLIR file")));
 
@@ -92,7 +92,7 @@ static cl::opt<enum Action> emitAction(
 static cl::opt<bool> enableOpt("opt", cl::desc("Enable optimizations"));
 
 /// Returns a Toy AST resulting from parsing the file or a nullptr on error.
-std::unique_ptr<toy::ModuleAST> parseInputFile(llvm::StringRef filename) {
+std::unique_ptr<dsp::ModuleAST> parseInputFile(llvm::StringRef filename) {
   llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> fileOrErr =
       llvm::MemoryBuffer::getFileOrSTDIN(filename);
   if (std::error_code ec = fileOrErr.getError()) {
@@ -107,7 +107,7 @@ std::unique_ptr<toy::ModuleAST> parseInputFile(llvm::StringRef filename) {
 
 int loadMLIR(mlir::MLIRContext &context,
              mlir::OwningOpRef<mlir::ModuleOp> &module) {
-  // Handle '.toy' input to the compiler.
+  // Handle '.dsp' input to the compiler.
   if (inputType != InputType::MLIR &&
       !llvm::StringRef(inputFilename).endswith(".mlir")) {
     auto moduleAST = parseInputFile(inputFilename);
@@ -156,15 +156,15 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
 
     // Now that there is only one function, we can infer the shapes of each of
     // the operations.
-    mlir::OpPassManager &optPM = pm.nest<mlir::toy::FuncOp>();
-    optPM.addPass(mlir::toy::createShapeInferencePass());
+    mlir::OpPassManager &optPM = pm.nest<mlir::dsp::FuncOp>();
+    optPM.addPass(mlir::dsp::createShapeInferencePass());
     optPM.addPass(mlir::createCanonicalizerPass());
     optPM.addPass(mlir::createCSEPass());
   }
 
   if (isLoweringToAffine) {
-    // Partially lower the toy dialect.
-    pm.addPass(mlir::toy::createLowerToAffinePass());
+    // Partially lower the dsp dialect.
+    pm.addPass(mlir::dsp::createLowerToAffinePass());
 
     // Add a few cleanups post lowering.
     mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
@@ -179,8 +179,8 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
   }
 
   if (isLoweringToLLVM) {
-    // Finish lowering the toy IR to the LLVM dialect.
-    pm.addPass(mlir::toy::createLowerToLLVMPass());
+    // Finish lowering the dsp IR to the LLVM dialect.
+    pm.addPass(mlir::dsp::createLowerToLLVMPass());
     // This is necessary to have line tables emitted and basic
     // debugger working. In the future we will add proper debug information
     // emission directly from our frontend.
@@ -293,7 +293,7 @@ int main(int argc, char **argv) {
   mlir::registerMLIRContextCLOptions();
   mlir::registerPassManagerCLOptions();
 
-  cl::ParseCommandLineOptions(argc, argv, "toy compiler\n");
+  cl::ParseCommandLineOptions(argc, argv, "dsp compiler\n");
 
   if (emitAction == Action::DumpAST)
     return dumpAST();
@@ -304,7 +304,7 @@ int main(int argc, char **argv) {
 
   mlir::MLIRContext context(registry);
   // Load our Dialect in this MLIR Context.
-  context.getOrLoadDialect<mlir::toy::DspDialect>();
+  context.getOrLoadDialect<mlir::dsp::DspDialect>();
 
   mlir::OwningOpRef<mlir::ModuleOp> module;
   if (int error = loadAndProcessMLIR(context, module))

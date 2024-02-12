@@ -10,13 +10,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "toy/AST.h"
+#include "dsp/AST.h"
 
 #include "llvm/ADT/Twine.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/raw_ostream.h"
 
-using namespace toy;
+using namespace dsp;
 
 namespace {
 
@@ -226,9 +226,9 @@ void ASTDumper::dump(ModuleAST *node) {
     dump(&f);
 }
 
-namespace toy {
+namespace dsp {
 
 // Public API
 void dump(ModuleAST &module) { ASTDumper().dump(&module); }
 
-} // namespace toy
+} // namespace dsp

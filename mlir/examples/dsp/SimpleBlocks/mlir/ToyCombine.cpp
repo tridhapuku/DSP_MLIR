@@ -13,10 +13,10 @@
 
 #include "mlir/IR/Matchers.h"
 #include "mlir/IR/PatternMatch.h"
-#include "toy/Dialect.h"
+#include "dsp/Dialect.h"
 #include <numeric>
 using namespace mlir;
-using namespace toy;
+using namespace dsp;
 
 namespace {
 /// Include the patterns defined in the Declarative Rewrite framework.
@@ -26,7 +26,7 @@ namespace {
 /// This is an example of a c++ rewrite pattern for the TransposeOp. It
 /// optimizes the following scenario: transpose(transpose(x)) -> x
 struct SimplifyRedundantTranspose : public mlir::OpRewritePattern<TransposeOp> {
-  /// We register this pattern to match every toy.transpose in the IR.
+  /// We register this pattern to match every dsp.transpose in the IR.
   /// The "benefit" is used by the framework to order the patterns and process
   /// them in order of profitability.
   SimplifyRedundantTranspose(mlir::MLIRContext *context)
