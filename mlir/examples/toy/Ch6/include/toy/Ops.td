@@ -367,4 +367,50 @@ def TransposeOp : Toy_Op<"transpose",
   let hasVerifier = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// DelayOp
+//===----------------------------------------------------------------------===//
+
+def DelayOp : Toy_Op<"delay" , 
+          [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+// def DelayOp : Toy_Op<"delay" > {
+  let summary = "shifting tensor by given number";
+  let description = [{
+    The "delay" operation performs shift in array/tensor by given arg -- 
+    ex: shift by 1 -- 1 element will become 0.
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  // let arguments = (ins F64Tensor:$lhs, UI32:$rhs); //
+  // let results = (outs F64Tensor);
+
+  // let arguments = (ins F64Tensor:$lhs, UI32:$rhs); 
+  let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs);//working
+  let results = (outs F64Tensor);
+
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input1 , $input2) `)` attr-dict `to` type(results)
+  // }];
+  // Allow building a MulOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+
+  // Allow building an Dealy2ArgsOp with from the two input operands.
+  // let builders = [
+  //   OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  // ];
+  
+  // Enable registering canonicalization patterns with this operation.
+  let hasCanonicalizer = 1;
+
+  let hasVerifier = 1;
+}
+
+
 #endif // TOY_OPS

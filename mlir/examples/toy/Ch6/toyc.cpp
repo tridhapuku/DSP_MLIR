@@ -42,6 +42,12 @@
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
 
+//Added by ABhinav
+#include <iostream>
+#include <chrono>
+using namespace std;
+using namespace std::chrono;
+
 using namespace toy;
 namespace cl = llvm::cl;
 
@@ -279,6 +285,9 @@ int runJit(mlir::ModuleOp module) {
 }
 
 int main(int argc, char **argv) {
+  //Get time of execution of code
+  auto start = std::chrono::high_resolution_clock::now();
+
   // Register any command line options.
   mlir::registerAsmPrinterCLOptions();
   mlir::registerMLIRContextCLOptions();
@@ -314,7 +323,18 @@ int main(int argc, char **argv) {
 
   // Otherwise, we must be running the jit.
   if (emitAction == Action::RunJIT)
-    return runJit(*module);
+  {
+    // auto start = std::chrono::high_resolution_clock::now();
+    int getJitRunStatus = runJit(*module);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double , milli> duration = (end - start);
+    // std::chrono::duration<double> duration = (end - start); //this will give in secs
+    
+    
+    std::cout << "\nTime taken: " << duration.count() << " millisecs" << "\n";
+    return getJitRunStatus;
+  }
+    
 
   llvm::errs() << "No action specified (parsing only?), use -emit=<action>\n";
   return -1;

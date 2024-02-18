@@ -41,13 +41,21 @@
 //   toy.return
 // }
 
-toy.func @main() {
-    %0 = toy.constant dense<[1.000000e+01, 2.000000e+01, 3.000000e+01]> : tensor<3xf64>
+// toy.func @main() {
+//     %0 = toy.constant dense<[1.000000e+01, 2.000000e+01, 3.000000e+01]> : tensor<3xf64>
+//     %1 = toy.constant dense<2.000000e+00> : tensor<f64>
+//     %2 = "toy.delay"(%0, %1) : (tensor<3xf64>, tensor<f64>) -> tensor<3xf64>
+//     toy.print %2 : tensor<3xf64>
+//     toy.return
+// }
+
+  toy.func @main() {
+    %0 = toy.constant dense<[1.000000e+01, 2.000000e+01, 3.000000e+01, 4.000000e+01, 5.000000e+01, 6.000000e+01, 7.000000e+01, 8.000000e+01, 9.000000e+01, 1.000000e+02]> : tensor<10xf64>
     %1 = toy.constant dense<2.000000e+00> : tensor<f64>
-    %2 = "toy.delay"(%0, %1) : (tensor<3xf64>, tensor<f64>) -> tensor<3xf64>
-    toy.print %2 : tensor<3xf64>
+    %2 = "toy.delay"(%0, %1) : (tensor<10xf64>, tensor<f64>) -> tensor<*xf64>
+    toy.print %2 : tensor<*xf64>
     toy.return
-}
+  }
 
 // CHECK-LABEL: func @main()
 // CHECK-DAG:     [[VAL_0:%.*]] = arith.constant 1.000000e+00 : f64

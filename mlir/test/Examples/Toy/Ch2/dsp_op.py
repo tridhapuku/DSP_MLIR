@@ -11,7 +11,7 @@ def main() {
   var a = 5 ;
   var b<1,4> = [1,2,3,4];
 
-  var c = delay(b);
+  # var c = delay(b);
   var d = delay2args(b, a);
   var e = transpose(b);
   var f = b + b;
