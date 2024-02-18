@@ -54,6 +54,46 @@ struct SimplifyRedundantTranspose : public mlir::OpRewritePattern<TransposeOp> {
 
 
 //Pseudo-Code
+//Find back to back gain operation
+    // result1 = gain(input1, gain1)
+    // result2 = gain(result1, gain2)
+// if result1 is coming from another delay operation
+  // result2 will be now delay(input1, gain1 + gain2)
+  // replaceOp 
+struct SimplifyBack2BackGain: public mlir::OpRewritePattern<GainOp>{
+  //
+  SimplifyBack2BackGain(mlir::MLIRContext *context) 
+    : OpRewritePattern<GainOp>(context, 1) {}
+
+    mlir::LogicalResult matchAndRewrite(GainOp op, 
+                        mlir::PatternRewriter &rewriter) const override {
+     
+     //
+     mlir::Value gainOp_operand0 = op.getOperand(0);
+     
+     //check if this is coming from another gain operation
+     GainOp prev_gainOp = gainOp_operand0.getDefiningOp<GainOp>();
+
+     if(!prev_gainOp)
+        return failure();
+
+     mlir::Value gainOp_operand1 = op.getOperand(1);
+     mlir::Value prev_gainOp_operand0 = prev_gainOp.getOperand(0);
+     mlir::Value prev_gainOp_operand1 = prev_gainOp.getOperand(1);
+
+     //create add op 
+     auto addOp = rewriter.create<MulOp>(op.getLoc(), prev_gainOp_operand1, gainOp_operand1);
+     auto newGainOp = rewriter.create<GainOp>(op.getLoc(),
+                          prev_gainOp_operand0 , addOp.getResult());
+    
+    //Repalce the use of original gain operation with this newGainOp
+    rewriter.replaceOp(op, newGainOp.getResult());
+    return mlir::success();
+
+    }
+};
+
+//Pseudo-Code
 //Find back to back delay operation
     // result1 = delay(input1, unit1)
     // result2 = delay(result1, unit2)
@@ -103,8 +143,13 @@ void TransposeOp::getCanonicalizationPatterns(RewritePatternSet &results,
 
 void DelayOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                               MLIRContext *context) {
-    llvm::errs() << "Enabling Delay Optimization\n";
-    // results.add<SimplifyBack2BackDelay>(context);  
+    // llvm::errs() << "Enabling Delay Optimization\n";
+    results.add<SimplifyBack2BackDelay>(context);  
+}
+
+void GainOp::getCanonicalizationPatterns(RewritePatternSet &results, 
+                                              MLIRContext *context) {
+  results.add<SimplifyBack2BackGain>(context);
 }
 
 /// Register our patterns as "canonicalization" patterns on the ReshapeOp so

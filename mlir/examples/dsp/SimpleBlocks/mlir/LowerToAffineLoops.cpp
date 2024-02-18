@@ -361,6 +361,76 @@ static void lowerOpToLoops3(Operation *op, ValueRange operands,
 }
 
 
+static void lowerOpToLoopsGain1(Operation *op, ValueRange operands,
+                           PatternRewriter &rewriter,
+                           LoopIterationFn processIteration) {
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));
+    // llvm::errs() << "tensorType= " << tensorType.getTypeID() << "\n";
+    auto loc = op->getLoc();
+
+    // Insert an allocation and deallocation for the result of this operation.
+    auto memRefType = convertTensorToMemRef(tensorType);
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+
+
+    // Create a nest of affine loops, with one loop per dimension of the shape.
+    // The buildAffineLoopNest function takes a callback that is used to construct
+    // the body of the innermost loop given a builder, a location and a range of
+    // loop induction variables.
+    llvm::errs() << "tensorType->getRank = " << tensorType.getRank() << "\n";
+    llvm::errs() << "tensorType->getNumElements = " << tensorType.getNumElements() << "\n";
+    SmallVector<int64_t, 4> lowerBounds(tensorType.getRank(), /*Value=*/0);
+    SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);
+
+    llvm::errs() << "lowerBounds.size() = " << lowerBounds.size() << "\n";
+    llvm::errs() << "steps.size() = " << steps.size() << "\n";
+    
+
+    for (auto i : tensorType.getShape())
+    {
+        llvm::errs() << "tensorType.getShape() = " << i << "\n";
+    }
+    
+    std::vector<int64_t> upperBounds = tensorType.getShape();
+
+    // llvm::errs() << __LINE__ << "\n";
+    for(auto shape: upperBounds)
+    {
+        llvm::errs() << "upperBounds shape= " << shape << "\n";
+        llvm::errs() << __LINE__ << "\n";
+    }
+
+  
+    // llvm::errs() << __LINE__ << "\n";
+    //get the 2nd operand of delayOp & convert it into int
+    Value gainSecondArg = op->getOperand(1);
+    affine::buildAffineLoopNest(
+      rewriter, loc, lowerBounds, upperBounds, steps,
+      [&](OpBuilder &nestedBuilder, Location loc, ValueRange ivs) {
+        // Call the processing function with the rewriter, the memref operands,
+        // and the loop induction variables. This function will return the value
+        // to store at the current index.
+
+        //Get the input allocated space for the load
+        dsp::GainOpAdaptor gainAdaptor(operands);
+        auto loadFromIP = nestedBuilder.create<affine::AffineLoadOp>(loc, gainAdaptor.getLhs(),ivs);
+        auto loadFromRhs = nestedBuilder.create<affine::AffineLoadOp>(loc, gainAdaptor.getRhs());
+        // auto loadFromRhs = nestedBuilder.create<affine::AffineLoadOp>(loc, gainAdaptor.getRhs(), ivs);
+        // llvm::errs() << __LINE__ << "\n";
+        auto mulOp = nestedBuilder.create<arith::MulFOp>(loc, loadFromRhs, loadFromIP);
+        nestedBuilder.create<affine::AffineStoreOp>(loc, mulOp, alloc,
+                    ivs);
+        // nestedBuilder.create<affine::AffineStoreOp>(loc, loadFromIP, alloc,
+        //             ivs); //working
+        // llvm::errs() << __LINE__ << "\n";
+                                       
+      });
+
+
+  // Replace this operation with the generated alloc.
+  rewriter.replaceOp(op, alloc);
+}
+
 
 static void lowerOpToLoops2(Operation *op, ValueRange operands,
                            PatternRewriter &rewriter,
@@ -583,6 +653,7 @@ static void lowerOpToLoops2(Operation *op, ValueRange operands,
 
 namespace {
 
+
 //===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: Delay operations
 //===----------------------------------------------------------------------===//
@@ -699,6 +770,72 @@ struct DelayOpLowering: public ConversionPattern {
 
 
 };
+
+//===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: Gain operations
+//===----------------------------------------------------------------------===//
+struct GainOpLowering: public ConversionPattern {
+      GainOpLowering(MLIRContext *ctx)
+        : ConversionPattern(dsp::GainOp::getOperationName(), 1 , ctx) {}
+
+    LogicalResult 
+    matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+              ConversionPatternRewriter &rewriter) const final {
+      //dsp.GainOp has 2 operands -- both of type tensor f64 , 2ndOperand should have only 1 element
+
+      //Get the location of GainOp
+      auto loc = op->getLoc();
+      
+      //Pseudo-Code
+      //Range for each element of the tensor
+      //Load the element from the first argument
+      // multiply with the 2nd argument
+      // return the result to store into the respective index
+        lowerOpToLoops(op, operands, rewriter, 
+            [loc, op ] (OpBuilder &builder, ValueRange memRefOperands,
+                  ValueRange loopIvs) {
+                    // Generate an adaptor for the remapped operands of the
+                     // BinaryOp. This allows for using the nice named accessors
+                     // that are generated by the ODS.
+                    dsp::GainOpAdaptor gainAdaptor(memRefOperands);
+
+                    // Generate loads for the element of 'lhs' and 'rhs' at the
+                    // inner loop.
+                    // auto lhsTensor = delayAdaptor.getLhs();
+                    auto lhsTensor = builder.create<affine::AffineLoadOp>(
+                         loc, gainAdaptor.getLhs(), loopIvs);
+
+                    // auto rhsScalar = op->getOperand(1);     
+                    auto rhsScalar = builder.create<affine::AffineLoadOp>(
+                         loc, gainAdaptor.getRhs());
+
+                    auto resultMulOp = builder.create<arith::MulFOp>(loc, lhsTensor,
+                                                            rhsScalar);
+
+                    return resultMulOp;
+
+        });
+
+      // lowerOpToLoopsGain1(op, operands, rewriter, 
+      //       [loc ] (OpBuilder &builder, ValueRange memRefOperands,
+      //             ValueRange loopIvs) {
+      //               //
+      //               dsp::GainOpAdaptor gainAdaptor(memRefOperands);
+      //               Value input0 = gainAdaptor.getLhs();
+
+      //               // auto zeroValue = builder.create<arith::ConstantOp>(loc, builder.getF64Type(),
+      //               //     builder.getFloatAttr(builder.getF64Type(), 0.0) );
+
+      //               return input0;
+
+      //   });
+
+      return success();
+    }
+
+
+};
+
 
 //===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: Binary operations
@@ -959,7 +1096,7 @@ void ToyToAffineLoweringPass::runOnOperation() {
   RewritePatternSet patterns(&getContext());
   patterns.add<AddOpLowering, ConstantOpLowering, FuncOpLowering, MulOpLowering,
                PrintOpLowering, ReturnOpLowering, TransposeOpLowering ,
-               DelayOpLowering>(
+               DelayOpLowering, GainOpLowering>(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the

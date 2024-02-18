@@ -326,16 +326,18 @@ int main(int argc, char **argv) {
   {
     // auto start = std::chrono::high_resolution_clock::now();
     int getJitRunStatus = runJit(*module);
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double , milli> duration = (end - start);
+    // auto end = std::chrono::high_resolution_clock::now();
+    // std::chrono::duration<double , milli> duration = (end - start);
     // std::chrono::duration<double> duration = (end - start); //this will give in secs
     
     
-    std::cout << "\nTime taken: " << duration.count() << " millisecs" << "\n";
+    // std::cout << "\nTime taken: " << duration.count() << " millisecs" << "\n";
     return getJitRunStatus;
   }
-    
 
+  auto end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double , milli> duration = (end - start);  
+  std::cout << "\nTime taken: " << duration.count() << " millisecs" << "\n";
   llvm::errs() << "No action specified (parsing only?), use -emit=<action>\n";
   return -1;
 }

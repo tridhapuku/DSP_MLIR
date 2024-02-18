@@ -64,6 +64,7 @@ public:
     // the structural properties of the IR and invoke any specific verifiers we
     // have on the Toy operations.
     if (failed(mlir::verify(theModule))) {
+      llvm::errs() << "Line : " << __LINE__ << " func:" << __FILE__ << " \n";
       theModule.emitError("module verification error");
       return nullptr;
     }
@@ -330,6 +331,15 @@ private:
         return nullptr;
       }
       return builder.create<DelayOp>(location, operands[0] , operands[1]);
+    }
+
+    if(callee == "gain"){
+      if(call.getArgs().size() != 2){
+        emitError(location, "MLIR codegen encountered an error: dsp.gain "
+                            "accepts only 2 arguments");
+        return nullptr;
+      }
+      return builder.create<GainOp>(location, operands[0] , operands[1]);
     }
 
     // Builtin calls have their custom operation, meaning this is a

@@ -32,7 +32,7 @@ def Dsp_Dialect : Dialect {
 //   * The parent dialect of the operation.
 //   * The mnemonic for the operation, or the name without the dialect prefix.
 //   * A list of traits for the operation.
-class Toy_Op<string mnemonic, list<Trait> traits = []> :
+class Dsp_Op<string mnemonic, list<Trait> traits = []> :
     Op<Dsp_Dialect, mnemonic, traits>;
 
 //===----------------------------------------------------------------------===//
@@ -43,11 +43,11 @@ class Toy_Op<string mnemonic, list<Trait> traits = []> :
 // ConstantOp
 //===----------------------------------------------------------------------===//
 
-// We define a toy operation by inheriting from our base 'Toy_Op' class above.
+// We define a toy operation by inheriting from our base 'Dsp_Op' class above.
 // Here we provide the mnemonic and a list of traits for the operation. The
 // constant operation is marked as 'Pure' as it is a pure operation
 // and may be removed if dead.
-def ConstantOp : Toy_Op<"constant", [Pure]> {
+def ConstantOp : Dsp_Op<"constant", [Pure]> {
   // Provide a summary and description for this operation. This can be used to
   // auto-generate documentation of the operations within our dialect.
   let summary = "constant";
@@ -56,7 +56,7 @@ def ConstantOp : Toy_Op<"constant", [Pure]> {
     to the operation as an attribute. For example:
 
     ```mlir
-      %0 = toy.constant dense<[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]>
+      %0 = dsp.constant dense<[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]>
                         : tensor<2x3xf64>
     ```
   }];
@@ -91,7 +91,7 @@ def ConstantOp : Toy_Op<"constant", [Pure]> {
 // AddOp
 //===----------------------------------------------------------------------===//
 
-def AddOp : Toy_Op<"add",
+def AddOp : Dsp_Op<"add",
     [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "element-wise addition operation";
   let description = [{
@@ -115,7 +115,7 @@ def AddOp : Toy_Op<"add",
 // CastOp
 //===----------------------------------------------------------------------===//
 
-def CastOp : Toy_Op<"cast", [
+def CastOp : Dsp_Op<"cast", [
      DeclareOpInterfaceMethods<CastOpInterface>,
      DeclareOpInterfaceMethods<ShapeInferenceOpInterface>,
      Pure,
@@ -140,23 +140,23 @@ def CastOp : Toy_Op<"cast", [
 // FuncOp
 //===----------------------------------------------------------------------===//
 
-def FuncOp : Toy_Op<"func", [
+def FuncOp : Dsp_Op<"func", [
     DeclareOpInterfaceMethods<CallableOpInterface>, FunctionOpInterface,
     IsolatedFromAbove
   ]> {
   let summary = "user defined function operation";
   let description = [{
-    The "toy.func" operation represents a user defined function. These are
+    The "dsp.func" operation represents a user defined function. These are
     callable SSA-region operations that contain toy computations.
 
     Example:
 
     ```mlir
-    toy.func @main() {
-      %0 = toy.constant dense<5.500000e+00> : tensor<f64>
-      %1 = toy.reshape(%0 : tensor<f64>) to tensor<2x2xf64>
-      toy.print %1 : tensor<2x2xf64>
-      toy.return
+    dsp.func @main() {
+      %0 = dsp.constant dense<5.500000e+00> : tensor<f64>
+      %1 = dsp.reshape(%0 : tensor<f64>) to tensor<2x2xf64>
+      dsp.print %1 : tensor<2x2xf64>
+      dsp.return
     }
     ```
   }];
@@ -192,7 +192,7 @@ def FuncOp : Toy_Op<"func", [
 // GenericCallOp
 //===----------------------------------------------------------------------===//
 
-def GenericCallOp : Toy_Op<"generic_call",
+def GenericCallOp : Dsp_Op<"generic_call",
     [DeclareOpInterfaceMethods<CallOpInterface>]> {
   let summary = "generic call operation";
   let description = [{
@@ -202,7 +202,7 @@ def GenericCallOp : Toy_Op<"generic_call",
     arguments expected by the callee. For example:
 
     ```mlir
-     %4 = toy.generic_call @my_func(%1, %3)
+     %4 = dsp.generic_call @my_func(%1, %3)
            : (tensor<2x3xf64>, tensor<2x3xf64>) -> tensor<*xf64>
     ```
 
@@ -232,7 +232,7 @@ def GenericCallOp : Toy_Op<"generic_call",
 // MulOp
 //===----------------------------------------------------------------------===//
 
-def MulOp : Toy_Op<"mul",
+def MulOp : Dsp_Op<"mul",
     [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "element-wise multiplication operation";
   let description = [{
@@ -256,7 +256,7 @@ def MulOp : Toy_Op<"mul",
 // PrintOp
 //===----------------------------------------------------------------------===//
 
-def PrintOp : Toy_Op<"print"> {
+def PrintOp : Dsp_Op<"print"> {
   let summary = "print operation";
   let description = [{
     The "print" builtin operation prints a given input tensor, and produces
@@ -274,14 +274,14 @@ def PrintOp : Toy_Op<"print"> {
 // ReshapeOp
 //===----------------------------------------------------------------------===//
 
-def ReshapeOp : Toy_Op<"reshape", [Pure]> {
+def ReshapeOp : Dsp_Op<"reshape", [Pure]> {
   let summary = "tensor reshape operation";
   let description = [{
     Reshape operation is transforming its input tensor into a new tensor with
     the same number of elements but different shapes. For example:
 
     ```mlir
-       %0 = toy.reshape (%arg1 : tensor<10xf64>) to tensor<5x2xf64>
+       %0 = dsp.reshape (%arg1 : tensor<10xf64>) to tensor<5x2xf64>
     ```
   }];
 
@@ -302,7 +302,7 @@ def ReshapeOp : Toy_Op<"reshape", [Pure]> {
 // ReturnOp
 //===----------------------------------------------------------------------===//
 
-def ReturnOp : Toy_Op<"return", [Pure, HasParent<"FuncOp">,
+def ReturnOp : Dsp_Op<"return", [Pure, HasParent<"FuncOp">,
                                  Terminator]> {
   let summary = "return operation";
   let description = [{
@@ -312,9 +312,9 @@ def ReturnOp : Toy_Op<"return", [Pure, HasParent<"FuncOp">,
     the operation. For example:
 
     ```mlir
-      toy.func @foo() -> tensor<2xf64> {
+      dsp.func @foo() -> tensor<2xf64> {
         ...
-        toy.return %0 : tensor<2xf64>
+        dsp.return %0 : tensor<2xf64>
       }
     ```
   }];
@@ -344,7 +344,7 @@ def ReturnOp : Toy_Op<"return", [Pure, HasParent<"FuncOp">,
 // TransposeOp
 //===----------------------------------------------------------------------===//
 
-def TransposeOp : Toy_Op<"transpose",
+def TransposeOp : Dsp_Op<"transpose",
     [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "transpose operation";
 
@@ -371,9 +371,9 @@ def TransposeOp : Toy_Op<"transpose",
 // DelayOp
 //===----------------------------------------------------------------------===//
 
-def DelayOp : Toy_Op<"delay" , 
+def DelayOp : Dsp_Op<"delay" , 
           [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
-// def DelayOp : Toy_Op<"delay" > {
+// def DelayOp : Dsp_Op<"delay" > {
   let summary = "shifting tensor by given number";
   let description = [{
     The "delay" operation performs shift in array/tensor by given arg -- 
@@ -410,6 +410,45 @@ def DelayOp : Toy_Op<"delay" ,
   let hasCanonicalizer = 1;
 
   let hasVerifier = 1;
+}
+
+// def GainOp : Dsp_Op<"gain" , 
+          // [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+def GainOp : Dsp_Op<"gain" ,
+    [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "shifting tensor by given number";
+  let description = [{
+    The "delay" operation performs shift in array/tensor by given arg -- 
+    ex: shift by 1 -- 1 element will become 0.
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  // let arguments = (ins F64Tensor:$lhs, UI32:$rhs); //
+  // let results = (outs F64Tensor);
+
+  // let arguments = (ins F64Tensor:$lhs, UI32:$rhs); 
+  let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs);//working -- F64
+  // let arguments = (ins F64Tensor:$lhs, F64:$rhs);
+  // let arguments = (ins F64Tensor:$lhs, F64Attr:$rhs);
+  let results = (outs F64Tensor);
+
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input1 , $input2) `)` attr-dict `to` type(results)
+  // }];
+  // Allow building a GainOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+  
+  // Enable registering canonicalization patterns with this operation.
+  let hasCanonicalizer = 1;
+
+  // let hasVerifier = 1;
 }
 
 

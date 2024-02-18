@@ -471,6 +471,50 @@ void DelayOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
 // }
 void DelayOp::inferShapes() { getResult().setType(getLhs().getType()) ;}
 
+
+//===----------------------------------------------------------------------===//
+// GainOp
+//===----------------------------------------------------------------------===//
+// void GainOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+//                          mlir::Value lhs, unsigned rhs){
+// void GainOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+//                          mlir::Value lhs, mlir::Float64Type rhs){    
+void GainOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                         mlir::Value lhs, mlir::Value rhs){ 
+    // state.addTypes(UnrankedTensorType::get(builder.getF64Type()), builder.getI32Type());
+    // state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+    // state.addTypes({UnrankedTensorType::get(builder.getF64Type()), builder.getF64Type()}); //working
+    state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+    state.addOperands({lhs, rhs});
+    // state.addOperands({rhs});
+    // state.addTypes();
+    // state.addAttribute("rhs", rhs);
+    // state.addAttribute("rhs", builder.getF64FloatAttr(builder.getF64Type()));
+    // state.addAttribute("rhs", builder.getF64Type());
+    // state.addAttribute("rhs", builder.getFloatAttr(builder.getF64Type() , rhs));
+    // state.addOperands(value);
+
+ }
+
+//  mlir::LogicalResult GainOp::verify(){
+//     auto inputType1 = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
+//     auto inputType2 = llvm::dyn_cast<Float64Type>(getOperand(1).getType());
+//     // auto inputType2 = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
+//     // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+//     // if(!inputType || !resultType)
+//     //   return mlir::success();
+
+//     return mlir::success();
+//  }
+
+// void GainOp::inferShapes() { getResult().setType(getOperand(0).getType()) ;}
+//getLHS defined with Operation as :
+//   fro addOp 
+//     ::mlir::TypedValue<::mlir::TensorType> AddOp::getLhs() {
+//   return ::llvm::cast<::mlir::TypedValue<::mlir::TensorType>>(*getODSOperands(0).begin());
+// }
+void GainOp::inferShapes() { getResult().setType(getLhs().getType()) ;}
+
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
