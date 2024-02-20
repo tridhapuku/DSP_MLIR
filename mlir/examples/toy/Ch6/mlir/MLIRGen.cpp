@@ -343,6 +343,16 @@ private:
     //   return builder.create<DelayOp>(location, operands[0]);
     // }
 
+    // Sub Op
+    if(callee == "sub"){
+       if(call.getArgs().size() != 2){
+         emitError(location, "MLIR codegen encountered an error: toy.sub "
+                             "accepts only 2 arguments");
+         return nullptr;
+       }
+       return builder.create<SubOp>(location, operands[0], operands[1]);
+    }
+
     // Otherwise this is a call to a user-defined function. Calls to
     // user-defined functions are mapped to a custom call that takes the callee
     // name as an attribute.
