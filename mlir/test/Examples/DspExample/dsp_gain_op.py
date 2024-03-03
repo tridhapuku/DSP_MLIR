@@ -9,6 +9,8 @@
 
 def main() {
   var a = [10,20,30];
+  # int a1 = [21, 11];
+
   # var a1 = [20, 40 ,60];
   var b = 2 ; 
   var c = 3;

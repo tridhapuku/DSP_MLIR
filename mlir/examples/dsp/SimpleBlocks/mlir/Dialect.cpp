@@ -10,7 +10,7 @@
 // operation verification.
 //
 //===----------------------------------------------------------------------===//
-
+#include <iostream>
 #include "dsp/Dialect.h"
 
 #include "mlir/IR/Builders.h"
@@ -21,6 +21,7 @@
 
 using namespace mlir;
 using namespace mlir::dsp;
+using namespace std;
 
 #include "dsp/Dialect.cpp.inc"
 
@@ -161,6 +162,13 @@ void ConstantOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
   auto dataAttribute = DenseElementsAttr::get(dataType, value);
   ConstantOp::build(builder, state, dataType, dataAttribute);
 }
+
+// void ConstantOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+//                        int value) {
+//   auto dataType = RankedTensorType::get({}, builder.getI64Type());
+//   auto dataAttribute = DenseElementsAttr::get(dataType, value);
+//   ConstantOp::build(builder, state, dataType, dataAttribute);
+// }
 
 /// The 'OpAsmParser' class provides a collection of methods for parsing
 /// various punctuation, as well as attributes, operands, types, etc. Each of
@@ -454,8 +462,8 @@ void DelayOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
  }
 
  mlir::LogicalResult DelayOp::verify(){
-    auto inputType1 = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
-    auto inputType2 = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
+    // auto inputType1 = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
+    // auto inputType2 = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
     // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
     // if(!inputType || !resultType)
     //   return mlir::success();
@@ -493,7 +501,6 @@ void GainOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
     // state.addAttribute("rhs", builder.getF64Type());
     // state.addAttribute("rhs", builder.getFloatAttr(builder.getF64Type() , rhs));
     // state.addOperands(value);
-
  }
 
 //  mlir::LogicalResult GainOp::verify(){
@@ -535,6 +542,85 @@ void GainOp::inferShapes() { getResult().setType(getLhs().getType()) ;}
  /// Infer the output shape of the SubOp, this is required by the shape inference
  /// interface.
  void SubOp::inferShapes() { getResult().setType(getLhs().getType()); }
+
+//===----------------------------------------------------------------------===//
+// zeroCrossCountOp
+//===----------------------------------------------------------------------===//
+
+void zeroCrossCountOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                  mlir::Value lhs) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  // state.addTypes(builder.getF64Type()));
+  // state.addTypes(builder.getI64Type());
+  state.addOperands({lhs});
+}
+
+/// Infer the output shape of the zeroCrossCountOp, this is required by the shape inference
+ /// interface.
+ void zeroCrossCountOp::inferShapes() { getResult().setType(getLhs().getType()); }
+
+
+//===----------------------------------------------------------------------===//
+// FIRFilterOp
+//===----------------------------------------------------------------------===//
+
+void FIRFilterOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                  mlir::Value lhs, mlir::Value rhs) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands({lhs, rhs});
+}
+
+
+
+/// Infer the output shape of the FIRFilterOp, this is required by the shape inference
+/// interface.
+//ToDo -- shape should be the length of Lhs + Rhs - 1
+void FIRFilterOp::inferShapes() { 
+  //get the shape of Lhs & rhs 
+  //add the shape for each dimension
+  // auto tensorInput =  llvm::cast<RankedTensorType>(getLhs().getType());
+  auto tensorInput =  getLhs().getType();
+  auto shapeOfInput = tensorInput.getShape();
+
+  auto tensorFilter = getRhs().getType();
+  auto shapeOfFilter = tensorFilter.getShape();
+  std::vector<int64_t> shapeForOutput ;
+
+  for (auto i : shapeOfInput)
+  {
+    /* code */
+    llvm::errs() << "InputShape= " << i << " \n"; 
+    
+  }
+
+  for(size_t i=0; i < shapeOfInput.size() ; i++){
+    shapeForOutput.push_back(shapeOfInput[i] + shapeOfFilter[i] - 1);
+  }
+  
+  mlir::TensorType manipulatedType = mlir::RankedTensorType::get(shapeForOutput, 
+          getLhs().getType().getElementType());
+
+  getResult().setType(getLhs().getType()); 
+  // getResult().setType(manipulatedType);
+  }
+
+//get rank of Input & Filter -- make sure it is of rank 1 
+mlir::LogicalResult FIRFilterOp::verify() {
+  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
+  auto filterType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
+  // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+
+  auto inputRank = inputType.getRank();
+  auto filterRank = filterType.getRank();
+
+  if( inputRank != 1 || filterRank != 1)
+  {
+    return emitError()
+           << "expected rank of input & filter is 1";
+  }
+
+  return mlir::success();
+}  
 
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions

@@ -1,0 +1,51 @@
+.
+├── AffineExpr.cpp
+├── AffineExprDetail.h
+├── AffineMap.cpp
+├── AffineMapDetail.h
+├── AsmPrinter.cpp
+├── AttributeDetail.h
+├── Attributes.cpp
+├── AttrTypeSubElements.cpp
+├── Block.cpp
+├── Builders.cpp
+├── BuiltinAttributeInterfaces.cpp
+├── BuiltinAttributes.cpp
+├── BuiltinDialectBytecode.cpp
+├── BuiltinDialectBytecode.h
+├── BuiltinDialect.cpp
+├── BuiltinTypeInterfaces.cpp
+├── BuiltinTypes.cpp
+├── CMakeLists.txt
+├── Diagnostics.cpp
+├── Dialect.cpp
+├── DialectResourceBlobManager.cpp
+├── Dominance.cpp
+├── ExtensibleDialect.cpp
+├── FunctionImplementation.cpp
+├── FunctionInterfaces.cpp
+├── IntegerSet.cpp
+├── IntegerSetDetail.h
+├── Location.cpp
+├── MLIRContext.cpp
+├── ODSSupport.cpp
+├── Operation.cpp
+├── OperationSupport.cpp
+├── PatternMatch.cpp
+├── Region.cpp
+├── RegionKindInterface.cpp
+├── SymbolTable.cpp
+├── TensorEncoding.cpp
+├── TypeDetail.h
+├── TypeRange.cpp
+├── Types.cpp
+├── TypeUtilities.cpp
+├── Unit.cpp
+├── Value.cpp
+├── ValueRange.cpp
+├── Verifier.cpp
+└── Visitors.cpp
+
+0 directories, 46 files
+
+This is the directory structure for mli/lib/IR . Explain each file usage in short description and using same structure as above. Then explain role of each file and how a dialect or operation uses these files?

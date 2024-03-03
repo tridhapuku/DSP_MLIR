@@ -1,0 +1,24 @@
+.
+├── benchmark
+├── build
+├── cmake
+├── CMakeLists.txt
+├── DirectoyStructure1.txt
+├── docs
+├── examples
+├── include
+├── lib
+├── LICENSE.TXT
+├── python
+├── README.md
+├── test
+├── tools
+├── unittests
+└── utils
+
+13 directories, 4 files
+
+This is the directory structure for MLIR . Explain each directory usage in short description and using same structure as above. Then explain how to understand high-lvel structure of MLIR.
+
+
+in which they tell us about how to emit basic mlir for Toy programming language (tensor based). Could you help to explain the role of each of these files in short description with the same tree structure as above & then finally telling the complete description / code flow of how all the code flow for converting from .toy language to mlir works? 

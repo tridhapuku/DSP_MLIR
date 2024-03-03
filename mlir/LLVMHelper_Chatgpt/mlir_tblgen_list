@@ -1,0 +1,125 @@
+USAGE: mlir-tblgen [options] <input file>
+
+OPTIONS:
+
+Color Options:
+
+  --color                                            - Use colors in output (default=autodetect)
+
+General options:
+
+  -D <macro name>                                    - Name of the macro to be defined
+  -I <directory>                                     - Directory of include files
+  --asmformat-error-is-fatal                         - Emit a fatal error if format parsing fails
+  -d <filename>                                      - Dependency filename
+  Generator to run
+      --gen-attr-interface-decls                        - Generate attribute interface declarations
+      --gen-attr-interface-defs                         - Generate attribute interface definitions
+      --gen-attr-interface-docs                         - Generate attribute interface documentation
+      --gen-attrdef-decls                               - Generate AttrDef declarations
+      --gen-attrdef-defs                                - Generate AttrDef definitions
+      --gen-attrdef-doc                                 - Generate dialect attribute documentation
+      --gen-avail-interface-decls                       - Generate availability interface declarations
+      --gen-avail-interface-defs                        - Generate op interface definitions
+      --gen-bytecode                                    - Generate dialect bytecode readers/writers
+      --gen-convertible-llvmir-intrinsics               - Generate list of convertible LLVM IR intrinsics
+      --gen-dialect-decls                               - Generate dialect declarations
+      --gen-dialect-defs                                - Generate dialect definitions
+      --gen-dialect-doc                                 - Generate dialect documentation
+      --gen-directive-decl                              - Generate declarations for directives (OpenMP/OpenACC etc.)
+      --gen-enum-decls                                  - Generate enum utility declarations
+      --gen-enum-defs                                   - Generate enum utility definitions
+      --gen-enum-from-llvmir-conversions                - Generate conversions of EnumAttrs from LLVM IR
+      --gen-enum-to-llvmir-conversions                  - Generate conversions of EnumAttrs to LLVM IR
+      --gen-intr-from-llvmir-conversions                - Generate conversions of intrinsics from LLVM IR
+      --gen-llvmir-conversions                          - Generate LLVM IR conversions
+      --gen-llvmir-intrinsics                           - Generate LLVM IR intrinsics
+      --gen-op-decls                                    - Generate op declarations
+      --gen-op-defs                                     - Generate op definitions
+      --gen-op-doc                                      - Generate dialect documentation
+      --gen-op-from-llvmir-conversions                  - Generate conversions of operations from LLVM IR
+      --gen-op-interface-decls                          - Generate op interface declarations
+      --gen-op-interface-defs                           - Generate op interface definitions
+      --gen-op-interface-docs                           - Generate op interface documentation
+      --gen-pass-capi-header                            - Generate pass C API header
+      --gen-pass-capi-impl                              - Generate pass C API implementation
+      --gen-pass-decls                                  - Generate pass declarations
+      --gen-pass-doc                                    - Generate pass documentation
+      --gen-python-op-bindings                          - Generate Python bindings for MLIR Ops
+      --gen-rewriters                                   - Generate pattern rewriters
+      --gen-spirv-attr-utils                            - Generate SPIR-V attribute utility definitions
+      --gen-spirv-avail-impls                           - Generate SPIR-V operation utility definitions
+      --gen-spirv-capability-implication                - Generate utility function to return implied capabilities for a given capability
+      --gen-spirv-enum-avail-decls                      - Generate SPIR-V enum availability declarations
+      --gen-spirv-enum-avail-defs                       - Generate SPIR-V enum availability definitions
+      --gen-spirv-serialization                         - Generate SPIR-V (de)serialization utilities and functions
+      --gen-type-interface-decls                        - Generate type interface declarations
+      --gen-type-interface-defs                         - Generate type interface definitions
+      --gen-type-interface-docs                         - Generate type interface documentation
+      --gen-typedef-decls                               - Generate TypeDef declarations
+      --gen-typedef-defs                                - Generate TypeDef definitions
+      --gen-typedef-doc                                 - Generate dialect type documentation
+      --print-records                                   - Print all records to stdout
+  --no-warn-on-unused-template-args                  - Disable unused template argument warnings.
+  -o <filename>                                      - Output filename
+  --on-deprecated=<value>                            - Action to perform on deprecated def
+    =none                                            -   No action
+    =warn                                            -   Warn on use
+    =error                                           -   Error on use
+  --time-phases                                      - Time phases of parser and backend
+  --write-if-changed                                 - Only write output if it changed
+
+Generic Options:
+
+  --help                                             - Display available options (--help-hidden for more)
+  --help-list                                        - Display list of available options (--help-list-hidden for more)
+  --version                                          - Display the version of this program
+
+Intrinsics Generator Options:
+
+  --dialect-opclass-base=<string>                    - The base class for the ops in the dialect we are planning to emit
+  --llvmir-intrinsics-access-group-regexp=<string>   - Mark intrinsics that match the specified regexp as taking an access group metadata
+  --llvmir-intrinsics-alias-analysis-regexp=<string> - Mark intrinsics that match the specified regexp as taking alias.scopes, noalias, and tbaa metadata
+  --llvmir-intrinsics-filter=<string>                - Only keep the intrinsics with the specified substring in their record name
+
+Options for -gen-(attrdef|typedef|op|dialect)-doc:
+
+  --strip-prefix=<string>                            - Strip prefix of the fully qualified names
+
+Options for -gen-attrdef-*:
+
+  --attrdefs-dialect=<string>                        - Generate attributes for this dialect
+
+Options for -gen-bytecode:
+
+  --bytecode-dialect=<string>                        - The dialect to gen for
+
+Options for -gen-dialect-*:
+
+  --dialect=<string>                                 - The dialect to gen for
+
+Options for -gen-pass-capi-header and -gen-pass-capi-impl:
+
+  --prefix=<string>                                  - The prefix to use for this group of passes. The form will be mlirCreate<prefix><passname>, the prefix can avoid conflicts across libraries.
+
+Options for -gen-pass-decls:
+
+  --name=<string>                                    - The name of this group of passes
+
+Options for -gen-python-op-bindings:
+
+  --bind-dialect=<string>                            - The dialect to run the generator for
+  --dialect-extension=<string>                       - The prefix of the dialect extension
+
+Options for -gen-typedef-*:
+
+  --typedefs-dialect=<string>                        - Generate types for this dialect
+
+Options for gen-directive-decl:
+
+  --directives-dialect=<string>                      - Generate directives for this dialect
+
+Options for op definition generators:
+
+  --op-exclude-regex=<string>                        - Regex of name of op's to exclude (no filter if empty)
+  --op-include-regex=<string>                        - Regex of name of op's to include (no filter if empty)

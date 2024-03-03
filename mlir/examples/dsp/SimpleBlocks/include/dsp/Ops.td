@@ -80,7 +80,10 @@ def ConstantOp : Dsp_Op<"constant", [Pure]> {
     }]>,
 
     // Build a constant with a given constant floating-point value.
-    OpBuilder<(ins "double":$value)>
+    OpBuilder<(ins "double":$value)>,
+
+    // Build a constant with a given constant floating-point value.
+    // OpBuilder<(ins "int":$value)>
   ];
 
   // Indicate that additional verification for this operation is necessary.
@@ -418,8 +421,8 @@ def GainOp : Dsp_Op<"gain" ,
     [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "shifting tensor by given number";
   let description = [{
-    The "delay" operation performs shift in array/tensor by given arg -- 
-    ex: shift by 1 -- 1 element will become 0.
+    The "Gain" operation performs multiplication of each element with given gain -- 
+    ex: [1, 2, 4, 5] & gain= 2 : Output : [2, 4, 8, 10]
     The shapes of the tensor operands are expected to match.
   }];
 
@@ -430,7 +433,8 @@ def GainOp : Dsp_Op<"gain" ,
   let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs);//working -- F64
   // let arguments = (ins F64Tensor:$lhs, F64:$rhs);
   // let arguments = (ins F64Tensor:$lhs, F64Attr:$rhs);
-  let results = (outs F64Tensor);
+  let results = (outs F64Tensor); //I64
+  
 
   // Indicate that the operation has a custom parser and printer method.
   // let hasCustomAssemblyFormat = 1;
@@ -479,5 +483,77 @@ def SubOp : Dsp_Op<"sub", [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInte
 
    // let hasVerifier = 1;
  }
+
+//===----------------------------------------------------------------------===//
+// zeroCrossCountOp
+//===----------------------------------------------------------------------===//
+// def zeroCrossCountOp : Dsp_Op<"zeroCrossCount" , [Pure]>{
+def zeroCrossCountOp : Dsp_Op<"zeroCrossCount" ,
+    [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "shifting tensor by given number";
+  let description = [{
+    The "zeroCrossCountOp" operation detects no of zero crosses in a given array -- 
+    ex: [-1 , -2 , 3, 0 , 0, -2] has 2 zero-crosses 
+  }];
+
+  let arguments = (ins F64Tensor:$lhs); //working -- F64
+  let results =  (outs F64Tensor);
+  // let results = (outs I64);
+
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input1 , $input2) `)` attr-dict `to` type(results)
+  // }];
+  // Allow building a zeroCrossCountOp with from the one input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs)>
+  ];
+
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+  
+  // Enable registering canonicalization patterns with this operation.
+  //let hasCanonicalizer = 1;
+
+  // let hasVerifier = 1;
+}
+
+
+//===----------------------------------------------------------------------===//
+// FIRFilterOp
+//===----------------------------------------------------------------------===//
+// def FIRFilterOp : Dsp_Op<"zeroCrossCount" , [Pure]>{
+def FIRFilterOp : Dsp_Op<"FIRFilter" ,
+    [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "shifting tensor by given number";
+  let description = [{
+    The "FIRFilterOp" operation is basically the convolution of input 1-D and filter vector 
+    ex: x[n] = [2,1,3,2,4], h[0]=1,h[1]=−1, and h[2]=2 then
+      y[n] = sum(h(k) . x(n-k)) k=0 to N-1 
+  }];
+
+  let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs); //working -- F64
+  let results =  (outs F64Tensor);
+  // let results = (outs I64);
+
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input1 , $input2) `)` attr-dict `to` type(results)
+  // }];
+  // Allow building a FIRFilterOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+  
+  // Enable registering canonicalization patterns with this operation.
+  //let hasCanonicalizer = 1;
+
+  let hasVerifier = 1;
+}
 
 #endif // TOY_OPS

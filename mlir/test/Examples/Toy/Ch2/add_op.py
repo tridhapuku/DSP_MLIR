@@ -2,22 +2,30 @@
 
 # User defined generic function that operates on unknown shaped arguments
 
-def func1( x , y){
-    var z = x + y;
-    return z;
-}
+# def func1( x , y){
+#     var z = x + y;
+#     return z;
+# }
+
 
 def main() {
-  var a = 5 ;
-  var b<2,2> = [1,2,3,4];
-  var c = [[1,2] , [3,4]];
+  # var a = 5 ;
+  # var b<2,2> = [1,2,3,4];
+  # var c = [[10,20] , [30,40]];
+  var b = [1,2,3];
+  # var c = [10,20,30];
+  var b2 = 2;
+  var c1 = delay(b , b2);
+  print(c1);
+  # var e = b * c ;
+  # var d = b + c;
+  # var e = transpose(b);
 
-  var d = b + c;
-  var e = transpose(b);
-
-  var f = func1(b, c);
-  print(a);
-  print(b);
+  # var f = func1(b, c);
+  # print(b);
+  # var d = b + c;
+  # print(d);
+  # print(e);
   # var a1 = 10;
   # var a<2, 3> = [[1, 2, 3], [4, 5, 6]];
 }
