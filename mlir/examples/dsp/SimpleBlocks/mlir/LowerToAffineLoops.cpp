@@ -280,10 +280,16 @@ static void lowerOpToLoops3(Operation *op, ValueRange operands,
   rewriter.replaceOp(op, alloc);
 }
 
-#define TryJustAffineLoop 0
-#define TryAffineForAndAffineIf 0
-#define TryAffineMap  0
-#define TrySumOfVector 1
+#define TryJustAffineLoop 0  //working
+#define TryAffineForAndAffineIf 1  //not working 
+#define TryAffineIf2 0
+#define TryAffineMap  0   //working basic -- TO do --try with symbols
+#define TrySumOfVector 0  //Working
+#define TryMultiDimLoop 0  //Working
+#define TryFIRFilter 0  
+#define TryMultiDimForAndIf 0 //
+#define TryMultiDimLoopAndAffineMap 0  //Working
+#define TryMultiDimLoopAndAffineSet 0  //Working
 static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
                            PatternRewriter &rewriter,
                            LoopIterationFn processIteration) {
@@ -303,16 +309,16 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
   SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);
 
   // llvm::errs() << "tensorType.getRank() " << tensorType.getRank() << "\n";
-  // cout << "tensorType.getRank() .. " << tensorType.getRank() << "\n";
-  // for (auto i : tensorType.getRank())
-  // {
-  //   llvm::errs() << "tensorType.getRank() = " << i << "\n";
-  // }
-  // for (auto i : tensorType.getShape())
-  // {
-  //   llvm::errs() << "tensorType.getShape() = " << i << "\n";
-  // }
-  // llvm::errs() << "tensorType.getShape() " << tensorType.getShape() << "\n";
+    // cout << "tensorType.getRank() .. " << tensorType.getRank() << "\n";
+    // for (auto i : tensorType.getRank())
+    // {
+    //   llvm::errs() << "tensorType.getRank() = " << i << "\n";
+    // }
+    // for (auto i : tensorType.getShape())
+    // {
+    //   llvm::errs() << "tensorType.getShape() = " << i << "\n";
+    // }
+    // llvm::errs() << "tensorType.getShape() " << tensorType.getShape() << "\n";
 
   //working
   // affine::buildAffineLoopNest(
@@ -327,15 +333,13 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
   //     });
 
     // affine::AffineForOp forOp = rewriter.create<affine::AffineForOp>(
-    //   loc, lowerBounds, tensorType.getShape() , steps, ValueRange());
+      //   loc, lowerBounds, tensorType.getShape() , steps, ValueRange());
+      // mlir::IntegerSet set1 = mlir::IntegerSet::get(1, 0, map, {true});
 
-
-    // mlir::IntegerSet set1 = mlir::IntegerSet::get(1, 0, map, {true});
-
-    //create an affineFor
-    // affineFor It has one region containing its body & the region must contain a block terminating with affine.yield
-    //block has argument of index type
-    //
+      //create an affineFor
+      // affineFor It has one region containing its body & the region must contain a block terminating with affine.yield
+      //block has argument of index type
+      //
 
 #if TryJustAffineLoop
     int64_t lb = 0 ;
@@ -368,7 +372,7 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
 #endif 
 
 #if TryAffineForAndAffineIf
-          int64_t lb = 0 ;
+    int64_t lb = 0 ;
     int64_t ub = tensorType.getShape()[0];
     int64_t step = 1;
 
@@ -376,18 +380,75 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
     // %1 = affine.load 
     //  if ( %arg0 >= 5)   ie, integerSet <(d0) : (d0 - 5 >= 0) >
     AffineExpr dimExpr = rewriter.getAffineDimExpr(0) - rewriter.getAffineConstantExpr(5);
+    // AffineExpr dimExpr2 = rewriter
     // AffineMap map = AffineMap::get(1, 0, dimExpr);
     // AffineMap map = AffineMap::get(1, 0 , rewriter.getAffineDimExpr(0) - 5);
     IntegerSet set1 = IntegerSet::get(1, 0, {dimExpr}, {false});
-      affine::AffineForOp forOp1 = rewriter.create<affine::AffineForOp>(loc, 
+
+     //affine.if %arg1 >= 0 and %5 <= %1 - 1
+     // n-k >= 0 && n-k <= len -1 //n = %arg0 , k = %arg1
+     // %arg0 >= 0 and %arg0 - %arg1 - %sym1 + 1 <= 0
+
+    affine::AffineForOp forOp1 = rewriter.create<affine::AffineForOp>(loc, 
                 lb, ub, step );
 
     //inside the forOp body --> create the operations & then close the body
     // OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointToStart(forOp1.getBody());
-
+    auto iv = forOp1.getInductionVar();
     //start adding operations like a arith::constant = 100.0 to the body of forOp1
       // Inside the loop body:
+
+    // #set affine_set<(d0) : (d0 - 5 <= 0)>
+    // affine.for %arg0 = 0 to 10 {
+    //   %3 = affine.if #set (%arg0) {
+    //         %1 = arith.const 25
+    //         affine.yield %1
+    //     }
+    // else{
+    //       %2 = arith.const 15
+    //       affine.yield %2
+    //   }
+    //     affine.store %3, alloc[%arg0]
+    // } 
+
+    // auto ifOp = rewriter.create<affine::AffineIfOp>( loc, set1 , ValueRange{iv} , false /*no else*/ );
+    auto ifOp = rewriter.create<affine::AffineIfOp>( loc, set1 , ValueRange{iv} , true /*no else*/ );
+    rewriter.setInsertionPointToStart(ifOp.getThenBlock());
+    
+    FIRFilterOpAdaptor firFilterOperands(operands);
+
+    //load from the input
+    Value loadInput = rewriter.create<AffineLoadOp>(loc, firFilterOperands.getLhs(), iv);
+    Value constant25 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(25));
+    Value constsq25 = rewriter.create<arith::MulFOp>(loc, loadInput, constant25)  ;                                                   
+    
+    rewriter.create<AffineStoreOp>(loc, constsq25 , alloc, iv);
+    rewriter.create<AffineYieldOp>(loc, ValueRange{constsq25});
+    // rewriter.setInsertionPointToEnd(ifOp.getThenBlock());
+
+    rewriter.setInsertionPointToStart(ifOp.getElseBlock());
+    Value loadInput2 = rewriter.create<AffineLoadOp>(loc, firFilterOperands.getRhs(), iv);
+    Value constant15 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(15));
+    Value elseResult = rewriter.create<arith::MulFOp>(loc, loadInput2, constant15)  ; 
+    rewriter.create<AffineStoreOp>(loc, elseResult , alloc, iv);
+    rewriter.create<AffineYieldOp>(loc, ValueRange{elseResult});
+    // rewriter.setInsertionPointToEnd(ifOp.getElseBlock());
+    rewriter.setInsertionPointAfter(ifOp);
+    ifOp->dump();
+    // forOp1->dump();
+    // rewriter.create<AffineStoreOp>(loc, ifOp.getResult(0) , alloc, iv);
+    //getParentBlock then use 
+    // rewriter.setInsertionPointToEnd(ifOp.getThenBlock()->getParentOp());
+    // rewriter.setInsertionPointToEnd(ifOp->getBlock());
+    // rewriter.setInsertionPoint(ifOp->getParentOp());
+    // rewriter.create<AffineYieldOp>(loc, ValueRange{constant25});
+    // rewriter.setInsertionPointToEnd(ifOp.getThenBlock());
+    
+    // rewriter.setInsertionPointAfter(ifOp);
+    // rewriter.create<AffineStoreOp>(loc, ifOp.getResult(0) , alloc, iv);
     
     //try to add the affine.If condition 
     //create affine.If , 
@@ -396,12 +457,11 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
     // affine.if operation contains two regions for the “then” and “else” clauses
       //each region of affine.if must contain a single block with no args and terminated by affine.yield op
       // if affine.if defines no values --> no need for affine.yield
-    // auto ifOp = rewriter.create<affine::AffineIfOp>( loc, set1 , ValueRange{forOp1.getInductionVar()} , false /*no else*/ );
-
+    
     // affineIf.setConditional(set1, forOp1.getInductionVar());
     //start then "block"
     // "then" block
-    // rewriter.setInsertionPointToStart(ifOp.getThenBlock());
+    
     // Value constant15 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
     //                                                      rewriter.getF64FloatAttr(15));
      
@@ -409,8 +469,6 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
     // rewriter.setInsertionPointToEnd(ifOp.getThenBlock());
     //else block
     // rewriter.setInsertionPointToStart(ifOp.getElseBlock());
-    Value constant25 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
-                                                         rewriter.getF64FloatAttr(25));
     
     // Set insertion point to the end of the "then" block
     // rewriter.setInsertionPointAfter(ifOp.getThenBlock()->getTerminator());
@@ -424,7 +482,7 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
 
     //also use affine::AffineStore to store at the loop induction variable
     // auto storeOp = rewriter.create<affine::AffineStoreOp>(loc, ifOp.getResult(0), alloc, forOp1.getInductionVar());
-    auto storeOp = rewriter.create<affine::AffineStoreOp>(loc, constant25, alloc, forOp1.getInductionVar());
+    // auto storeOp = rewriter.create<affine::AffineStoreOp>(loc, constant25, alloc, forOp1.getInductionVar());
     // Back to parentOp -- forOp1
     // rewriter.setInsertionPointAfter(storeOp);
 
@@ -433,7 +491,74 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
     // rewriter.create<affine::AffineYieldOp>(loc);  
 
 #endif
+
+#if TryAffineIf2
+
+    int64_t lb = 0 ;
+    int64_t ub = tensorType.getShape()[0];
+    int64_t step = 1;
+
+    //create AffineMap and set
+    // %1 = affine.load 
+    //  if ( %arg0 >= 5)   ie, integerSet <(d0) : (d0 - 5 >= 0) >
+    AffineExpr dimExpr = rewriter.getAffineDimExpr(0) - rewriter.getAffineConstantExpr(5);
+    // AffineExpr dimExpr2 = rewriter
+    // AffineMap map = AffineMap::get(1, 0, dimExpr);
+    // AffineMap map = AffineMap::get(1, 0 , rewriter.getAffineDimExpr(0) - 5);
+    IntegerSet set1 = IntegerSet::get(1, 0, {dimExpr}, {false});
+
+     //affine.if %arg1 >= 0 and %5 <= %1 - 1
+     // n-k >= 0 && n-k <= len -1 //n = %arg0 , k = %arg1
+     // %arg0 >= 0 and %arg0 - %arg1 - %sym1 + 1 <= 0
+
+    affine::AffineForOp forOp1 = rewriter.create<affine::AffineForOp>(loc, 
+                lb, ub, step );
+
+    //inside the forOp body --> create the operations & then close the body
+    // OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointToStart(forOp1.getBody());
+    auto iv = forOp1.getInductionVar();
+    //start adding operations like a arith::constant = 100.0 to the body of forOp1
+      // Inside the loop body:
+
+    // #set affine_set<(d0) : (d0 - 5 <= 0)>
+    // affine.for %arg0 = 0 to 10 {
+    //   %3 = affine.if #set (%arg0) {
+    //         %1 = arith.const 25
+    //         affine.yield %1
+    //     }
+    //     affine.store %3, alloc[%arg0]
+    // } 
+
+    // auto ifOp = rewriter.create<affine::AffineIfOp>( loc, set1 , ValueRange{iv} , false /*no else*/ );
+    auto ifOp = rewriter.create<affine::AffineIfOp>( loc, set1 , ValueRange{iv} , true /*no else*/ );
+    rewriter.setInsertionPointToStart(ifOp.getThenBlock());
+    // rewriter.setInsertionPointToEnd(ifOp.getThenBlock());
+    Value constant25 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(25));
+    Value constsq25 = rewriter.create<arith::MulFOp>(loc, constant25, constant25)  ;                                                   
     
+    // ifOp.setR
+    // rewriter.create<AffineStoreOp>(loc, constant25 , alloc, iv);
+    // rewriter.setInsertionPointToStart(ifOp.getElseBlock());
+    Value constant15 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(15));
+    rewriter.create<AffineStoreOp>(loc, constsq25 , alloc, iv);
+
+
+    //getParentBlock then use 
+    // rewriter.setInsertionPointToEnd(ifOp.getThenBlock()->getParentOp());
+    // rewriter.setInsertionPointToEnd(ifOp->getBlock());
+    rewriter.setInsertionPoint(ifOp->getParentOp());
+    // rewriter.create<AffineYieldOp>(loc, ValueRange{constant25});
+    // rewriter.setInsertionPointToEnd(ifOp.getThenBlock());
+    
+    // rewriter.setInsertionPointAfter(ifOp);
+    // rewriter.create<AffineStoreOp>(loc, ifOp.getResult(0) , alloc, iv);
+    // rewriter.cre
+    
+#endif
+
 #if TryAffineMap
     int64_t lb = 0 ;
     int64_t ub = tensorType.getShape()[0] - 2;
@@ -442,6 +567,7 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
     affine::AffineForOp forOp1 = rewriter.create<affine::AffineForOp>(loc, 
                 lb, ub, step );
 
+    
     //inside the forOp body --> create the operations & then close the body
     // OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointToStart(forOp1.getBody());
@@ -465,12 +591,12 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
     //try replace constant15 ie, with input & filter
     FIRFilterOpAdaptor firOpAdaptor(operands);
 
-    // Value inputForFilter = rewriter.create<affine::AffineLoadOp>(loc, firOpAdaptor.getLhs() , iv);
-    Value inputForFilterMapped = rewriter.create<affine::AffineLoadOp>(loc,  firOpAdaptor.getLhs() , addMap, iv);
+    Value inputForFilter = rewriter.create<affine::AffineLoadOp>(loc, firOpAdaptor.getLhs() , iv);
+    // Value inputForFilterMapped = rewriter.create<affine::AffineLoadOp>(loc,  firOpAdaptor.getLhs() , addMap, iv);
 
     Value impulseFilter = rewriter.create<AffineLoadOp>(loc, firOpAdaptor.getRhs() , iv);
 
-    auto storeOp = rewriter.create<affine::AffineStoreOp>(loc, inputForFilterMapped,      alloc,ValueRange{outputIndex});
+    auto storeOp = rewriter.create<affine::AffineStoreOp>(loc, inputForFilter,      alloc,ValueRange{outputIndex});
 
     
     llvm::errs() << "LINE = " << __LINE__ << "\n";
@@ -521,6 +647,9 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
     Value sumNext = rewriter.create<arith::AddFOp>(loc, inputForFilter, getIterArg);
     // Value sumNext = rewriter.create<arith::AddFOp>(loc, inputForFilter, constant0);
 
+    //here, at indx 0 , o/p = in[0]
+    // at indx 1 , o/p = in[0] + in[1] & so on
+    //at indx last o/p[9] = sum of all input elements
     auto storeOp = rewriter.create<affine::AffineStoreOp>(loc, sumNext,      alloc,ValueRange{iv});
     rewriter.create<AffineYieldOp>(loc, ValueRange{sumNext} );
     // rewriter.create<AffineYieldOp>(loc);
@@ -530,6 +659,445 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
 
     
     llvm::errs() << "LINE = " << __LINE__ << "\n";
+
+#endif
+
+#if TryMultiDimLoop
+    // here, we have to use iter
+    int64_t lb = 0 ;
+    int64_t ub = tensorType.getShape()[0] ;
+    int64_t step = 1;
+
+    Value constant0 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(0));
+
+    affine::AffineForOp forOp1 = rewriter.create<affine::AffineForOp>(loc, 
+                lb, ub, step  );
+
+    rewriter.setInsertionPointToStart(forOp1.getBody());
+    auto iv = forOp1.getInductionVar();
+
+    //create loadOp
+    FIRFilterOpAdaptor firOpAdaptor(operands);
+
+    Value loadInput = rewriter.create<affine::AffineLoadOp>(loc, firOpAdaptor.getLhs() , iv);
+
+    //create another loop --
+    affine::AffineForOp forOp2 = rewriter.create<affine::AffineForOp>(loc, 
+                lb, ub, step , ValueRange{loadInput} );
+
+    rewriter.setInsertionPointToStart(forOp2.getBody());
+    auto iv2 = forOp2.getInductionVar();
+    Value loadFilter = rewriter.create<AffineLoadOp>(loc, firOpAdaptor.getRhs() , iv2);
+    
+    // get iterArg
+    auto getIterArg =  forOp2.getBody()->getArgument(1);
+    auto sumNext = rewriter.create<arith::AddFOp>(loc, loadInput, loadFilter);
+
+    
+
+    //store the result to output
+    // rewriter.create<AffineStoreOp>(loc, sumNext, alloc, iv );
+    rewriter.create<AffineYieldOp>(loc, ValueRange{sumNext});
+    rewriter.setInsertionPointAfter(forOp2);
+    rewriter.create<AffineStoreOp>(loc, forOp2.getResult(0), alloc, iv );
+    //
+    //yield the 
+    //inside the forOp body --> create the operations & then close the body
+    // OpBuilder::InsertionGuard guard(rewriter);
+    // Initial sum set to 0.
+        // affine.for %arg0 = 0 to 10 {
+        //   %1 = affine.load input[%arg0]
+        //   %4 = affine.for %arg1 = 0 to 10 step 1 
+        //     iter_args(%sum_iter = %1) {
+        //       %2 = affine.load filter[%arg1]
+        //       %3 = arith.add sum_iter , %2
+        //         affine.yield %3 : f64
+        //   }
+        //   affine.store %4, output[%arg0]
+        // }
+
+
+      // Inside the loop body:
+
+    
+    llvm::errs() << "LINE = " << __LINE__ << "\n";
+
+
+#endif
+
+#if TryMultiDimForAndIf
+    int64_t lb = 0 ;
+    int64_t ub = tensorType.getShape()[0];
+    int64_t step = 1;
+
+    //create AffineMap and set
+    // %1 = affine.load 
+    //  if ( %arg0 >= 5)   ie, integerSet <(d0) : (d0 - 5 >= 0) >
+  
+     //affine.if %arg1 >= 0 and %5 <= %1 - 1
+     // n-k >= 0 && n-k <= len -1 //n = %arg0 , k = %arg1
+     // %arg0 >= 0 and %arg0 - %arg1 - %sym1 + 1 <= 0
+
+    affine::AffineForOp forOp1 = rewriter.create<affine::AffineForOp>(loc, 
+                lb, ub, step );
+
+    //inside the forOp body --> create the operations & then close the body
+    // OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointToStart(forOp1.getBody());
+    auto iv = forOp1.getInductionVar();
+    //start adding operations like a arith::constant = 100.0 to the body of forOp1
+      // Inside the loop body:
+
+    AffineExpr dimExpr = rewriter.getAffineDimExpr(0) - rewriter.getAffineConstantExpr(5);
+    IntegerSet set1 = IntegerSet::get(1, 0, {dimExpr}, {false});
+
+
+    // create 2nd loop
+    // use loop inductn variable for 2nd loop
+    // use if condition on 2nd loop inductn variable
+    // get the result of inner for loop and store at output 
+
+    affine::AffineForOp forOp2 = rewriter.create<affine::AffineForOp>(loc, 
+                lb, ub, step );
+    rewriter.setInsertionPointToStart(forOp2.getBody());
+    auto iv2 = forOp2.getInductionVar();
+    AffineExpr dimExpr2 = rewriter.getAffineDimExpr(1) - rewriter.getAffineConstantExpr(6);
+    IntegerSet set2 = IntegerSet::get(1, 0, {dimExpr,dimExpr2}, {false});
+
+    auto ifOp = rewriter.create<affine::AffineIfOp>( loc, set2 , ValueRange{iv} , false /*no else*/ );
+    rewriter.setInsertionPointToStart(ifOp.getThenBlock());
+    Value constant25 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(25));
+    Value resultFromInnerLoop = rewriter.create<arith::MulFOp>(loc, constant25 , constant25);
+
+    // rewriter.setInsertionPointAfter(forOp2);
+    // rewriter.setInsertionPointToEnd(forOp2->getBlock());
+    // rewriter.create<AffineStoreOp>(loc, constant25 , alloc, iv2);
+    // rewriter.create<AffineYieldOp>(loc, ValueRange{resultFromInnerLoop});
+    // rewriter.setInsertionPointAfter(ifOp);
+    // rewriter.create<AffineYieldOp>(loc, ValueRange{resultFromInnerLoop});
+    // rewriter.setInsertionPointAfter(forOp2);
+    rewriter.create<AffineStoreOp>(loc, constant25 , alloc, iv);
+          // #set2 = affine_set<(d0, d1)[]: (d0 - 5 >= 0, d1- 5 >= 0 ) >
+          // affine.for %arg0 = 0 to 10 {
+          //     %N = len(output)
+          //   %4 =  affine.for %arg1 = 0 to 10 {
+          //         affine.if #set2(%arg0 , %arg1 )[%N] {
+          //             %1 = const 5
+          //             %2 = const 3
+          //             %3 = arith.mulf %1 , %2
+          //             affine.yield %3 
+          //         }
+          //     }
+          //   affine.store %4, alloc[%arg0]                
+          // }
+
+   
+
+    // rewriter.create<AffineYieldOp>(loc, ValueRange{constant25});
+    // rewriter.setInsertionPointAfter(ifOp);
+    // rewriter.create<AffineStoreOp>(loc, ifOp.getResult(0) , alloc, iv);
+    
+    //try to add the affine.If condition 
+    //create affine.If , 
+    // use integer set to represent the condition 
+    //check the AffineArgs 
+    // affine.if operation contains two regions for the “then” and “else” clauses
+      //each region of affine.if must contain a single block with no args and terminated by affine.yield op
+      // if affine.if defines no values --> no need for affine.yield
+    
+    // affineIf.setConditional(set1, forOp1.getInductionVar());
+    //start then "block"
+    // "then" block
+    
+    // rewriter.create<affine::AffineYieldOp>(loc, constant25);
+    llvm::errs() << "LINE = " << __LINE__ << "\n";
+    //Back to parentOp -- ifOp stops here
+    // rewriter.setInsertionPointAfter(ifOp);
+    
+    llvm::errs() << "LINE = " << __LINE__ << "  xx\n";
+
+#endif
+
+#if TryMultiDimLoopAndAffineMap
+    // here, we have to use iter
+    int64_t lb = 0 ;
+    int64_t ub = tensorType.getShape()[0] ;
+    int64_t step = 1;
+
+    Value constant0 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(0));
+
+    affine::AffineForOp forOp1 = rewriter.create<affine::AffineForOp>(loc, 
+                lb, ub, step  );
+
+    rewriter.setInsertionPointToStart(forOp1.getBody());
+    auto iv = forOp1.getInductionVar();
+
+    //create loadOp
+    FIRFilterOpAdaptor firOpAdaptor(operands);
+
+    Value loadInput = rewriter.create<affine::AffineLoadOp>(loc, firOpAdaptor.getLhs() , iv);
+
+    //create another loop --
+    affine::AffineForOp forOp2 = rewriter.create<affine::AffineForOp>(loc, 
+                lb, ub, step , ValueRange{loadInput} );
+
+    rewriter.setInsertionPointToStart(forOp2.getBody());
+    auto iv2 = forOp2.getInductionVar();
+
+    //Use AffineMap for affine.load alloc_9[%arg0 - %arg1]
+    AffineExpr OuterIndx = rewriter.getAffineDimExpr(0);
+    AffineExpr InnerIndx = rewriter.getAffineDimExpr(1);
+    AffineMap addMap = AffineMap::get(2, 0, OuterIndx - InnerIndx);
+    auto outputIndex = rewriter.create<affine::AffineApplyOp>(loc, addMap , ValueRange{iv,iv2});
+
+    // Value constant15 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(15));
+    
+
+    // Value loadFilter = rewriter.create<AffineLoadOp>(loc, firOpAdaptor.getRhs() , addMap, ValueRange{iv2,iv});
+    Value loadFilter = rewriter.create<AffineLoadOp>(loc, firOpAdaptor.getRhs() , addMap, ValueRange{iv,iv2});
+    // get iterArg
+    auto getIterArg =  forOp2.getBody()->getArgument(1);
+    auto sumNext = rewriter.create<arith::AddFOp>(loc, loadFilter, loadFilter);
+
+    
+
+    //store the result to output
+    // rewriter.create<AffineStoreOp>(loc, sumNext, alloc, iv );
+    rewriter.create<AffineYieldOp>(loc, ValueRange{sumNext});
+    rewriter.setInsertionPointAfter(forOp2);
+    rewriter.create<AffineStoreOp>(loc, forOp2.getResult(0), alloc, iv );
+    //
+    //yield the 
+    //inside the forOp body --> create the operations & then close the body
+    // OpBuilder::InsertionGuard guard(rewriter);
+    // Initial sum set to 0.
+        // affine.for %arg0 = 0 to 10 {
+        //   %1 = affine.load input[%arg0]
+        //   %4 = affine.for %arg1 = 0 to 10 step 1 
+        //     iter_args(%sum_iter = %1) {
+        //       %2 = affine.load filter[%arg1]
+        //       %3 = arith.add sum_iter , %2
+        //         affine.yield %3 : f64
+        //   }
+        //   affine.store %4, output[%arg0]
+        // }
+
+
+      // Inside the loop body:
+
+    
+    llvm::errs() << "LINE = " << __LINE__ << "\n";
+
+
+#endif
+
+#if TryMultiDimLoopAndAffineSet
+    // here, we have to use iter
+    int64_t lb = 0 ;
+    int64_t ub = tensorType.getShape()[0] ;
+    int64_t step = 1;
+
+    Value constant0 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(0));
+
+    affine::AffineForOp forOp1 = rewriter.create<affine::AffineForOp>(loc, 
+                lb, ub, step  );
+
+    rewriter.setInsertionPointToStart(forOp1.getBody());
+    auto iv = forOp1.getInductionVar();
+
+    //create loadOp
+    FIRFilterOpAdaptor firOpAdaptor(operands);
+
+    Value loadInput = rewriter.create<affine::AffineLoadOp>(loc, firOpAdaptor.getLhs() , iv);
+
+    //create another loop --
+    affine::AffineForOp forOp2 = rewriter.create<affine::AffineForOp>(loc, 
+                lb, ub, step , ValueRange{loadInput} );
+
+    rewriter.setInsertionPointToStart(forOp2.getBody());
+    auto iv2 = forOp2.getInductionVar();
+
+    //Use AffineMap for affine.load alloc_9[%arg0 - %arg1]
+    AffineExpr OuterIndx = rewriter.getAffineDimExpr(0);
+    AffineExpr InnerIndx = rewriter.getAffineDimExpr(1);
+    AffineMap addMap = AffineMap::get(2, 0, OuterIndx - InnerIndx);
+    auto outputIndex = rewriter.create<affine::AffineApplyOp>(loc, addMap , ValueRange{iv,iv2});
+
+    // Value constant15 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(15));
+    AffineExpr dimExpr = OuterIndx - InnerIndx;
+    IntegerSet set1 = IntegerSet::get(2, 0, {dimExpr}, {false});
+
+    auto ifOp = rewriter.create<affine::AffineIfOp>( loc, set1 , ValueRange{iv,iv2} , false /*no else*/ );
+    rewriter.setInsertionPointToStart(ifOp.getThenBlock());
+    // Value loadFilter = rewriter.create<AffineLoadOp>(loc, firOpAdaptor.getRhs() , addMap, ValueRange{iv2,iv});
+    Value loadFilter = rewriter.create<AffineLoadOp>(loc, firOpAdaptor.getRhs() , addMap, ValueRange{iv,iv2});
+    // get iterArg
+    auto getIterArg =  forOp2.getBody()->getArgument(1);
+    auto sumNext = rewriter.create<arith::AddFOp>(loc, loadFilter, loadFilter);
+    // rewriter.create<AffineStoreOp>(loc, sumNext, alloc, iv );
+    rewriter.create<AffineYieldOp>(loc, ValueRange{sumNext});
+
+    //store the result to output
+    // rewriter.create<AffineStoreOp>(loc, sumNext, alloc, iv );
+    rewriter.setInsertionPointAfter(ifOp);
+    rewriter.create<AffineYieldOp>(loc, ValueRange{sumNext});
+    rewriter.setInsertionPointAfter(forOp2);
+    rewriter.create<AffineStoreOp>(loc, forOp2.getResult(0), alloc, iv );
+    //
+    //yield the 
+    //inside the forOp body --> create the operations & then close the body
+    // OpBuilder::InsertionGuard guard(rewriter);
+    // Initial sum set to 0.
+        // affine.for %arg0 = 0 to 10 {
+        //   %1 = affine.load input[%arg0]
+        //   %4 = affine.for %arg1 = 0 to 10 step 1 
+        //     iter_args(%sum_iter = %1) {
+        //       %2 = affine.load filter[%arg1]
+        //       %3 = arith.add sum_iter , %2
+        //         affine.yield %3 : f64
+        //   }
+        //   affine.store %4, output[%arg0]
+        // }
+
+
+      // Inside the loop body:
+
+    
+    llvm::errs() << "LINE = " << __LINE__ << "\n";
+
+
+#endif
+
+#if TryFIRFilter
+
+    int64_t lb = 0 ;
+    int64_t ub = tensorType.getShape()[0];
+    int64_t step = 1;
+
+    affine::AffineForOp forOp1 = rewriter.create<affine::AffineForOp>(loc, 
+                lb, ub, step );
+    rewriter.setInsertionPointToStart(forOp1.getBody());
+    auto iv = forOp1.getInductionVar();
+
+    Value sum0 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), 
+                                                rewriter.getF64FloatAttr(0));
+    //get filter len
+    // auto tensorTypeFilter = llvm::cast<RankedTensorType>((*op->getOperand(1))); //operand_type_end
+    // auto tensorTypeFilter = llvm::cast<RankedTensorType>((*op->operand_type_begin()));
+    auto operandIt = op->operand_type_begin();
+    auto tensorTypeInput = llvm::cast<RankedTensorType>(*operandIt);
+    int64_t ubForInput = tensorTypeInput.getShape()[0];
+    //get second operand
+    operandIt = operandIt + 1;
+
+    // auto tensorTypeFilter = llvm::cast<RankedTensorType>((*op->operand_type_begin())); //operandIt
+    auto tensorTypeFilter = llvm::cast<RankedTensorType>(*operandIt);
+    int64_t ubForFilter = tensorTypeFilter.getShape()[0];
+
+    llvm::errs() << "ubForFilter= " << ubForFilter << "\n";
+
+    affine::AffineForOp forOp2 = rewriter.create<affine::AffineForOp>(loc, 
+                lb, ubForFilter, step );
+    rewriter.setInsertionPointToStart(forOp2.getBody());
+    auto iv2 = forOp2.getInductionVar();
+
+    auto getIterArg =  forOp2.getBody()->getArgument(1);       //forOp1.getIterOperands();
+    
+    // AffineExpr dimExpr = rewriter.getAffineDimExpr(0);
+    AffineExpr dimExpr2 = rewriter.getAffineDimExpr(0) - rewriter.getAffineDimExpr(1);
+    //n-k <= inputLen -1 or, k-n >= 1 - inputLen ie, k - n + inputLen - 1 >= 0
+    AffineExpr ExprForUpperBoundCheck = rewriter.getAffineConstantExpr(ubForInput) + rewriter.getAffineDimExpr(1)
+                     - rewriter.getAffineDimExpr(0) - rewriter.getAffineConstantExpr(1)  ;
+    IntegerSet set2 = IntegerSet::get(1, 0, {dimExpr2,ExprForUpperBoundCheck}, {false, false});
+
+    auto ifOp = rewriter.create<affine::AffineIfOp>( loc, set2 , ValueRange{iv2} , false /*no else*/ );
+    rewriter.setInsertionPointToStart(ifOp.getThenBlock());
+    
+    AffineMap addMap = AffineMap::get(1, 0, dimExpr2);
+    auto inputIndex = rewriter.create<affine::AffineApplyOp>(loc, addMap , iv2);
+
+    FIRFilterOpAdaptor firOpAdaptor(operands);
+
+    Value inputForFilter = rewriter.create<affine::AffineLoadOp>(loc, firOpAdaptor.getLhs() , addMap,  iv2);
+    // rewriter.create<AffineYieldOp>(loc, ValueRange{inputForFilter});
+    //else block
+    // rewriter.setInsertionPointToStart(ifOp.getElseBlock());
+
+
+
+    //FIRFilter code
+    //iterate for output
+        //start with sum=0
+        //iterate for filter len
+            //check for input_indx must be within bounds
+            //load filter and input[indx]
+            //multiply them
+            //add this to sum
+    //update output with sum
+
+    
+
+    //inside the forOp body --> create the operations & then close the body
+    // OpBuilder::InsertionGuard guard(rewriter);
+    
+    //start adding operations like a arith::constant = 100.0 to the body of forOp1
+      // Inside the loop body:
+
+
+    
+    Value constant25 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(25));
+    Value resultFromInnerLoop = rewriter.create<arith::MulFOp>(loc, constant25 , constant25);
+
+    // rewriter.setInsertionPointAfter(forOp2);
+    // rewriter.setInsertionPointToEnd(forOp2->getBlock());
+    // rewriter.create<AffineStoreOp>(loc, constant25 , alloc, iv2);
+    // rewriter.create<AffineYieldOp>(loc, ValueRange{resultFromInnerLoop});
+    // rewriter.setInsertionPointAfter(ifOp);
+    // rewriter.create<AffineYieldOp>(loc, ValueRange{resultFromInnerLoop});
+    // rewriter.setInsertionPointAfter(forOp2);
+    rewriter.create<AffineStoreOp>(loc, inputForFilter , alloc, iv);
+          // #set2 = affine_set<(d0, d1)[]: (d0 - 5 >= 0, d1- 5 >= 0 ) >
+          // affine.for %arg0 = 0 to 10 {
+          //     %N = len(output)
+          //   %4 =  affine.for %arg1 = 0 to 10 {
+          //         affine.if #set2(%arg0 , %arg1 )[%N] {
+          //             %1 = const 5
+          //             %2 = const 3
+          //             %3 = arith.mulf %1 , %2
+          //             affine.yield %3 
+          //         }
+          //     }
+          //   affine.store %4, alloc[%arg0]                
+          // }
+
+   
+
+    // rewriter.create<AffineYieldOp>(loc, ValueRange{constant25});
+    // rewriter.setInsertionPointAfter(ifOp);
+    // rewriter.create<AffineStoreOp>(loc, ifOp.getResult(0) , alloc, iv);
+    
+    //try to add the affine.If condition 
+    //create affine.If , 
+    // use integer set to represent the condition 
+    //check the AffineArgs 
+    // affine.if operation contains two regions for the “then” and “else” clauses
+      //each region of affine.if must contain a single block with no args and terminated by affine.yield op
+      // if affine.if defines no values --> no need for affine.yield
+    
+    // affineIf.setConditional(set1, forOp1.getInductionVar());
+    //start then "block"
+    // "then" block
+    
+    // rewriter.create<affine::AffineYieldOp>(loc, constant25);
+    llvm::errs() << "LINE = " << __LINE__ << "\n";
+    //Back to parentOp -- ifOp stops here
+    // rewriter.setInsertionPointAfter(ifOp);
+    
+    llvm::errs() << "LINE = " << __LINE__ << "  xx\n";
+
+
 
 #endif
     // Terminate the loop body with affine.yield.
