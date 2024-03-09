@@ -599,8 +599,8 @@ void FIRFilterOp::inferShapes() {
   mlir::TensorType manipulatedType = mlir::RankedTensorType::get(shapeForOutput, 
           getLhs().getType().getElementType());
 
-  getResult().setType(getLhs().getType()); 
-  // getResult().setType(manipulatedType);
+  // getResult().setType(getLhs().getType()); 
+  getResult().setType(manipulatedType);
   }
 
 //get rank of Input & Filter -- make sure it is of rank 1 
