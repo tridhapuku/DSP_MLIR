@@ -1,0 +1,16 @@
+
+
+./bin/mlir-opt -convert-linalg-to-loops -convert-std-to-llvm -print-ir ./TryLinAlg/TryLianAlg1.td
+
+
+mlir-opt /tmp/foo.mlir  --one-shot-bufferize='bufferize-function-boundaries' -test-lower-to-llvm | mlir-translate -mlir-to-llvmir | clang -x ir -c
+
+
+./bin/mlir-opt ./TryLinAlg/TryLianAlg1.td --one-shot-bufferize='bufferize-function-boundaries' -test-lower-to-llvm | ./bin/mlir-translate -mlir-to-llvmir 
+
+
+./bin/mlir-opt ./TryLinAlg/TryLianAlg1.td --one-shot-bufferize='bufferize-function-boundaries' -test-lower-to-llvm | ./bin/mlir-translate -mlir-to-llvmir 
+
+clang-17 
+
+clang-17 <(./bin/mlir-opt ./TryLinAlg/TryLianAlg1.td --one-shot-bufferize='bufferize-function-boundaries' -test-lower-to-llvm | ./bin/mlir-translate -mlir-to-llvmir) -o my_executable
