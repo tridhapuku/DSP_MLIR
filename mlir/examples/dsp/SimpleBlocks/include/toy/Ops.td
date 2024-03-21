@@ -489,6 +489,34 @@ def SubOp : Dsp_Op<"sub", [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInte
  }
 
 //===----------------------------------------------------------------------===//
+// fft2dOp
+//===----------------------------------------------------------------------===//
+
+def fft2dOp : Dsp_Op<"fft2dOp", [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+   let summary = "Performs FFT2D operation on the input.";
+   let description = [{
+     Performs a batched complex 2D Fast Fourier Transform over the input. The complex input values are constructed from the corresponding values in the input_real and input_imag tensors. The resulting values in the output are split into the output_real and output_imag tensors. No normalization is applied on either the forward or inverse versions of the operation.
+   }];
+
+   let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs);//working
+   let results = (outs F64Tensor, F64Tensor);
+
+   // Indicate that the operation has a custom parser and printer method.
+   // let hasCustomAssemblyFormat = 1;
+   // let assemblyFormat = [{
+   //   `(` $input `:` type($input1 , $input2) `)` attr-dict `to` type(results)
+   // }];
+   let builders = [
+     OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+   ];
+
+   // Indicate that the operation has a custom parser and printer method.
+   // let hasCustomAssemblyFormat = 1;
+
+   // let hasVerifier = 1;
+ }
+
+//===----------------------------------------------------------------------===//
 // zeroCrossCountOp
 //===----------------------------------------------------------------------===//
 // def zeroCrossCountOp : Dsp_Op<"zeroCrossCount" , [Pure]>{

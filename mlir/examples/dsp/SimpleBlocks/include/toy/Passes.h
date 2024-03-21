@@ -12,7 +12,7 @@
 
 #ifndef TOY_PASSES_H
 #define TOY_PASSES_H
-
+// #include "mlir/include/mlir/Conversion/TosaToLinalg/TosaToLinalg.h"
 #include <memory>
 
 namespace mlir {
@@ -28,7 +28,8 @@ std::unique_ptr<mlir::Pass> createLowerToAffinePass();
 /// Create a pass for lowering operations the remaining `Toy` operations, as
 /// well as `Affine` and `Std`, to the LLVM dialect for codegen.
 std::unique_ptr<mlir::Pass> createLowerToLLVMPass();
-
+std::unique_ptr<mlir::Pass> createLowerToTosaPass();
+std::unique_ptr<mlir::Pass> createLowerTosaToLinalgPass();
 } // namespace dsp
 } // namespace mlir
 
