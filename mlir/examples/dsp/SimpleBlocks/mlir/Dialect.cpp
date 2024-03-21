@@ -622,6 +622,19 @@ mlir::LogicalResult FIRFilterOp::verify() {
 }  
 
 //===----------------------------------------------------------------------===//
+// FFT2DOp
+//===----------------------------------------------------------------------===//
+
+ void fft2dOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                   mlir::Value lhs, mlir::Value rhs) {
+   state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+   state.addOperands({lhs, rhs});
+ }
+
+
+ void fft2dOp::inferShapes() { getResult(0).setType(getLhs().getType()); }
+
+//===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
 
