@@ -1,0 +1,29 @@
+
+
+├── CMakeLists.txt
+├── include
+│ ├── CMakeLists.txt
+│ └── toy
+│     ├── AST.h
+│     ├── CMakeLists.txt
+│     ├── Dialect.h
+│     ├── Lexer.h
+│     ├── MLIRGen.h
+│     ├── Ops.td
+│     ├── Parser.h
+│     ├── Passes.h
+│     ├── ShapeInferenceInterface.h
+│     └── ShapeInferenceInterface.td
+├── mlir
+│ ├── Dialect.cpp
+│ ├── LowerToAffineLoops2.cpp
+│ ├── LowerToAffineLoops.cpp
+│ ├── LowerToLLVM.cpp
+│ ├── MLIRGen.cpp
+│ ├── ShapeInferencePass.cpp
+│ ├── ToyCombine.cpp
+│ └── ToyCombine.td
+├── parser
+│ └── AST.cpp
+├── ReadMe.txt
+└── toyc.c

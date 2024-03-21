@@ -29,6 +29,14 @@ std::unique_ptr<mlir::Pass> createLowerToAffinePass();
 /// well as `Affine` and `Std`, to the LLVM dialect for codegen.
 std::unique_ptr<mlir::Pass> createLowerToLLVMPass();
 
+/// Create a pass for lowering operations from `Toy` operations, to
+/// linalg .
+std::unique_ptr<mlir::Pass> createLowerToLinalgPass();
+
+/// Create a pass for lowering operations from linalg operations, to
+/// Affine, std dialects  or directly LLVM pass
+std::unique_ptr<mlir::Pass> createLinalgToStdPass(); //createLinalgToStdPass //createLinalgToLLVMPass
+
 } // namespace dsp
 } // namespace mlir
 

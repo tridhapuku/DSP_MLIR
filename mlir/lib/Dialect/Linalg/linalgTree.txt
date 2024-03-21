@@ -1,0 +1,62 @@
+.
+├── CMakeLists.txt
+├── IR
+│   ├── CMakeLists.txt
+│   ├── LinalgDialect.cpp
+│   ├── LinalgInterfaces.cpp
+│   ├── LinalgOps.cpp
+│   └── ValueBoundsOpInterfaceImpl.cpp
+├── linalgTree.txt
+├── TransformOps
+│   ├── CMakeLists.txt
+│   ├── DialectExtension.cpp
+│   ├── GPUHeuristics.cpp
+│   ├── LinalgMatchOps.cpp
+│   ├── LinalgTransformOps.cpp
+│   └── Syntax.cpp
+├── Transforms
+│   ├── AllInterfaces.cpp
+│   ├── BubbleUpExtractSlice.cpp
+│   ├── BufferizableOpInterfaceImpl.cpp
+│   ├── Bufferize.cpp
+│   ├── CMakeLists.txt
+│   ├── ConstantFold.cpp
+│   ├── ConvertConv2DToImg2Col.cpp
+│   ├── ConvertToDestinationStyle.cpp
+│   ├── DataLayoutPropagation.cpp
+│   ├── DecomposeLinalgOps.cpp
+│   ├── Detensorize.cpp
+│   ├── DropUnitDims.cpp
+│   ├── ElementwiseOpFusion.cpp
+│   ├── ElementwiseToLinalg.cpp
+│   ├── EliminateEmptyTensors.cpp
+│   ├── EraseUnusedOperandsAndResults.cpp
+│   ├── FusePadOpWithLinalgProducer.cpp
+│   ├── Fusion.cpp
+│   ├── Generalization.cpp
+│   ├── Hoisting.cpp
+│   ├── HoistPadding.cpp
+│   ├── InlineScalarOperands.cpp
+│   ├── Interchange.cpp
+│   ├── Loops.cpp
+│   ├── MeshShardingInterfaceImpl.cpp
+│   ├── NamedOpConversions.cpp
+│   ├── Padding.cpp
+│   ├── Promotion.cpp
+│   ├── Specialize.cpp
+│   ├── Split.cpp
+│   ├── SplitReduction.cpp
+│   ├── SubsetInsertionOpInterfaceImpl.cpp
+│   ├── SwapExtractSliceWithFillPatterns.cpp
+│   ├── Tiling.cpp
+│   ├── TilingInterfaceImpl.cpp
+│   ├── Transforms.cpp
+│   ├── TransposeConv2D.cpp
+│   └── Vectorization.cpp
+└── Utils
+    ├── CMakeLists.txt
+    └── Utils.cpp
+
+4 directories, 53 files
+
+This is LinalgDialect of mlir -- explain the different files functionality in tree form with examples and also explain the overall functionality of LinalgDialect

@@ -79,6 +79,7 @@ enum Action {
   None,
   DumpAST,
   DumpMLIR,
+  DumpMLIRLinAlg,
   DumpMLIRAffine,
   DumpMLIRLLVM,
   DumpLLVMIR,
@@ -89,6 +90,8 @@ static cl::opt<enum Action> emitAction(
     "emit", cl::desc("Select the kind of output desired"),
     cl::values(clEnumValN(DumpAST, "ast", "output the AST dump")),
     cl::values(clEnumValN(DumpMLIR, "mlir", "output the MLIR dump")),
+    cl::values(clEnumValN(DumpMLIRLinAlg, "mlir-linalg",
+                          "output the MLIR dump after linalg lowering")),
     cl::values(clEnumValN(DumpMLIRAffine, "mlir-affine",
                           "output the MLIR dump after affine lowering")),
     cl::values(clEnumValN(DumpMLIRLLVM, "mlir-llvm",
@@ -99,6 +102,7 @@ static cl::opt<enum Action> emitAction(
                    "JIT the code and run it by invoking the main function")));
 
 static cl::opt<bool> enableOpt("opt", cl::desc("Enable optimizations"));
+static cl::opt<bool> withLinAlg("dsplinalg", cl::desc("Flow with linAlg"));
 
 /// Returns a Toy AST resulting from parsing the file or a nullptr on error.
 std::unique_ptr<dsp::ModuleAST> parseInputFile(llvm::StringRef filename) {
@@ -158,9 +162,14 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
   // Check to see what granularity of MLIR we are compiling to.
   bool isLoweringToAffine = emitAction >= Action::DumpMLIRAffine;
   bool isLoweringToLLVM = emitAction >= Action::DumpMLIRLLVM;
+  //bool isLoweringFrmLinalgToAffine = 
+  //if withLinalg and optEnable  then
+  // create createShapeInferencePass and add createCanonicalizerPass , createCSEPass
+  // now also check
 
   if (enableOpt || isLoweringToAffine) {
     // Inline all functions into main and then delete them.
+    llvm::errs() << "Lowering to affine called\n" ;
     pm.addPass(mlir::createInlinerPass());
 
     // Now that there is only one function, we can infer the shapes of each of
@@ -169,6 +178,26 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
     optPM.addPass(mlir::dsp::createShapeInferencePass());
     optPM.addPass(mlir::createCanonicalizerPass());
     optPM.addPass(mlir::createCSEPass());
+  }
+
+  //if withLinalg 
+  // add Pass for createLowerToLinalgPass
+  // Todo -- add optimizations at Linalg level
+  //
+  if(withLinAlg){
+    //create inliner pass
+    pm.addPass(mlir::createInlinerPass());
+
+    // Now that there is only one function, we can infer the shapes of each of
+    // the operations.
+    mlir::OpPassManager &optPM = pm.nest<mlir::dsp::FuncOp>();
+    optPM.addPass(mlir::dsp::createShapeInferencePass());
+    optPM.addPass(mlir::createCanonicalizerPass());
+    optPM.addPass(mlir::createCSEPass());
+
+    //pass for Linalg to affine conversion
+    llvm::errs() << "Invoking Linalg to std pass\n";
+    // pm.addPass(mlir::dsp::createLinalgToStdPass);
   }
 
   if (isLoweringToAffine) {
@@ -314,6 +343,16 @@ int main(int argc, char **argv) {
   // Load our Dialect in this MLIR Context.
   context.getOrLoadDialect<mlir::dsp::DspDialect>();
 
+
+  //Added by abhinav to support affine and arith input files
+  //Todo -- put a check for which option
+  context.getOrLoadDialect<mlir::affine::AffineDialect>();
+  context.getOrLoadDialect<mlir::arith::ArithDialect>();
+  context.getOrLoadDialect<mlir::func::FuncDialect>();
+  context.getOrLoadDialect<mlir::memref::MemRefDialect>();
+  context.getOrLoadDialect<mlir::BuiltinDialect>();
+
+
   mlir::OwningOpRef<mlir::ModuleOp> module;
   if (int error = loadAndProcessMLIR(context, module))
     return error;
@@ -322,6 +361,15 @@ int main(int argc, char **argv) {
   bool isOutputingMLIR = emitAction <= Action::DumpMLIRLLVM;
   if (isOutputingMLIR) {
     module->dump();
+    return 0;
+  }
+  //check if we are compiling to Linalg IR
+  if (emitAction == Action::DumpMLIRLinAlg)
+  {
+    //convert linalg to llvm
+      //test directly with simple linalg code
+
+    //convert linalg to std dialects like affine,
     return 0;
   }
 
