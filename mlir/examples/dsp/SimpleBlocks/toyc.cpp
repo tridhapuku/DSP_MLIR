@@ -57,7 +57,9 @@
 using namespace std;
 using namespace std::chrono;
 
+// using namespace mlir;
 using namespace dsp;
+
 namespace cl = llvm::cl;
 
 static cl::opt<std::string> inputFilename(cl::Positional,
@@ -99,6 +101,7 @@ static cl::opt<enum Action> emitAction(
                    "JIT the code and run it by invoking the main function")));
 
 static cl::opt<bool> enableOpt("opt", cl::desc("Enable optimizations"));
+static cl::opt<bool> affineIn("affineIn", cl::desc("Input is affine file"));
 
 /// Returns a Toy AST resulting from parsing the file or a nullptr on error.
 std::unique_ptr<dsp::ModuleAST> parseInputFile(llvm::StringRef filename) {
@@ -158,8 +161,9 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
   // Check to see what granularity of MLIR we are compiling to.
   bool isLoweringToAffine = emitAction >= Action::DumpMLIRAffine;
   bool isLoweringToLLVM = emitAction >= Action::DumpMLIRLLVM;
+  // bool isAffineToLLVM = emitAction >= Action::DumpMLIRAffineToLLVM;
 
-  if (enableOpt || isLoweringToAffine) {
+  if (enableOpt || isLoweringToAffine ) {
     // Inline all functions into main and then delete them.
     pm.addPass(mlir::createInlinerPass());
 
@@ -169,6 +173,23 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
     optPM.addPass(mlir::dsp::createShapeInferencePass());
     optPM.addPass(mlir::createCanonicalizerPass());
     optPM.addPass(mlir::createCSEPass());
+  }
+
+  if(affineIn)
+  {
+    //we don't require shape inference here
+    mlir::OpPassManager &optPM1 = pm.nest<mlir::dsp::FuncOp>();
+    optPM1.addPass(mlir::createCanonicalizerPass());
+    optPM1.addPass(mlir::createCSEPass());
+
+    // Add optimizations if enabled.
+    if (enableOpt) {
+      optPM1.addPass(mlir::affine::createLoopFusionPass());
+      optPM1.addPass(mlir::affine::createAffineScalarReplacementPass());
+    }
+
+    //disable isLoweringToAffine 
+    isLoweringToAffine = false;
   }
 
   if (isLoweringToAffine) {
@@ -313,6 +334,14 @@ int main(int argc, char **argv) {
   mlir::MLIRContext context(registry);
   // Load our Dialect in this MLIR Context.
   context.getOrLoadDialect<mlir::dsp::DspDialect>();
+
+  //Added by abhinav to support affine and arith input files
+  //Todo -- put a check for which option
+  context.getOrLoadDialect<mlir::affine::AffineDialect>();
+  context.getOrLoadDialect<mlir::arith::ArithDialect>();
+  context.getOrLoadDialect<mlir::func::FuncDialect>();
+  context.getOrLoadDialect<mlir::memref::MemRefDialect>();
+  context.getOrLoadDialect<mlir::BuiltinDialect>();
 
   mlir::OwningOpRef<mlir::ModuleOp> module;
   if (int error = loadAndProcessMLIR(context, module))
