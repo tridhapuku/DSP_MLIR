@@ -13,6 +13,7 @@
 #include "mlir/Dialect/Func/Extensions/AllExtensions.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Conversion/TosaToLinalg/TosaToLinalg.h"
+#include "mlir/Conversion/TosaToLinalg/TosaToLinalg.h"
 #include "mlir/Support/LogicalResult.h"
 #include "toy/AST.h"
 #include "toy/Dialect.h"
@@ -85,6 +86,8 @@ enum Action {
   DumpMLIRAffine,
   DumpMLIRTosa,
   DumpMLIRLinalg,
+  DumpMLIRTosa,
+  DumpMLIRLinalg,
   DumpMLIRLLVM,
   DumpLLVMIR,
   RunJIT
@@ -96,6 +99,10 @@ static cl::opt<enum Action> emitAction(
     cl::values(clEnumValN(DumpMLIR, "mlir", "output the MLIR dump")),
     cl::values(clEnumValN(DumpMLIRAffine, "mlir-affine",
                           "output the MLIR dump after affine lowering")),
+    cl::values(clEnumValN(DumpMLIRTosa, "mlir-tosa",
+                          "output the MLIR dump after tosa lowering")),
+    cl::values(clEnumValN(DumpMLIRLinalg, "mlir-linalg",
+                          "output the MLIR dump after tosa lowering")),
     cl::values(clEnumValN(DumpMLIRTosa, "mlir-tosa",
                           "output the MLIR dump after tosa lowering")),
     cl::values(clEnumValN(DumpMLIRLinalg, "mlir-linalg",
@@ -170,6 +177,9 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
   // Change to TOSA
   bool isLoweringToTosa = emitAction >= Action::DumpMLIRTosa;
   bool isLoweringTosaToLinalg = emitAction >= Action::DumpMLIRLinalg;
+  // Change to TOSA
+  bool isLoweringToTosa = emitAction >= Action::DumpMLIRTosa;
+  bool isLoweringTosaToLinalg = emitAction >= Action::DumpMLIRLinalg;
   bool isLoweringToLLVM = emitAction >= Action::DumpMLIRLLVM;
   // bool isAffineToLLVM = emitAction >= Action::DumpMLIRAffineToLLVM;
 
@@ -210,6 +220,53 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
     mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
     optPM.addPass(mlir::createCanonicalizerPass());
     optPM.addPass(mlir::createCSEPass());
+
+    // Add optimizations if enabled.
+    if (enableOpt) {
+      optPM.addPass(mlir::affine::createLoopFusionPass());
+      optPM.addPass(mlir::affine::createAffineScalarReplacementPass());
+    }
+  }
+
+  if (isLoweringToTosa) {
+    // Partially lower the dsp dialect.
+    pm.addPass(mlir::dsp::createLowerToTosaPass());
+    
+
+    // Add a few cleanups post lowering.
+    mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
+    optPM.addPass(mlir::createCanonicalizerPass());
+    optPM.addPass(mlir::createCSEPass());
+
+    // Add optimizations if enabled.
+    if (enableOpt) {
+      optPM.addPass(mlir::affine::createLoopFusionPass());
+      optPM.addPass(mlir::affine::createAffineScalarReplacementPass());
+    }
+  }
+
+  if (isLoweringTosaToLinalg) {
+    // Partially lower the dsp dialect.
+    // pm.addPass(mlir::dsp::createLowerTosaToLinalgPass());
+
+    // Add a few cleanups post lowering.
+    mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
+pm.addNestedPass<mlir::func::FuncOp>(mlir::tosa::createTosaOptionalDecompositions());
+  pm.addNestedPass<mlir::func::FuncOp>(mlir::createCanonicalizerPass());
+
+  pm.addNestedPass<mlir::func::FuncOp>(mlir::tosa::createTosaInferShapesPass());
+  pm.addNestedPass<mlir::func::FuncOp>(mlir::tosa::createTosaMakeBroadcastablePass());
+  pm.addNestedPass<mlir::func::FuncOp>(
+      mlir::tosa::createTosaToLinalgNamed());
+  pm.addNestedPass<mlir::func::FuncOp>(mlir::createCanonicalizerPass());
+  // TODO: Remove pass that operates on const tensor and enable optionality
+  pm.addNestedPass<mlir::func::FuncOp>(mlir::tosa::createTosaLayerwiseConstantFoldPass());
+  pm.addNestedPass<mlir::func::FuncOp>(mlir::tosa::createTosaMakeBroadcastablePass());
+  // optPM.addPass(mlir::tosa::createTosaValidation());
+    pm.addNestedPass<mlir::func::FuncOp>(mlir::dsp::createLowerTosaToLinalgPass());
+
+    pm.addPass(mlir::createCanonicalizerPass());
+    pm.addPass(mlir::createCSEPass());
 
     // Add optimizations if enabled.
     if (enableOpt) {
