@@ -3,10 +3,10 @@
 def main() {
   var a = [10,20,30];
   var b = [40,50,60];
-  var c = a - b;
+  var c = sub(a, b);
   print(c);
 }
-# /home/local/ASURITE/apkhedka/ForLLVM/build/bin/dsp1 /home/local/ASURITE/apkhedka/ForLLVM/mlir/test/Examples/DspExample/dsp_sub_op.py -emit=mlir
+# /home/local/ASUAD/apkhedka/ForLLVM/build/bin/dsp1 /home/local/ASUAD/apkhedka/ForLLVM/mlir/test/Examples/DspExample/dsp_sub_op.py -emit=mlir
 
 # module {
 #   dsp.func @main() {

@@ -212,8 +212,6 @@ private:
     switch (binop.getOp()) {
     case '+':
       return builder.create<AddOp>(location, lhs, rhs);
-    case '-':
-      return builder.create<SubOp>(location, lhs, rhs);
     case '*':
       return builder.create<MulOp>(location, lhs, rhs);
     }
@@ -367,16 +365,6 @@ private:
        }
        return builder.create<SubOp>(location, operands[0], operands[1]);
     }
-
-    // FFT2D Op
-    // if(callee == "fft2dOp"){
-    //    if(call.getArgs().size() != 2){
-    //      emitError(location, "MLIR codegen encountered an error: dsp.fft2dOp "
-    //                          "accepts only 2 arguments");
-    //      return nullptr;
-    //    }
-    //    return builder.create<fft2dOp>(location, operands[0], operands[1]);
-    // }
 
     if(callee == "zeroCrossCount"){
       if(call.getArgs().size() != 1){
