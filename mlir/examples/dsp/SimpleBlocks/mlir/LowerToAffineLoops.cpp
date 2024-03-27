@@ -1011,7 +1011,7 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
     auto tensorTypeFilter = llvm::cast<RankedTensorType>(*operandIt);
     int64_t ubForFilter = tensorTypeFilter.getShape()[0];
 
-    llvm::errs() << "ubForFilter= " << ubForFilter << "\n";
+    // llvm::errs() << "ubForFilter= " << ubForFilter << "\n";
     //create a constant for sum
     Value constant0 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(0));
     affine::AffineForOp forOp2 = rewriter.create<affine::AffineForOp>(loc, 
@@ -1058,7 +1058,7 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
     rewriter.create<AffineStoreOp>(loc, forOp2.getResult(0) , alloc, iv);
     rewriter.setInsertionPointAfter(forOp1);
 
-    ifOp->dump();
+    // ifOp->dump();
     
 
     //FIRFilter code
@@ -1113,11 +1113,11 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
     // "then" block
     
     // rewriter.create<affine::AffineYieldOp>(loc, constant25);
-    llvm::errs() << "LINE = " << __LINE__ << "\n";
+    // llvm::errs() << "LINE = " << __LINE__ << "\n";
     //Back to parentOp -- ifOp stops here
     // rewriter.setInsertionPointAfter(ifOp);
     
-    llvm::errs() << "LINE = " << __LINE__ << "  xx\n";
+    // llvm::errs() << "LINE = " << __LINE__ << "  xx\n";
 
 
 

@@ -175,7 +175,7 @@
 
   #attrs = {
     indexing_maps = #accesses,
-    iterator_types = ["reduction"]
+    iterator_types = ["parallel"]
   }
 
   func.func @example(%A: memref<?xf32>,
@@ -199,17 +199,17 @@
 
 
   //Output
-  module {
-  func.func @example(%arg0: memref<?xf32>, %arg1: memref<?xf32>, %arg2: memref<?xf32>) {
-    %c1 = arith.constant 1 : index
-    %c0 = arith.constant 0 : index
-    %dim = memref.dim %arg0, %c0 : memref<?xf32>
-    scf.for %arg3 = %c0 to %dim step %c1 {
-      %0 = memref.load %arg0[%arg3] : memref<?xf32>
-      %1 = memref.load %arg1[%arg3] : memref<?xf32>
-      %2 = arith.addf %0, %1 : f32
-      memref.store %2, %arg2[%arg3] : memref<?xf32>
-    }
-    return
-  }
-}
+    //   module {
+    //   func.func @example(%arg0: memref<?xf32>, %arg1: memref<?xf32>, %arg2: memref<?xf32>) {
+    //     %c1 = arith.constant 1 : index
+    //     %c0 = arith.constant 0 : index
+    //     %dim = memref.dim %arg0, %c0 : memref<?xf32>
+    //     scf.for %arg3 = %c0 to %dim step %c1 {
+    //       %0 = memref.load %arg0[%arg3] : memref<?xf32>
+    //       %1 = memref.load %arg1[%arg3] : memref<?xf32>
+    //       %2 = arith.addf %0, %1 : f32
+    //       memref.store %2, %arg2[%arg3] : memref<?xf32>
+    //     }
+    //     return
+    //   }
+    // }

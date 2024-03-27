@@ -585,12 +585,12 @@ void FIRFilterOp::inferShapes() {
   auto shapeOfFilter = tensorFilter.getShape();
   std::vector<int64_t> shapeForOutput ;
 
-  for (auto i : shapeOfInput)
-  {
-    /* code */
-    llvm::errs() << "InputShape= " << i << " \n"; 
+  // for (auto i : shapeOfInput)
+  // {
+  //   /* code */
+  //   llvm::errs() << "InputShape= " << i << " \n"; 
     
-  }
+  // }
 
   for(size_t i=0; i < shapeOfInput.size() ; i++){
     shapeForOutput.push_back(shapeOfInput[i] + shapeOfFilter[i] - 1);

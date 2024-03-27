@@ -1,5 +1,10 @@
 
+Notes:
+    1) Conversion to affine-loops :
+    /bin/mlir-opt ../mlir/examples/dsp/SimpleBlocks/Output/TryLinalg/TryGenericOp/example2.mlir -allow-unregistered-dialect -convert-linalg-to-affine-loops
 
+    2) linalg.Conv1D definition in /mnt/sharedDrive/SourceCode/llvm-project/build/tools/mlir/include/mlir/Dialect/Linalg/IR/LinalgStructuredOps.cpp.inc
+-------------------------------------------------------
 Errors faced :
 
     1) ./bin/mlir-opt ./TryLinAlg/linalgAdd1.mlir --one-shot-bufferize='bufferize-function-boundaries' -test-lower-to-llvm 
@@ -14,4 +19,7 @@ Errors faced :
     }) : (f64, f64, memref<f64>) -> tensor<f64>
 
 
-2) 
+    2)  Conversion from fft2d linalg to affine loops doesn't work --> output returned is same as input, while it works for example1.mlir 
+
+
+    3) linalg.Conv1d result doesn't match with FIR filter 

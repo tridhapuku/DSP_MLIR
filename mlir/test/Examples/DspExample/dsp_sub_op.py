@@ -1,8 +1,15 @@
 # RUN: toyc-ch2 %s -emit=mlir 2>&1 | FileCheck %s
 
-def main() {
+# def main() {
   var a = [10,20,30];
   var b = [40,50,60];
+#   var c = sub(a, b);
+#   print(c);
+# }
+
+def main() {
+  var a = [[10,20],[30,40]];
+  var b = [[40,50],[60,70]];
   var c = sub(a, b);
   print(c);
 }
