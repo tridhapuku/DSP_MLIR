@@ -42,8 +42,12 @@
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
 #include "mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
+
+//Added bu abhinav
+#include "mlir/Conversion/MathToLLVM/MathToLLVM.h"
 //#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
@@ -224,7 +228,8 @@ void ToyToLLVMLoweringPass::runOnOperation() {
   populateFinalizeMemRefToLLVMConversionPatterns(typeConverter, patterns);
   cf::populateControlFlowToLLVMConversionPatterns(typeConverter, patterns);
   populateFuncToLLVMConversionPatterns(typeConverter, patterns);
-
+  populateMathToLLVMConversionPatterns(typeConverter, patterns);
+  
   // The only remaining operation to lower from the `dsp` dialect, is the
   // PrintOp.
   patterns.add<PrintOpLowering>(&getContext());

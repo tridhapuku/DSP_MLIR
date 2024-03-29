@@ -372,7 +372,8 @@ int main(int argc, char **argv) {
   //Added by abhinav to support affine and arith input files
   //Todo -- put a check for which option
   registry.insert<mlir::arith::ArithDialect, mlir::func::FuncDialect,
-                    mlir::memref::MemRefDialect, mlir::affine::AffineDialect, mlir::tosa::TosaDialect, mlir::linalg::LinalgDialect, mlir::BuiltinDialect>();
+                    mlir::memref::MemRefDialect, mlir::affine::AffineDialect, mlir::tosa::TosaDialect, 
+                    mlir::linalg::LinalgDialect, mlir::BuiltinDialect, mlir::math::MathDialect>();
   context.appendDialectRegistry(registry);
   mlir::OwningOpRef<mlir::ModuleOp> module;
   if (int error = loadAndProcessMLIR(context, module))
