@@ -384,6 +384,15 @@ private:
       return builder.create<FIRFilterOp>(location, operands[0] , operands[1]);
     }
 
+    if(callee == "slidingWindowAvg"){
+      if(call.getArgs().size() != 1){
+        emitError(location, "MLIR codegen encountered an error: dsp.slidingWindowAvg "
+                            "accepts only 1 arguments");
+        return nullptr;
+      }
+      return builder.create<SlidingWindowAvgOp>(location, operands[0] );
+    }
+
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.
     // if(callee == "delay"){

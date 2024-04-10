@@ -560,4 +560,32 @@ def FIRFilterOp : Dsp_Op<"FIRFilter" ,
   let hasVerifier = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// SlidingWindowAvg
+//===----------------------------------------------------------------------===//
+
+def SlidingWindowAvgOp : Dsp_Op<"slidingWindowAvg",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "sliding window average operation";
+
+  let arguments = (ins F64Tensor:$input);
+  let results = (outs F64Tensor);
+
+  let assemblyFormat = [{
+    `(` $input `:` type($input) `)` attr-dict `to` type(results)
+  }];
+
+  // Enable registering canonicalization patterns with this operation.
+  // let hasCanonicalizer = 1;
+
+  // Allow building a SlidingWindowAvg with from the input operand.
+  let builders = [
+    OpBuilder<(ins "Value":$input)>
+  ];
+
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
+}
+
+
 #endif // TOY_OPS

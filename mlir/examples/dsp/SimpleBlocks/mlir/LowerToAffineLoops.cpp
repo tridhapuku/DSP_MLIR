@@ -334,18 +334,6 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
     // }
     // llvm::errs() << "tensorType.getShape() " << tensorType.getShape() << "\n";
 
-  //working
-  // affine::buildAffineLoopNest(
-  //     rewriter, loc, lowerBounds, tensorType.getShape(), steps,
-  //     [&](OpBuilder &nestedBuilder, Location loc, ValueRange ivs) {
-  //       // Call the processing function with the rewriter, the memref operands,
-  //       // and the loop induction variables. This function will return the value
-  //       // to store at the current index.
-  //       Value valueToStore = processIteration(nestedBuilder, operands, ivs);
-  //       nestedBuilder.create<affine::AffineStoreOp>(loc, valueToStore, alloc,
-  //                                                   ivs);
-  //     });
-
     // affine::AffineForOp forOp = rewriter.create<affine::AffineForOp>(
       //   loc, lowerBounds, tensorType.getShape() , steps, ValueRange());
       // mlir::IntegerSet set1 = mlir::IntegerSet::get(1, 0, map, {true});
@@ -1130,10 +1118,95 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
   rewriter.replaceOp(op, alloc);
 }
 
-
-
 namespace {
 
+//===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: SlidingWindowAvg operations
+//===----------------------------------------------------------------------===//
+
+struct SlidingWindowAvgOpLowering : public ConversionPattern {
+  SlidingWindowAvgOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::SlidingWindowAvgOp::getOperationName(), 1, ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
+    
+    //Pseudo-code:
+      //iterate for len = len - 2
+      //get 3 elements
+      //get the sum
+      //get the avg = sum / 3
+      // store the result to output_mem
+      // replace this op with the output_mem 
+
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+
+    //output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));    
+    
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+
+    //construct affine loops for the input
+    SmallVector<int64_t, 4> lowerBounds(tensorType.getRank(), /*Value*/0);
+    SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);
+
+    Value constant3 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(3));
+    //For loop
+    int64_t lb = 0 ;
+    int64_t ub = tensorType.getShape()[0];
+    int64_t step = 1;
+
+    affine::AffineForOp forOp1 = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto iv = forOp1.getInductionVar();
+
+    rewriter.setInsertionPointToStart(forOp1.getBody());
+    SlidingWindowAvgOpAdaptor slidingWinAvgAdaptor(operands);
+    
+    Value elem1 = rewriter.create<AffineLoadOp>(loc, slidingWinAvgAdaptor.getInput(), iv);
+
+    //affine-maps for elem2 and elem3
+    AffineExpr ExprForElem2 = rewriter.getAffineDimExpr(0) + rewriter.getAffineConstantExpr(1);
+    AffineExpr ExprForElem3 = rewriter.getAffineDimExpr(0) + rewriter.getAffineConstantExpr(2);
+
+    AffineMap addMapForElem2 = AffineMap::get(1, 0, ExprForElem2);
+    AffineMap addMapForElem3 = AffineMap::get(1, 0, ExprForElem3);
+    Value elem2 = rewriter.create<AffineLoadOp>(loc, slidingWinAvgAdaptor.getInput(), addMapForElem2, 
+                  ValueRange{iv});
+    Value elem3 = rewriter.create<AffineLoadOp>(loc, slidingWinAvgAdaptor.getInput(), addMapForElem3, 
+                  ValueRange{iv});
+
+    Value sum1 = rewriter.create<arith::AddFOp>(loc, elem1 , elem2);
+    Value sum2 = rewriter.create<arith::AddFOp>(loc, sum1 , elem3);
+    Value avg = rewriter.create<arith::DivFOp>(loc, sum2, constant3);
+
+    //store the result
+    rewriter.create<AffineStoreOp>(loc, avg, alloc, iv);
+
+    rewriter.setInsertionPointAfter(forOp1);
+    //debug
+    // forOp1->dump();
+      //   %cont3 = arith.const 3 : f64
+      //   affine.for %arg0 = 0 to 8 {
+      //    %elem1 = affine.load input[%arg0]
+      //    #map1 = affine_map<(%arg0)[] : (%arg0 + 1)
+      //    #map2 = affine_map<(%arg0)[] : (%arg0 + 2)
+      //    %elem2 = affine.load input[#map1] <-- affine apply 
+      //    %elem3 = affine.load input[#map2]
+
+      //    %sum1 = arith.addf %elem1 , %elem2
+      //    %sum2 = arith.addf %sum1, %elem3
+      //    %res = arith.divf %sum2 , 
+      //    affine.store %sum2, out[%arg0]
+      // }
+    rewriter.replaceOp(op, alloc);
+    
+    return success();
+  }
+};
 
 //===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: FIRFilter operations
@@ -1638,7 +1711,8 @@ void ToyToAffineLoweringPass::runOnOperation() {
   RewritePatternSet patterns(&getContext());
   patterns.add<AddOpLowering, ConstantOpLowering, FuncOpLowering, MulOpLowering,
                PrintOpLowering, ReturnOpLowering, TransposeOpLowering ,
-               DelayOpLowering, GainOpLowering, SubOpLowering, FIRFilterOpLowering>(
+               DelayOpLowering, GainOpLowering, SubOpLowering, FIRFilterOpLowering, 
+               SlidingWindowAvgOpLowering>(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the
