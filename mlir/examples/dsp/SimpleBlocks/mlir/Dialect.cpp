@@ -619,7 +619,55 @@ mlir::LogicalResult FIRFilterOp::verify() {
   }
 
   return mlir::success();
-}  
+} 
+
+
+//===----------------------------------------------------------------------===//
+// SlidingWindowAvgOp
+//===----------------------------------------------------------------------===//
+
+void SlidingWindowAvgOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                        mlir::Value value) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands(value);
+}
+
+void SlidingWindowAvgOp::inferShapes() {
+  //for each rank
+  //Get the shape/size of input 
+  //output size = input_size - 2
+  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
+
+  auto shapeOfInput = inputType.getShape();
+
+  std::vector<int64_t> shapeForOutput;
+
+  //Iterate for each rank : tensor<1x2x3x2> = rank 4
+  for(size_t i=0; i < shapeOfInput.size() ; i++){
+    shapeForOutput.push_back(shapeOfInput[i] - 2);
+  }
+
+  mlir::TensorType outputType = mlir::RankedTensorType::get(shapeForOutput, 
+    getInput().getType().getElementType());
+    // getOperand().getType());
+    // getOperand().getType().getElementType());
+
+  getResult().setType(outputType);
+
+}
+
+mlir::LogicalResult SlidingWindowAvgOp::verify() {
+  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
+  auto shapeOfInput = inputType.getShape();
+
+  for(size_t i=0; i < shapeOfInput.size() ; i++){
+    if(shapeOfInput[i] < 3){
+      llvm::errs() << "Warning:SlidingWindowAvgOp = Input size < 3 " << "size= " << shapeOfInput[i] << "\n"  ;
+    }
+  }
+
+  return mlir::success();
+}
 
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
