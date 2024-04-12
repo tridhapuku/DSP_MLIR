@@ -393,6 +393,15 @@ private:
       return builder.create<SlidingWindowAvgOp>(location, operands[0] );
     }
 
+    if(callee == "downsampling"){
+      if(call.getArgs().size() != 2){
+        emitError(location, "MLIR codegen encountered an error: dsp.downsampling "
+                            "accepts only 2 arguments");
+        return nullptr;
+      }
+      return builder.create<DownsamplingOp>(location, operands[0] , operands[1]);
+    }
+
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.
     // if(callee == "delay"){

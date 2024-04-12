@@ -670,6 +670,96 @@ mlir::LogicalResult SlidingWindowAvgOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
+// DownsamplingOp
+//===----------------------------------------------------------------------===//
+
+void DownsamplingOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                  mlir::Value lhs, mlir::Value rhs) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands({lhs, rhs});
+}
+
+
+
+/// Infer the output shape of the DownsamplingOp, this is required by the shape inference
+/// interface.
+//ToDo -- shape should be the length of Lhs + Rhs - 1
+void DownsamplingOp::inferShapes() { 
+  //get the shape of Lhs & rhs 
+  //add the shape for each dimension
+  // auto tensorInput =  llvm::cast<RankedTensorType>(getLhs().getType());
+  auto tensorInput =  getLhs().getType();
+  auto shapeOfInput = tensorInput.getShape();
+
+  auto tensorDownsampling = getRhs().getType(); 
+  auto shapeOfDownsampling = tensorDownsampling.getShape(); //shape is the dimension
+  
+
+  std::vector<int64_t> shapeForOutput ;
+
+  int64_t SecondValueInt = 1;
+
+  //To extract value from the SSA value:
+    //get the Operand 
+    //convert it to ConstantOp
+    //convert it to corresponding elements attribute
+    //extract the value as float then convert to int
+  Value downsampling2ndArg = getOperand(1);
+  dsp::ConstantOp constantOp2ndArg = downsampling2ndArg.getDefiningOp<dsp::ConstantOp>();
+  DenseElementsAttr constantRhsValue = constantOp2ndArg.getValue();;
+  auto elements = constantRhsValue.getValues<FloatAttr>();
+  float SecondValue = elements[0].getValueAsDouble();
+  SecondValueInt = (int64_t) SecondValue;
+  // llvm::errs() << "Downsampling: SamplingRate: " << SecondValueInt << " \n"; //downsamplingRate
+    
+
+  for(size_t i=0; i < shapeOfInput.size() ; i++){
+    double GetLenForOutput  = static_cast<double>(shapeOfInput[i] )/ SecondValueInt ;
+    if(fmod(GetLenForOutput, 1.0) != 0) {
+      //if remainder remains
+      GetLenForOutput = ceil(GetLenForOutput);
+    }
+    int64_t OutlenInt = static_cast<int64_t> (GetLenForOutput);
+    llvm::errs() << "Downsampling: OutlenInt: " << OutlenInt << " \n";
+    shapeForOutput.push_back(OutlenInt);
+  }
+  
+  mlir::TensorType manipulatedType = mlir::RankedTensorType::get(shapeForOutput, 
+          getLhs().getType().getElementType());
+
+  // getResult().setType(getLhs().getType()); 
+  getResult().setType(manipulatedType);
+  }
+
+//get rank of Input & Downsampling -- make sure it is of rank 1 
+mlir::LogicalResult DownsamplingOp::verify() {
+  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
+  auto samplingRateType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
+  // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+
+  auto inputRank = inputType.getRank();
+  auto samplingRateRank = samplingRateType.getRank();
+
+  // llvm::errs() << "inputRank: " << inputRank << " samplingRateRank: " << samplingRateRank << "\n";
+
+
+  if( inputRank != 1 || samplingRateRank != 0 )
+  {
+    llvm::errs() << "inputRank: " << inputRank << " samplingRateRank: " << samplingRateRank << "\n";
+    return emitError()
+           << "expected rank of input & Downsampling is 1";
+  }
+
+  //once ensured only 1 rank from above -- also make sure there is just 1 elem 
+  // auto lenOfsamplingRate = samplingRateType.getShape()[0];
+
+
+
+
+  return mlir::success();
+} 
+
+//===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
 

@@ -419,6 +419,11 @@ def DelayOp : Dsp_Op<"delay" ,
   let hasVerifier = 1;
 }
 
+
+//===----------------------------------------------------------------------===//
+// GainOp
+//===----------------------------------------------------------------------===//
+
 // def GainOp : Dsp_Op<"gain" , 
           // [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
 def GainOp : Dsp_Op<"gain" ,
@@ -584,6 +589,47 @@ def SlidingWindowAvgOp : Dsp_Op<"slidingWindowAvg",
   ];
 
   // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
+}
+
+
+//===----------------------------------------------------------------------===//
+// DownsamplingOp
+//===----------------------------------------------------------------------===//
+
+// def DownsamplingOp : Dsp_Op<"downsampling" , 
+          // [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+def DownsamplingOp : Dsp_Op<"downsampling" ,
+    [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "downsampling a input tensor by given rate";
+  let description = [{
+    y[m] = x[M . n] ie, m = len(x) / M 
+    The "Downsampling" operation gives output with less no of samples:  -- 
+    ex: [1, 2, 4, 5] & DownsamplingRate= 2 : Output : [1, 4]
+    The shapes of the tensor operands are expected to match.
+  }];
+
+
+  let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs);//working -- F64
+  let results = (outs F64Tensor); //I64
+  
+
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input1 , $input2) `)` attr-dict `to` type(results)
+  // }];
+  // Allow building a DownsamplingOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+  
+  // Enable registering canonicalization patterns with this operation.
+  // let hasCanonicalizer = 1;
+
   let hasVerifier = 1;
 }
 

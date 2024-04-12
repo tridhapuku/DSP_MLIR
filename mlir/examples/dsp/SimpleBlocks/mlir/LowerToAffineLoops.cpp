@@ -1120,6 +1120,101 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
 
 namespace {
 
+
+//===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: Downsampling operations
+//===----------------------------------------------------------------------===//
+
+
+struct DownSamplingOpLowering : public ConversionPattern {
+  DownSamplingOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::DownsamplingOp::getOperationName(), 1, ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
+    
+    //Pseudo-code:
+      //iterate for output len : i = 0 to len
+      //get the input elem using  input mapping index = M* i
+      // store in y 
+      // replace this op with the output_mem 
+
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+
+    //output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));    
+    
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+
+    //construct affine loops for the input
+    SmallVector<int64_t, 4> lowerBounds(tensorType.getRank(), /*Value*/0);
+    SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);    
+
+    //For loop
+    int64_t lb = 0 ;
+    int64_t ub = tensorType.getShape()[0];
+    int64_t step = 1;
+
+    affine::AffineForOp forOp1 = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto iv = forOp1.getInductionVar();
+    
+
+    rewriter.setInsertionPointToStart(forOp1.getBody());
+    DownsamplingOpAdaptor downsamplingAdaptor(operands);
+    
+    //For affine expression: #map1 = affine_map<(%arg0)[2ndOperand] : (%arg0 * 2ndOperand)
+    AffineExpr d0, s0;
+    bindDims(rewriter.getContext(), d0);
+    bindSymbols(rewriter.getContext(), s0);
+
+    // AffineExpr ExprForDownSampling = rewriter.getAffineDimExpr(0) * rewriter.getAffineSymbolExpr(0);
+    AffineExpr ExprForDownSampling = d0 * s0;
+    // Value constant3 = rewriter.create<arith::ConstantOp>(loc, rewriter.getI64Type(), rewriter.getIntegerAttr(rewriter.getIntegerType(64), 3));
+    Value constant3 = rewriter.create<arith::ConstantIndexOp>(loc, 3); //working
+    constant3.dump();
+
+    int64_t SecondValueInt = 1;
+    Value downsampling2ndArg = op->getOperand(1);
+    dsp::ConstantOp constantOp2ndArg = downsampling2ndArg.getDefiningOp<dsp::ConstantOp>();
+    DenseElementsAttr constantRhsValue = constantOp2ndArg.getValue();;
+    auto elements = constantRhsValue.getValues<FloatAttr>();
+    float SecondValue = elements[0].getValueAsDouble();
+    SecondValueInt = (int64_t) SecondValue;
+
+    // Value downSamplingRateAsIndex = rewriter.create<arith::IndexCastOp>(loc, rewriter.getIndexType(),DownsamplingRate);
+    Value constantSamplingRateIndx = rewriter.create<arith::ConstantIndexOp>(loc, SecondValueInt);
+    constantSamplingRateIndx.dump();
+    
+    AffineMap addMapForDownSampling = AffineMap::get(1, 1, ExprForDownSampling);
+    // AffineMap addMapForDownSampling = AffineMap::get(1, 1, ValueRange{d0,s0 });
+    // AffineMap addMapForDownSampling = AffineMap::get(1, 1, ExprForDownSampling, rewriter.getContext());
+    // AffineMap addMapForDownSampling = AffineMap::get(1, 0, { d0}); //Working
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    Value elem2 = rewriter.create<AffineLoadOp>(loc, downsamplingAdaptor.getLhs(), addMapForDownSampling, 
+                  ValueRange{iv,constantSamplingRateIndx});
+    elem2.dump();
+    //store the result
+    rewriter.create<AffineStoreOp>(loc, elem2, alloc, iv);
+
+    rewriter.setInsertionPointAfter(forOp1);
+    //debug
+    // forOp1->dump();
+      //   %2ndOperand = arith.const 3 : f64
+      //   affine.for %arg0 = 0 to 10 {
+      //    #map1 = affine_map<(%arg0)[2ndOperand] : (%arg0 * 2ndOperand)
+      //    %elem1 = affine.load input[#map1] <-- affine apply  
+      //    affine.store %elem1, out[%arg0]
+      // }
+    rewriter.replaceOp(op, alloc);
+    
+    return success();
+  }
+};
+
 //===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: SlidingWindowAvg operations
 //===----------------------------------------------------------------------===//
@@ -1712,7 +1807,7 @@ void ToyToAffineLoweringPass::runOnOperation() {
   patterns.add<AddOpLowering, ConstantOpLowering, FuncOpLowering, MulOpLowering,
                PrintOpLowering, ReturnOpLowering, TransposeOpLowering ,
                DelayOpLowering, GainOpLowering, SubOpLowering, FIRFilterOpLowering, 
-               SlidingWindowAvgOpLowering>(
+               SlidingWindowAvgOpLowering, DownSamplingOpLowering>(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the
