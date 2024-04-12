@@ -634,4 +634,44 @@ def DownsamplingOp : Dsp_Op<"downsampling" ,
 }
 
 
+//===----------------------------------------------------------------------===//
+// UpsamplingOp
+//===----------------------------------------------------------------------===//
+
+// def UpsamplingOp : Dsp_Op<"upsampling" , 
+          // [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+def UpsamplingOp : Dsp_Op<"upsampling" ,
+    [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "upsampling a input tensor by given rate";
+  let description = [{
+    y[L . m] = x[n] ie, o/p len, m = len(x) * L 
+    The "upsampling" operation gives output with less no of samples:  -- 
+    ex: [1, 2, 4, 5] & UpsamplingRate= 2 : Output : [1, 0, 2, 0, 4, 0,5 , 0]
+    The shapes of the tensor operands are expected to match.
+  }];
+
+
+  let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs);//working -- F64
+  let results = (outs F64Tensor); //I64
+  
+
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input1 , $input2) `)` attr-dict `to` type(results)
+  // }];
+  // Allow building a UpsamplingOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+  
+  // Enable registering canonicalization patterns with this operation.
+  // let hasCanonicalizer = 1;
+
+  let hasVerifier = 1;
+}
+
 #endif // TOY_OPS

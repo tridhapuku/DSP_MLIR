@@ -402,6 +402,15 @@ private:
       return builder.create<DownsamplingOp>(location, operands[0] , operands[1]);
     }
 
+    if(callee == "upsampling"){
+      if(call.getArgs().size() != 2){
+        emitError(location, "MLIR codegen encountered an error: dsp.upsampling "
+                            "accepts only 2 arguments");
+        return nullptr;
+      }
+      return builder.create<UpsamplingOp>(location, operands[0] , operands[1]);
+    }
+
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.
     // if(callee == "delay"){

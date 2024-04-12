@@ -741,21 +741,91 @@ mlir::LogicalResult DownsamplingOp::verify() {
   auto samplingRateRank = samplingRateType.getRank();
 
   // llvm::errs() << "inputRank: " << inputRank << " samplingRateRank: " << samplingRateRank << "\n";
-
-
+  //once ensured only 1 rank from above -- also make sure there is just 1 elem  
   if( inputRank != 1 || samplingRateRank != 0 )
   {
     llvm::errs() << "inputRank: " << inputRank << " samplingRateRank: " << samplingRateRank << "\n";
     return emitError()
            << "expected rank of input & Downsampling is 1";
   }
+  return mlir::success();
+} 
 
-  //once ensured only 1 rank from above -- also make sure there is just 1 elem 
-  // auto lenOfsamplingRate = samplingRateType.getShape()[0];
+//===----------------------------------------------------------------------===//
+// UpsamplingOp
+//===----------------------------------------------------------------------===//
+
+void UpsamplingOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                  mlir::Value lhs, mlir::Value rhs) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands({lhs, rhs});
+}
 
 
 
+/// Infer the output shape of the UpsamplingOp, this is required by the shape inference
+/// interface.
+//ToDo -- shape should be the length of input * UpsamplingRate ie, Rhs
+void UpsamplingOp::inferShapes() { 
+  //get the shape of Lhs & rhs 
+  //add the shape for each dimension
+  // auto tensorInput =  llvm::cast<RankedTensorType>(getLhs().getType());
+  auto tensorInput =  getLhs().getType();
+  auto shapeOfInput = tensorInput.getShape();
 
+  auto tensorUpsampling = getRhs().getType(); 
+  auto shapeOfUpsampling = tensorUpsampling.getShape(); //shape is the length
+  
+
+  std::vector<int64_t> shapeForOutput ;
+
+  int64_t SecondValueInt = 1;
+
+  //To extract value from the SSA value:
+    //get the Operand 
+    //convert it to ConstantOp
+    //convert it to corresponding elements attribute
+    //extract the value as float then convert to int
+  Value upsampling2ndArg = getOperand(1);
+  dsp::ConstantOp constantOp2ndArg = upsampling2ndArg.getDefiningOp<dsp::ConstantOp>();
+  DenseElementsAttr constantRhsValue = constantOp2ndArg.getValue();;
+  auto elements = constantRhsValue.getValues<FloatAttr>();
+  float SecondValue = elements[0].getValueAsDouble();
+  SecondValueInt = (int64_t) SecondValue;
+  // llvm::errs() << "Upsampling: SamplingRate: " << SecondValueInt << " \n"; //downsamplingRate
+    
+
+  for(size_t i=0; i < shapeOfInput.size() ; i++){
+    double GetLenForOutput  = static_cast<double>(shapeOfInput[i] ) * SecondValueInt ;
+    int64_t OutlenInt = static_cast<int64_t> (GetLenForOutput);
+    llvm::errs() << "Upsampling: OutlenInt: " << OutlenInt << " \n";
+    shapeForOutput.push_back(OutlenInt);
+  }
+  
+  mlir::TensorType manipulatedType = mlir::RankedTensorType::get(shapeForOutput, 
+          getLhs().getType().getElementType());
+
+  // getResult().setType(getLhs().getType()); 
+  getResult().setType(manipulatedType);
+  }
+
+//get rank of Input & Upsampling -- make sure it is of rank 1 
+mlir::LogicalResult UpsamplingOp::verify() {
+  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
+  auto samplingRateType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
+  // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+
+  auto inputRank = inputType.getRank();
+  auto samplingRateRank = samplingRateType.getRank();
+
+  // llvm::errs() << "inputRank: " << inputRank << " samplingRateRank: " << samplingRateRank << "\n";
+  //once ensured only 1 rank from above -- also make sure there is just 1 elem  
+  if( inputRank != 1 || samplingRateRank != 0 )
+  {
+    llvm::errs() << "inputRank: " << inputRank << " samplingRateRank: " << samplingRateRank << "\n";
+    return emitError()
+           << "expected rank of input & Upsampling is 1";
+  }
   return mlir::success();
 } 
 

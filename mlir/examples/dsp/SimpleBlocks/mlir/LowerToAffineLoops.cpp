@@ -1120,6 +1120,127 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
 
 namespace {
 
+//===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: Upsampling operations
+//===----------------------------------------------------------------------===//
+
+
+struct UpSamplingOpLowering : public ConversionPattern {
+  UpSamplingOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::UpsamplingOp::getOperationName(), 1, ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
+    
+    //Pseudo-code:
+      //init all out values with 0 using affine loop
+      //Update certain y_values with corresponding x 
+      //iterate for input : i = 0 to len
+      //get the corresponding output mapping index = M * i
+      // store in y at that index
+      // replace this upsampling op with the output_mem_allocation op
+
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+
+    //output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));    
+    
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+
+    //construct affine loops for the input
+    SmallVector<int64_t, 4> lowerBounds(tensorType.getRank(), /*Value*/0);
+    SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);    
+
+    //For loop
+    int64_t lb = 0 ;
+    int64_t ub = tensorType.getShape()[0];
+    int64_t step = 1;
+
+    //init all the output mem location with 0
+    affine::AffineForOp forOpSetOut0Loop = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto ivforOpSetOut0Loop = forOpSetOut0Loop.getInductionVar();
+    
+
+    rewriter.setInsertionPointToStart(forOpSetOut0Loop.getBody());
+    Value constant0 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(0));
+    //store the result
+    rewriter.create<AffineStoreOp>(loc, constant0, alloc, ivforOpSetOut0Loop);
+    rewriter.setInsertionPointAfter(forOpSetOut0Loop);
+
+    Value upsampling2ndArg = op->getOperand(1);
+    UpsamplingOpAdaptor upsamplingAdaptor(operands);
+    auto inputType = llvm::dyn_cast<RankedTensorType>(op->getOperand(0).getType());
+    int64_t ub2 =  inputType.getShape()[0]; // tensorType.getShape()[0];
+    //create another for loop for updating corresponding y with x
+    affine::AffineForOp forOp1 = rewriter.create<AffineForOp>(loc, lb, ub2, step);
+    auto iv = forOp1.getInductionVar();
+    
+
+    rewriter.setInsertionPointToStart(forOp1.getBody());
+    //Load input elem
+    
+    Value elemIn = rewriter.create<AffineLoadOp>(loc, upsamplingAdaptor.getLhs(), iv);
+
+    // Value elemIn = rewriter.create<AffineLoadOp>(loc, upsamplingAdaptor.getLhs(), addMapForUpSampling, 
+    //               ValueRange{iv,constantSamplingRateIndx});
+
+    
+    
+    //For affine expression: #map1 = affine_map<(%arg0)[2ndOperand] : (%arg0 * 2ndOperand)
+    AffineExpr d0, s0;
+    bindDims(rewriter.getContext(), d0);
+    bindSymbols(rewriter.getContext(), s0);
+
+    // AffineExpr ExprForUpSampling = rewriter.getAffineDimExpr(0) * rewriter.getAffineSymbolExpr(0);
+    AffineExpr ExprForUpSampling = d0 * s0;
+    // Value constant3 = rewriter.create<arith::ConstantOp>(loc, rewriter.getI64Type(), rewriter.getIntegerAttr(rewriter.getIntegerType(64), 3));
+    Value constant3 = rewriter.create<arith::ConstantIndexOp>(loc, 3); //working
+    constant3.dump();
+
+    int64_t SecondValueInt = 1;
+    
+    dsp::ConstantOp constantOp2ndArg = upsampling2ndArg.getDefiningOp<dsp::ConstantOp>();
+    DenseElementsAttr constantRhsValue = constantOp2ndArg.getValue();;
+    auto elements = constantRhsValue.getValues<FloatAttr>();
+    float SecondValue = elements[0].getValueAsDouble();
+    SecondValueInt = (int64_t) SecondValue;
+
+    // Value downSamplingRateAsIndex = rewriter.create<arith::IndexCastOp>(loc, rewriter.getIndexType(),UpsamplingRate);
+    Value constantSamplingRateIndx = rewriter.create<arith::ConstantIndexOp>(loc, SecondValueInt);
+    constantSamplingRateIndx.dump();
+    
+    AffineMap addMapForUpSampling = AffineMap::get(1, 1, ExprForUpSampling);
+
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // Value elem2 = rewriter.create<AffineLoadOp>(loc, upsamplingAdaptor.getLhs(), addMapForUpSampling, 
+    //               ValueRange{iv,constantSamplingRateIndx});
+    // elem2.dump();
+    //store the result
+    rewriter.create<AffineStoreOp>(loc, elemIn, alloc, addMapForUpSampling, ValueRange{iv,constantSamplingRateIndx});
+
+    rewriter.setInsertionPointAfter(forOp1);
+    //debug
+    // forOp1->dump();
+      //   %0 = arith.const 0 : f64
+      //   affine.for %arg0 = 0 to out_y {
+      //      affine.store %0, out[%arg0]
+      // }
+      //   %2ndOperand = arith.const 3 : f64
+      //   affine.for %arg0 = 0 to input_len {
+      //      %elem1 = affine.load input[%arg0] <-- affine apply
+      //      #map1 = affine_map<(%arg0)[2ndOperand] : (%arg0 * 2ndOperand)
+      //      
+      //      affine.store %elem1, out[#map1]
+      // }
+    rewriter.replaceOp(op, alloc);
+    
+    return success();
+  }
+};
 
 //===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: Downsampling operations
@@ -1807,7 +1928,8 @@ void ToyToAffineLoweringPass::runOnOperation() {
   patterns.add<AddOpLowering, ConstantOpLowering, FuncOpLowering, MulOpLowering,
                PrintOpLowering, ReturnOpLowering, TransposeOpLowering ,
                DelayOpLowering, GainOpLowering, SubOpLowering, FIRFilterOpLowering, 
-               SlidingWindowAvgOpLowering, DownSamplingOpLowering>(
+               SlidingWindowAvgOpLowering, DownSamplingOpLowering, 
+               UpSamplingOpLowering>(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the
