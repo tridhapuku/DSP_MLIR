@@ -411,6 +411,15 @@ private:
       return builder.create<UpsamplingOp>(location, operands[0] , operands[1]);
     }
 
+    if(callee == "lowPassFilter"){
+      if(call.getArgs().size() != 2){
+        emitError(location, "MLIR codegen encountered an error: dsp.lowPassFilter "
+                            "accepts only 2 arguments");
+        return nullptr;
+      }
+      return builder.create<LowPassFilter1stOrderOp>(location, operands[0] , operands[1]);
+    }
+
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.
     // if(callee == "delay"){
