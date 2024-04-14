@@ -692,7 +692,7 @@ void DownsamplingOp::inferShapes() {
   auto shapeOfInput = tensorInput.getShape();
 
   auto tensorDownsampling = getRhs().getType(); 
-  auto shapeOfDownsampling = tensorDownsampling.getShape(); //shape is the dimension
+  // auto shapeOfDownsampling = tensorDownsampling.getShape(); //shape is the dimension
   
 
   std::vector<int64_t> shapeForOutput ;
@@ -774,7 +774,7 @@ void UpsamplingOp::inferShapes() {
   auto shapeOfInput = tensorInput.getShape();
 
   auto tensorUpsampling = getRhs().getType(); 
-  auto shapeOfUpsampling = tensorUpsampling.getShape(); //shape is the length
+  // auto shapeOfUpsampling = tensorUpsampling.getShape(); //shape is the length
   
 
   std::vector<int64_t> shapeForOutput ;
@@ -823,6 +823,48 @@ mlir::LogicalResult UpsamplingOp::verify() {
   if( inputRank != 1 || samplingRateRank != 0 )
   {
     llvm::errs() << "inputRank: " << inputRank << " samplingRateRank: " << samplingRateRank << "\n";
+    return emitError()
+           << "expected rank of input & Upsampling is 1";
+  }
+  return mlir::success();
+} 
+
+
+//===----------------------------------------------------------------------===//
+// LowPassFilter1stOrderOp
+//===----------------------------------------------------------------------===//
+
+void LowPassFilter1stOrderOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                  mlir::Value lhs, mlir::Value rhs) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands({lhs, rhs});
+}
+
+
+
+/// Infer the output shape of the LowPassFilter1stOrderOp, this is required by the shape inference
+/// interface.
+void LowPassFilter1stOrderOp::inferShapes() { 
+  //get the shape of Lhs & rhs 
+  // auto tensorInput =  llvm::cast<RankedTensorType>(getLhs().getType());
+  auto tensorInput =  getLhs().getType(); 
+  getResult().setType(tensorInput);
+  }
+
+//get rank of Input & alphaValue -- make sure it is of rank 1 
+mlir::LogicalResult LowPassFilter1stOrderOp::verify() {
+  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
+  auto alphaValueType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
+  // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+
+  auto inputRank = inputType.getRank();
+  auto alphaValueRank = alphaValueType.getRank();
+
+  // llvm::errs() << "inputRank: " << inputRank << " alphaValueRank: " << alphaValueRank << "\n";
+  //once ensured only 1 rank from above -- also make sure there is just 1 elem  
+  if( inputRank != 1 || alphaValueRank != 0 )
+  {
+    llvm::errs() << "inputRank: " << inputRank << " alphaValueRank: " << alphaValueRank << "\n";
     return emitError()
            << "expected rank of input & Upsampling is 1";
   }

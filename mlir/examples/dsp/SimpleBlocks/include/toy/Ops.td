@@ -674,4 +674,45 @@ def UpsamplingOp : Dsp_Op<"upsampling" ,
   let hasVerifier = 1;
 }
 
+
+//===----------------------------------------------------------------------===//
+// LowPassFilter1stOrderOp
+//===----------------------------------------------------------------------===//
+
+// def LowPassFilter1stOrderOp : Dsp_Op<"lowPassFilter" , 
+          // [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+def LowPassFilter1stOrderOp : Dsp_Op<"lowPassFilter" ,
+    [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "lowPassFilter a input tensor by given rate";
+  let description = [{
+    y[n] = (1-alpha) * y[n-1] + alpha * x[n]  
+    The "lowPassFilter" operation filters and gives low freq components based on alpha :  -- 
+    ex: [1, 2, 4, 5] & UpsamplingRate= 2 : Output : [1, 0, 2, 0, 4, 0,5 , 0]
+    The shapes of the tensor operands are expected to match.
+  }];
+
+
+  let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs);//working -- F64
+  let results = (outs F64Tensor); //I64
+  
+
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input1 , $input2) `)` attr-dict `to` type(results)
+  // }];
+  // Allow building a LowPassFilter1stOrderOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+  
+  // Enable registering canonicalization patterns with this operation.
+  // let hasCanonicalizer = 1;
+
+  let hasVerifier = 1;
+}
+
 #endif // TOY_OPS

@@ -984,8 +984,8 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
     rewriter.setInsertionPointToStart(forOp1.getBody());
     auto iv = forOp1.getInductionVar();
 
-    Value sum0 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), 
-                                                rewriter.getF64FloatAttr(0));
+    // Value sum0 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), 
+    //                                             rewriter.getF64FloatAttr(0));
     //get filter len
     // auto tensorTypeFilter = llvm::cast<RankedTensorType>((*op->getOperand(1))); //operand_type_end
     // auto tensorTypeFilter = llvm::cast<RankedTensorType>((*op->operand_type_begin()));
@@ -1119,6 +1119,127 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
 }
 
 namespace {
+
+
+//===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: LowPassFilter operations
+//===----------------------------------------------------------------------===//
+
+
+struct LowPassFilter1stOrderOpLowering : public ConversionPattern {
+  LowPassFilter1stOrderOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::LowPassFilter1stOrderOp::getOperationName(), 1, ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
+    
+    //Pseudo-code:
+      //init first value of output with first value of input: y[0] = x[0]
+      //iterate for output from 1st to last 
+      //y[i] = (1 - alpha) * y[i-1] + alpha * x[i]
+      // replace this upsampling op with the output_mem_allocation op
+
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+
+    //output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));    
+    
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+
+    //construct affine loops for the input
+    SmallVector<int64_t, 4> lowerBounds(tensorType.getRank(), /*Value*/0);
+    SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);    
+
+    //Init y for the first index ie, index0
+    Value constantIndx0 = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+
+    LowPassFilter1stOrderOpAdaptor lowPassFilterAdaptor(operands);
+    Value GetInputX0 = rewriter.create<AffineLoadOp>(loc, lowPassFilterAdaptor.getLhs(), /* iv */ ValueRange{constantIndx0});
+    rewriter.create<AffineStoreOp>(loc, GetInputX0, alloc, ValueRange{constantIndx0});
+
+    //For loop -- iterate from 1 to last
+    int64_t lb = 1 ;
+    int64_t ub = tensorType.getShape()[0];
+    int64_t step = 1;
+
+    affine::AffineForOp forOp1 = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto iv = forOp1.getInductionVar();
+    
+
+    rewriter.setInsertionPointToStart(forOp1.getBody());
+
+    
+    
+    //For affine expression: #map1 = affine_map<(%arg0)[] : (%arg0 - 1)
+    AffineExpr d0, s0;
+    bindDims(rewriter.getContext(), d0);
+    AffineExpr ExprForPrevY = d0 - 1;
+    AffineMap addMapForLowPassFilter = AffineMap::get(1, 0, ExprForPrevY);
+
+    //y[n-1]
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // Value PrevY = rewriter.create<AffineLoadOp>(loc, lowPassFilterAdaptor.getLhs(), addMapForLowPassFilter, 
+    //               ValueRange{iv});
+    // Value PrevY = rewriter.create<AffineLoadOp>(loc, (*op->result_type_begin()), addMapForLowPassFilter, 
+    //               ValueRange{iv}); //memRefType
+    Value PrevY = rewriter.create<AffineLoadOp>(loc, alloc, addMapForLowPassFilter, 
+                  ValueRange{iv}); //memRefType
+    // PrevY.dump();
+    Value constant1 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(1));
+    // Value alpha = lowPassFilterAdaptor.getRhs(); //op->getOperand(1);
+    Value alpha = rewriter.create<AffineLoadOp>(loc, lowPassFilterAdaptor.getRhs(), /* iv */ ValueRange{});
+    //get y[n] = (1- alpha ) * y[n-1] + alpha * x[n]
+    Value oneMinusAlpha = rewriter.create<arith::SubFOp>(loc, constant1 ,alpha );
+    Value mulPrevYAlphaMinus1 = rewriter.create<arith::MulFOp>(loc, oneMinusAlpha ,PrevY);
+
+    Value inputX = rewriter.create<AffineLoadOp>(loc, lowPassFilterAdaptor.getLhs(), ValueRange{iv});
+    Value mulAlphaX = rewriter.create<arith::MulFOp>(loc, alpha ,inputX);
+
+    Value AddmulAlphaXAndPreYAlphaMinus1 = rewriter.create<arith::AddFOp>(loc, mulPrevYAlphaMinus1 ,mulAlphaX);
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // AddmulAlphaXAndPreYAlphaMinus1.dump();
+    // forOp1->dump();
+
+    rewriter.create<AffineStoreOp>(loc, AddmulAlphaXAndPreYAlphaMinus1, alloc, ValueRange{iv}); //PrevY //AddmulAlphaXAndPreYAlphaMinus1
+
+    rewriter.setInsertionPointAfter(forOp1);
+    //debug
+    // forOp1->dump();
+      // init first value of output with first value of input: y[0] = x[0]
+      // iterate for output from 1st to last 
+      // y[i] = (1 - alpha) * y[i-1] + alpha * x[i]
+      // replace this upsampling op with the output_mem_allocation op
+        //  %indx0 = arith.constantIndex 0 : index
+        // %0 = affine.load in[indx0 ] : f64
+        //  affine.store %0 ,out[indx0]
+        // affine.for %arg0 = 1 to len_y {
+        //    #map1 = affine_map<(%arg0)[] : (%arg0 - 1)
+        //    %1 = affine.load out[#map1]
+      //      %2 = arith.subf %const1 , alpha
+      //      %3 = arith.mulf %2 , %1
+     
+      //      %load_in = affine.load in[%arg0]
+      //      %4 = arith.mulf alpha, %load_in
+      //      %5 = arith.addf %4, %3 
+      //      affine.store %5, out[%arg0]
+      // }
+      //   %2ndOperand = arith.const 3 : f64
+      //   affine.for %arg0 = 0 to input_len {
+      //      %elem1 = affine.load input[%arg0] <-- affine apply
+      //      #map1 = affine_map<(%arg0)[2ndOperand] : (%arg0 * 2ndOperand)
+      //      
+      //      affine.store %elem1, out[#map1]
+      // }
+    rewriter.replaceOp(op, alloc);
+    
+    return success();
+  }
+};
+
 
 //===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: Upsampling operations
@@ -1929,7 +2050,7 @@ void ToyToAffineLoweringPass::runOnOperation() {
                PrintOpLowering, ReturnOpLowering, TransposeOpLowering ,
                DelayOpLowering, GainOpLowering, SubOpLowering, FIRFilterOpLowering, 
                SlidingWindowAvgOpLowering, DownSamplingOpLowering, 
-               UpSamplingOpLowering>(
+               UpSamplingOpLowering, LowPassFilter1stOrderOpLowering>(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the
