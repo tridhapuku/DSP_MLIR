@@ -1120,6 +1120,98 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
 
 namespace {
 
+//===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: HighPassFilter operations
+//===----------------------------------------------------------------------===//
+
+
+struct HighPassFilterOpLowering : public ConversionPattern {
+  HighPassFilterOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::HighPassFilterOp::getOperationName(), 1, ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
+    
+    //Pseudo-code:
+      //init first value of output with first value of input: y[0] = x[0]
+      //iterate for output from 1st to last 
+      //y[i] = x[i] - x[i -1 ]
+      // replace this upsampling op with the output_mem_allocation op
+
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+
+    //output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));    
+    
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+
+    //construct affine loops for the input
+    SmallVector<int64_t, 4> lowerBounds(tensorType.getRank(), /*Value*/0);
+    SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);    
+
+    //Init y for the first index ie, index0
+    Value constantIndx0 = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+
+    HighPassFilterOpAdaptor highPassFilterAdaptor(operands);
+    Value GetInputX0 = rewriter.create<AffineLoadOp>(loc, highPassFilterAdaptor.getInput(), /* iv */ ValueRange{constantIndx0});
+    rewriter.create<AffineStoreOp>(loc, GetInputX0, alloc, ValueRange{constantIndx0});
+
+    //For loop -- iterate from 1 to last
+    int64_t lb = 1 ;
+    int64_t ub = tensorType.getShape()[0];
+    int64_t step = 1;
+
+    affine::AffineForOp forOp1 = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto iv = forOp1.getInductionVar();
+    
+
+    rewriter.setInsertionPointToStart(forOp1.getBody());
+
+    
+    
+    //For affine expression: #map1 = affine_map<(%arg0)[] : (%arg0 - 1)
+    AffineExpr d0, s0;
+    bindDims(rewriter.getContext(), d0);
+    AffineExpr ExprForPrevX = d0 - 1;
+    AffineMap addMapForHighPassFilter = AffineMap::get(1, 0, ExprForPrevX);
+
+    //x[n-1]
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    Value PrevX = rewriter.create<AffineLoadOp>(loc, highPassFilterAdaptor.getInput(), addMapForHighPassFilter, 
+                  ValueRange{iv}); //memRefType
+    // PrevX.dump();
+    Value inputX = rewriter.create<AffineLoadOp>(loc, highPassFilterAdaptor.getInput(), ValueRange{iv});
+    
+    //get y[i] = x[i] - x[i -1 ]
+    Value xMinusPrevX = rewriter.create<arith::SubFOp>(loc, inputX ,PrevX );
+    rewriter.create<AffineStoreOp>(loc, xMinusPrevX, alloc, ValueRange{iv}); //PrevX //AddmulAlphaXAndPreYAlphaMinus1
+
+    rewriter.setInsertionPointAfter(forOp1);
+    //debug
+    // forOp1->dump();
+      // init first value of output with first value of input: y[0] = x[0]
+      // iterate for output from 1st to last 
+      // y[i] = x[i] - x[i -1 ]
+      // replace this upsampling op with the output_mem_allocation op
+        //  %indx0 = arith.constantIndex 0 : index
+        // %0 = affine.load in[indx0 ] : f64
+        //  affine.store %0 ,out[indx0]
+        // affine.for %arg0 = 1 to len_y {
+        //    #map1 = affine_map<(%arg0)[] : (%arg0 - 1)
+        //    %1 = affine.load in[#map1]     
+      //      %load_in = affine.load in[%arg0]
+      //      %2 = arith.subf %const1 , alpha
+      //      affine.store %2, out[%arg0]
+      // }
+    rewriter.replaceOp(op, alloc);
+    
+    return success();
+  }
+};
 
 //===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: LowPassFilter operations
@@ -2050,7 +2142,8 @@ void ToyToAffineLoweringPass::runOnOperation() {
                PrintOpLowering, ReturnOpLowering, TransposeOpLowering ,
                DelayOpLowering, GainOpLowering, SubOpLowering, FIRFilterOpLowering, 
                SlidingWindowAvgOpLowering, DownSamplingOpLowering, 
-               UpSamplingOpLowering, LowPassFilter1stOrderOpLowering>(
+               UpSamplingOpLowering, LowPassFilter1stOrderOpLowering, 
+               HighPassFilterOpLowering>(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the

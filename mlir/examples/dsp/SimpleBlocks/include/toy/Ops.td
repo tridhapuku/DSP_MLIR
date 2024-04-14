@@ -715,4 +715,39 @@ def LowPassFilter1stOrderOp : Dsp_Op<"lowPassFilter" ,
   let hasVerifier = 1;
 }
 
+
+//===----------------------------------------------------------------------===//
+// HighPassFilter
+//===----------------------------------------------------------------------===//
+
+
+def HighPassFilterOp : Dsp_Op<"highPassFilter",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "high pass filter operation";
+  let description = [{
+    y[n] = x[n] - x[n-1] ie, H(z) = 1 - pow(z,-1) 
+    The "HighPassFilter" operation gives output with low freq components removed:  -- 
+    ex: x=[0,1,0,−1,0] &  Output : [0, 1,-1,-1,1]
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins F64Tensor:$input);
+  let results = (outs F64Tensor);
+
+  let assemblyFormat = [{
+    `(` $input `:` type($input) `)` attr-dict `to` type(results)
+  }];
+
+  // Enable registering canonicalization patterns with this operation.
+  // let hasCanonicalizer = 1;
+
+  // Allow building a HighPassFilter with from the input operand.
+  let builders = [
+    OpBuilder<(ins "Value":$input)>
+  ];
+
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
+}
+
 #endif // TOY_OPS

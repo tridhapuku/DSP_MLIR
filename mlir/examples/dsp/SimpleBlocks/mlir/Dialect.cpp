@@ -691,7 +691,7 @@ void DownsamplingOp::inferShapes() {
   auto tensorInput =  getLhs().getType();
   auto shapeOfInput = tensorInput.getShape();
 
-  auto tensorDownsampling = getRhs().getType(); 
+  // auto tensorDownsampling = getRhs().getType(); 
   // auto shapeOfDownsampling = tensorDownsampling.getShape(); //shape is the dimension
   
 
@@ -773,7 +773,7 @@ void UpsamplingOp::inferShapes() {
   auto tensorInput =  getLhs().getType();
   auto shapeOfInput = tensorInput.getShape();
 
-  auto tensorUpsampling = getRhs().getType(); 
+  // auto tensorUpsampling = getRhs().getType(); 
   // auto shapeOfUpsampling = tensorUpsampling.getShape(); //shape is the length
   
 
@@ -824,7 +824,7 @@ mlir::LogicalResult UpsamplingOp::verify() {
   {
     llvm::errs() << "inputRank: " << inputRank << " samplingRateRank: " << samplingRateRank << "\n";
     return emitError()
-           << "expected rank of input & Upsampling is 1";
+           << "expected rank of input is 1 & Upsampling is 0";
   }
   return mlir::success();
 } 
@@ -870,6 +870,40 @@ mlir::LogicalResult LowPassFilter1stOrderOp::verify() {
   }
   return mlir::success();
 } 
+
+//===----------------------------------------------------------------------===//
+// HighPassFilterOp
+//===----------------------------------------------------------------------===//
+
+void HighPassFilterOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                        mlir::Value value) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands(value);
+}
+
+void HighPassFilterOp::inferShapes() {
+  //for each rank
+  //Get the shape/size of input 
+  //output size = input_size 
+  auto tensorInput =  getInput().getType(); 
+  getResult().setType(tensorInput);
+
+}
+
+mlir::LogicalResult HighPassFilterOp::verify() {
+  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
+  auto inputRank = inputType.getRank();
+
+  // llvm::errs() << "inputRank: " << inputRank << " alphaValueRank: " << alphaValueRank << "\n";
+  //once ensured only 1 rank from above --   
+  if( inputRank != 1 )
+  {
+    llvm::errs() << "inputRank: " << inputRank <<  "\n";
+    return emitError()
+           << "expected rank of input  is 1";
+  }
+  return mlir::success();
+}
 
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
