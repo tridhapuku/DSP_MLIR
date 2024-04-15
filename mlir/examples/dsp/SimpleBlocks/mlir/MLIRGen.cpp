@@ -438,6 +438,15 @@ private:
       // return builder.create<FFT1DOp>(location, operands[0] );
     }
 
+    if(callee == "ifft1d"){
+      if(call.getArgs().size() != 1){
+        emitError(location, "MLIR codegen encountered an error: dsp.ifft1d "
+                            "accepts only 1 arguments");
+        return nullptr;
+      }
+      // return builder.create<FFT1DOp>(location, operands[0] );
+    }
+
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.
     // if(callee == "delay"){
