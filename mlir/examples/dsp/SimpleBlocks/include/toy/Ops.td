@@ -794,4 +794,44 @@ def FFT1DOp : Dsp_Op<"fft1d",
   let hasVerifier = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// IFFT1D
+//===----------------------------------------------------------------------===//
+
+
+def IFFT1DOp : Dsp_Op<"ifft1d",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "ifft1d operation";
+  let description = [{
+    y[k] = y_real[k] + j *y_img[k] 
+    y_real = sumOver_n(x[n]*cos[2*pi * k *n/N ] 
+    y_img = sumOver_n(x[n]*sin[2*pi * k *n/N ] 
+    The "IFFT1D" operation gives output in freq domain  -- 
+    ex: x=[10,0,0,0] &  Output : real= [10,10,10,10] , img= j[0,0,0,0]
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins F64Tensor:$input);
+  let results = (outs F64Tensor:$real, F64Tensor:$img); //(ins F64Tensor:$lhs, F64Tensor:$rhs);
+  // let results = (outs F64Tensor:$real);
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input) `)` attr-dict `to` type(results)
+  // }];
+
+  let assemblyFormat = [{
+    `(` $input `:` type($input) `)` attr-dict `to` `(` type($real) `,` type($img) `)`
+  }];
+
+  // Enable registering canonicalization patterns with this operation.
+  // let hasCanonicalizer = 1;
+
+  // Allow building a IFFT1D with from the input operand.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs)>
+  ];
+
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
+}
+
 #endif // TOY_OPS
