@@ -734,8 +734,12 @@ def HighPassFilterOp : Dsp_Op<"highPassFilter",
   let arguments = (ins F64Tensor:$input);
   let results = (outs F64Tensor);
 
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input) `)` attr-dict `to` type(results)
+  // }];
+
   let assemblyFormat = [{
-    `(` $input `:` type($input) `)` attr-dict `to` type(results)
+    `(` $input `)` `:` `(` type($input) `)` attr-dict `to` type(results)
   }];
 
   // Enable registering canonicalization patterns with this operation.
@@ -744,6 +748,46 @@ def HighPassFilterOp : Dsp_Op<"highPassFilter",
   // Allow building a HighPassFilter with from the input operand.
   let builders = [
     OpBuilder<(ins "Value":$input)>
+  ];
+
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// FFT1D
+//===----------------------------------------------------------------------===//
+
+
+def FFT1DOp : Dsp_Op<"fft1d",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "fft1d operation";
+  let description = [{
+    y[k] = y_real[k] + j *y_img[k] 
+    y_real = sumOver_n(x[n]*cos[2*pi * k *n/N ] 
+    y_img = sumOver_n(x[n]*sin[2*pi * k *n/N ] * -1
+    The "FFT1D" operation gives output in freq domain  -- 
+    ex: x=[10,0,0,0] &  Output : [10,10,10,10] , [10,10,]
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins F64Tensor:$input);
+  let results = (outs F64Tensor:$real, F64Tensor:$img); //(ins F64Tensor:$lhs, F64Tensor:$rhs);
+  // let results = (outs F64Tensor:$real);
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input) `)` attr-dict `to` type(results)
+  // }];
+
+  let assemblyFormat = [{
+    `(` $input `:` type($input) `)` attr-dict `to` `(` type($real) `,` type($img) `)`
+  }];
+
+  // Enable registering canonicalization patterns with this operation.
+  // let hasCanonicalizer = 1;
+
+  // Allow building a FFT1D with from the input operand.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs)>
   ];
 
   // Indicate that additional verification for this operation is necessary.
