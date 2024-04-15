@@ -33,6 +33,7 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -1121,6 +1122,190 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
 namespace {
 
 //===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: FFT1D operations
+//===----------------------------------------------------------------------===//
+
+
+struct FFT1DOpLowering : public ConversionPattern {
+  FFT1DOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::FFT1DOp::getOperationName(), 1, ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
+    
+    //Pseudo-code:
+      //  y[k] = y_real[k] + j *y_img[k] 
+      // y_real = sumOver_n(x[n]*cos[2*pi * k *n/N ] 
+      // y_img = sumOver_n(x[n]*sin[2*pi * k *n/N ] * -1
+      //init  output mem for y_real & y_img as 0 
+      //iterate for output from k=0 to last 
+        //iterate for all x from n=0 to last
+          //perform the calculations : ie x[n] * cos[2*pi * k *n/N ] and sum and store them at y[k]
+          // 
+      // replace this upsampling op with the output_mem_allocation op
+
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+
+    //output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));  
+    //iterate to result1 --not needed for now but for future reference  
+    // auto tensorType1 =  llvm::cast<RankedTensorType>(*std::next(op->result_type_begin(), 1));
+
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n"; 
+    //tensorType.getShape()[0]
+    // llvm::errs() << "tensorType1.getShape()[0] " << tensorType1.getShape()[0] << " func= " << __func__ << "\n"; 
+    
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+    // auto memRefType2 = convertTensorToMemRef(tensorType1);
+    auto alloc_real = insertAllocAndDealloc(memRefType, loc, rewriter);
+    auto alloc_img = insertAllocAndDealloc(memRefType, loc, rewriter);
+
+    //construct affine loops for the input
+    SmallVector<int64_t, 4> lowerBounds(tensorType.getRank(), /*Value*/0);
+    SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);    
+
+    // affine.for %y = 0 to 4 {
+        //     affine.store %cst_3, %alloc_real[%y] : memref<4xf64>
+        //     affine.store %cst_3, %alloc_img[%y] : memref<4xf64>
+        // }
+    Value constant0 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(0));
+
+
+    //For loop -- iterate from 1 to last
+    int64_t lb = 0 ;
+    int64_t ub = tensorType.getShape()[0];
+    int64_t step = 1;
+
+    affine::AffineForOp forOp1 = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto iv = forOp1.getInductionVar();
+    rewriter.setInsertionPointToStart(forOp1.getBody());
+    rewriter.create<AffineStoreOp>(loc, constant0, alloc_real, ValueRange{iv});
+    rewriter.create<AffineStoreOp>(loc, constant0, alloc_img, ValueRange{iv});
+    rewriter.setInsertionPointAfter(forOp1);
+
+    //loop for Y
+    affine::AffineForOp forOpY = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto ivY = forOpY.getInductionVar();
+    rewriter.setInsertionPointToStart(forOpY.getBody());
+
+    //loop for X
+    affine::AffineForOp forOpX = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto ivX = forOpX.getInductionVar();
+    rewriter.setInsertionPointToStart(forOpX.getBody());
+
+    //load from X, & y1 & y2
+    FFT1DOpAdaptor fft1DAdaptor(operands);
+    Value inputX = rewriter.create<AffineLoadOp>(loc, fft1DAdaptor.getInput(), ValueRange{ivX});
+    Value loadYReal = rewriter.create<AffineLoadOp>(loc, alloc_real, ValueRange{ivY});
+    Value loadYImg = rewriter.create<AffineLoadOp>(loc, alloc_img, ValueRange{ivY});
+
+    //convert index to f64
+    Value IndxY = rewriter.create<arith::IndexCastUIOp>(loc, rewriter.getIntegerType(32), ivY);
+    Value k = rewriter.create<arith::UIToFPOp>(loc, rewriter.getF64Type(), IndxY);
+
+    Value IndxX = rewriter.create<arith::IndexCastUIOp>(loc, rewriter.getIntegerType(32), ivX);
+    Value i = rewriter.create<arith::UIToFPOp>(loc, rewriter.getF64Type(), IndxX);
+
+    //get 2*pi * k * i / N
+    Value muli_k =  rewriter.create<arith::MulFOp>(loc, k , i);
+    
+    Value const2pi = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(6.28318530718));
+    Value mul2piKI = rewriter.create<arith::MulFOp>(loc, const2pi , muli_k);  
+
+    // getOperand().getType()
+    // auto inputTensorType = llvm::cast<RankedTensorType>(op->getOperand(0).getType());
+    float LengthOfInput = (float) ub;
+    Value N = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(LengthOfInput));
+    // Value N = inputTensorType.getShape()[0];
+
+    Value divIndxByN = rewriter.create<arith::DivFOp>(loc, mul2piKI, N )  ;     
+
+    // Real part = Sum(x[i] * cos(div) )
+    Value GetCos = rewriter.create<math::CosOp>(loc, divIndxByN);
+    Value xMulCos = rewriter.create<arith::MulFOp>(loc, inputX , GetCos);   
+    Value realSum = rewriter.create<arith::AddFOp>(loc, loadYReal ,xMulCos) ;
+    rewriter.create<AffineStoreOp>(loc, realSum, alloc_real, ValueRange{ivY}); 
+    
+    // Img part = -1 * Sum(x[i] * sin(div) )
+    Value GetSin = rewriter.create<math::SinOp>(loc, divIndxByN);
+    Value xMulSin = rewriter.create<arith::MulFOp>(loc, inputX , GetSin);   
+    Value imgSum = rewriter.create<arith::AddFOp>(loc, loadYImg ,xMulSin) ;
+
+    Value constMinus1 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(-1));
+    Value NegImgSum = rewriter.create<arith::MulFOp>(loc, constMinus1 , imgSum);
+    rewriter.create<AffineStoreOp>(loc, NegImgSum, alloc_img, ValueRange{ivY}); 
+    //x[n-1]
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // Value xMinusPrevX = rewriter.create<arith::SubFOp>(loc, inputX ,PrevX );
+
+    rewriter.setInsertionPointAfter(forOpX);
+    // forOpX->dump();
+    // rewriter.create<AffineYieldOp>(loc, ValueRange{alloc_real, alloc_img});
+    rewriter.setInsertionPointAfter(forOpY);
+    //debug
+    // forOpX->dump();
+    // forOpY->dump();
+        // affine.for %y = 0 to 4 {
+        //     affine.store %cst_3, %alloc_real[%y] : memref<4xf64>
+        //     affine.store %cst_3, %alloc_img[%y] : memref<4xf64>
+        // }
+
+
+        // affine.for %y = 0 to 4 {
+        // //   %0 = affine.load %alloc_3[%arg0] : memref<4xf64>
+        // //   affine.store %0, %alloc_real[%arg0] : memref<4xf64>
+        // affine.for %x = 0 to 4 {
+        //     // CAcluations
+        //           %1 = affine.load %alloc_3[%x] : memref<4xf64>
+        //           %2 = affine.load %alloc_real[%y] : memref<4xf64>
+        //           %3 = affine.load %alloc_img[%y] : memref<4xf64>
+        //           // index cast for multiply 
+        //           %4 = arith.index_castui %y : index to i32
+        //           %k = arith.uitofp %4 : i32 to f64
+        //           %6 = arith.index_castui %x : index to i32
+        //           %i = arith.uitofp %6 : i32 to f64
+        //         //   %8 = arith.index_castui %arg3 : index to i32
+        //         //   %9 = arith.uitofp %8 : i32 to f64
+        //         //   %10 = arith.index_castui %arg4 : index to i32
+        //         //   %11 = arith.uitofp %10 : i32 to f64
+                
+        //           %mul_1 = arith.mulf %i, %k : f64
+        //           %mul = arith.mulf %mul_1, %cst_2pi : f64
+        //         //  ixk / N
+        //           %div = arith.divf %mul, %N : f64
+        //         //   cos of the above
+        //           %res_cos = math.cos %div : f64
+        //         //   %16 = arith.addf %14, %15 : f64
+        //         //   %res_sin = arith.mulf %16, %cst_0 : f64
+                 
+        //           %res_sin = math.sin %div : f64
+        //           %real_prod = arith.mulf %1, %res_cos : f64
+        //           %img_prod_1 = arith.mulf %1, %res_sin : f64
+        //           %img_prod = arith.mulf %cst_5, %img_prod_1 : f64
+
+        //           %real = arith.addf %2, %real_prod : f64
+        //           %img = arith.addf %3, %img_prod : f64
+        //           affine.store %real, %alloc_real[%y] : memref<4xf64>
+        //         //    dsp.print %alloc_real : memref<4xf64>
+        //           affine.store %img, %alloc_img[%y] : memref<4xf64>
+
+        // }
+        // }
+    // rewriter.replaceOp(op, alloc_real);
+    rewriter.replaceOp(op, ValueRange{alloc_real,alloc_img});
+    
+    return success();
+  }
+};
+
+//===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: HighPassFilter operations
 //===----------------------------------------------------------------------===//
 
@@ -1188,6 +1373,7 @@ struct HighPassFilterOpLowering : public ConversionPattern {
     
     //get y[i] = x[i] - x[i -1 ]
     Value xMinusPrevX = rewriter.create<arith::SubFOp>(loc, inputX ,PrevX );
+    // Value cosRes = rewriter.create<math::CosOp>(loc, xMinusPrevX);
     rewriter.create<AffineStoreOp>(loc, xMinusPrevX, alloc, ValueRange{iv}); //PrevX //AddmulAlphaXAndPreYAlphaMinus1
 
     rewriter.setInsertionPointAfter(forOp1);
@@ -2105,7 +2291,7 @@ struct ToyToAffineLoweringPass
 
   void getDependentDialects(DialectRegistry &registry) const override {
     registry.insert<affine::AffineDialect, func::FuncDialect,
-                    memref::MemRefDialect>();
+                    memref::MemRefDialect, math::MathDialect>();
   }
   void runOnOperation() final;
 };
@@ -2121,7 +2307,7 @@ void ToyToAffineLoweringPass::runOnOperation() {
   // `Affine`, `Arith`, `Func`, and `MemRef` dialects.
   target.addLegalDialect<affine::AffineDialect, BuiltinDialect,
                          arith::ArithDialect, func::FuncDialect,
-                         memref::MemRefDialect>();
+                         memref::MemRefDialect, math::MathDialect>();
 
   // We also define the Toy dialect as Illegal so that the conversion will fail
   // if any of these operations are *not* converted. Given that we actually want
@@ -2143,7 +2329,7 @@ void ToyToAffineLoweringPass::runOnOperation() {
                DelayOpLowering, GainOpLowering, SubOpLowering, FIRFilterOpLowering, 
                SlidingWindowAvgOpLowering, DownSamplingOpLowering, 
                UpSamplingOpLowering, LowPassFilter1stOrderOpLowering, 
-               HighPassFilterOpLowering>(
+               HighPassFilterOpLowering, FFT1DOpLowering>(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the

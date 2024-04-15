@@ -905,6 +905,47 @@ mlir::LogicalResult HighPassFilterOp::verify() {
   return mlir::success();
 }
 
+
+//===----------------------------------------------------------------------===//
+// FFT1DOp
+//===----------------------------------------------------------------------===//
+
+void FFT1DOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                        mlir::Value value) {
+  llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  state.addTypes({UnrankedTensorType::get(builder.getF64Type()), 
+                UnrankedTensorType::get(builder.getF64Type())});
+  state.addOperands(value);
+  llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+}
+
+void FFT1DOp::inferShapes() {
+  //for each rank
+  //Get the shape/size of input 
+  //output size = input_size 
+  auto tensorInput =  getInput().getType(); 
+  // getResult().setType(tensorInput);
+  getResult(0).setType(tensorInput);
+  getResult(1).setType(tensorInput);
+  // getResult(2).setType(tensorInput);
+}
+
+mlir::LogicalResult FFT1DOp::verify() {
+  // llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
+  auto inputRank = inputType.getRank();
+
+  // llvm::errs() << "inputRank: " << inputRank << " alphaValueRank: " << alphaValueRank << "\n";
+  //once ensured only 1 rank from above --   
+  if( inputRank != 1 )
+  {
+    llvm::errs() << "inputRank: " << inputRank <<  "\n";
+    return emitError()
+           << "expected rank of input  is 1";
+  }
+  return mlir::success();
+}
+
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
