@@ -738,9 +738,9 @@ def HighPassFilterOp : Dsp_Op<"highPassFilter",
   //   `(` $input `:` type($input) `)` attr-dict `to` type(results)
   // }];
 
-  let assemblyFormat = [{
-    `(` $input `)` `:` `(` type($input) `)` attr-dict `to` type(results)
-  }];
+  // let assemblyFormat = [{
+  //   `(` $input `)` `:` `(` type($input) `)` attr-dict `to` type(results)
+  // }];
 
   // Enable registering canonicalization patterns with this operation.
   // let hasCanonicalizer = 1;
@@ -826,6 +826,45 @@ def IFFT1DOp : Dsp_Op<"ifft1d",
   // let hasCanonicalizer = 1;
 
   // Allow building a IFFT1D with from the input operand.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs)>
+  ];
+
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// HammingWindow
+//===----------------------------------------------------------------------===//
+
+
+def HammingWindowOp : Dsp_Op<"hamming",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "hamming operation";
+  let description = [{
+    y[n] = 0.54 - 0.46 cos(2 *pi * n/N) , 0<=n<N : Taking length as N 0 to N-1
+    
+    The "HammingWindow" operation calculates the 
+    ex: N = 4 &  Output : y= [0.08,0.54,1,0.54] 
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins F64Tensor:$input);
+  // let results = (outs F64Tensor:$real, F64Tensor:$img); //(ins F64Tensor:$lhs, F64Tensor:$rhs);
+  let results = (outs F64Tensor);
+  let assemblyFormat = [{
+    `(` $input `:` type($input) `)` attr-dict `to` type(results)
+  }];
+
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input) `)` attr-dict `to` `(` type($real) `,` type($img) `)`
+  // }];
+
+  // Enable registering canonicalization patterns with this operation.
+  // let hasCanonicalizer = 1;
+
+  // Allow building a HammingWindow with from the input operand.
   let builders = [
     OpBuilder<(ins "Value":$lhs)>
   ];

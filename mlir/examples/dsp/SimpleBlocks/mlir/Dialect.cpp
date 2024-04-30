@@ -657,14 +657,20 @@ void SlidingWindowAvgOp::inferShapes() {
 }
 
 mlir::LogicalResult SlidingWindowAvgOp::verify() {
-  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
-  auto shapeOfInput = inputType.getShape();
+  // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+  // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
+  // if(!inputType)
+  // {
+  //   llvm::errs() << "SlidingWindowAvgOp failed --\n";
+  //   return failure();
+  // }
+  // auto shapeOfInput = inputType.getShape();
 
-  for(size_t i=0; i < shapeOfInput.size() ; i++){
-    if(shapeOfInput[i] < 3){
-      llvm::errs() << "Warning:SlidingWindowAvgOp = Input size < 3 " << "size= " << shapeOfInput[i] << "\n"  ;
-    }
-  }
+  // for(size_t i=0; i < shapeOfInput.size() ; i++){
+  //   if(shapeOfInput[i] < 3){
+  //     llvm::errs() << "Warning:SlidingWindowAvgOp = Input size < 3 " << "size= " << shapeOfInput[i] << "\n"  ;
+  //   }
+  // }
 
   return mlir::success();
 }
@@ -733,21 +739,21 @@ void DownsamplingOp::inferShapes() {
 
 //get rank of Input & Downsampling -- make sure it is of rank 1 
 mlir::LogicalResult DownsamplingOp::verify() {
-  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
-  auto samplingRateType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
-  // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+  // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
+  // auto samplingRateType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
+  // // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
 
-  auto inputRank = inputType.getRank();
-  auto samplingRateRank = samplingRateType.getRank();
+  // auto inputRank = inputType.getRank();
+  // auto samplingRateRank = samplingRateType.getRank();
 
-  // llvm::errs() << "inputRank: " << inputRank << " samplingRateRank: " << samplingRateRank << "\n";
-  //once ensured only 1 rank from above -- also make sure there is just 1 elem  
-  if( inputRank != 1 || samplingRateRank != 0 )
-  {
-    llvm::errs() << "inputRank: " << inputRank << " samplingRateRank: " << samplingRateRank << "\n";
-    return emitError()
-           << "expected rank of input & Downsampling is 1";
-  }
+  // // llvm::errs() << "inputRank: " << inputRank << " samplingRateRank: " << samplingRateRank << "\n";
+  // //once ensured only 1 rank from above -- also make sure there is just 1 elem  
+  // if( inputRank != 1 || samplingRateRank != 0 )
+  // {
+  //   llvm::errs() << "inputRank: " << inputRank << " samplingRateRank: " << samplingRateRank << "\n";
+  //   return emitError()
+  //          << "expected rank of input & Downsampling is 1";
+  // }
   return mlir::success();
 } 
 
@@ -811,21 +817,21 @@ void UpsamplingOp::inferShapes() {
 
 //get rank of Input & Upsampling -- make sure it is of rank 1 
 mlir::LogicalResult UpsamplingOp::verify() {
-  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
-  auto samplingRateType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
-  // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+  // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
+  // auto samplingRateType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
+  // // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
 
-  auto inputRank = inputType.getRank();
-  auto samplingRateRank = samplingRateType.getRank();
+  // auto inputRank = inputType.getRank();
+  // auto samplingRateRank = samplingRateType.getRank();
 
-  // llvm::errs() << "inputRank: " << inputRank << " samplingRateRank: " << samplingRateRank << "\n";
-  //once ensured only 1 rank from above -- also make sure there is just 1 elem  
-  if( inputRank != 1 || samplingRateRank != 0 )
-  {
-    llvm::errs() << "inputRank: " << inputRank << " samplingRateRank: " << samplingRateRank << "\n";
-    return emitError()
-           << "expected rank of input is 1 & Upsampling is 0";
-  }
+  // // llvm::errs() << "inputRank: " << inputRank << " samplingRateRank: " << samplingRateRank << "\n";
+  // //once ensured only 1 rank from above -- also make sure there is just 1 elem  
+  // if( inputRank != 1 || samplingRateRank != 0 )
+  // {
+  //   llvm::errs() << "inputRank: " << inputRank << " samplingRateRank: " << samplingRateRank << "\n";
+  //   return emitError()
+  //          << "expected rank of input is 1 & Upsampling is 0";
+  // }
   return mlir::success();
 } 
 
@@ -849,25 +855,25 @@ void LowPassFilter1stOrderOp::inferShapes() {
   // auto tensorInput =  llvm::cast<RankedTensorType>(getLhs().getType());
   auto tensorInput =  getLhs().getType(); 
   getResult().setType(tensorInput);
-  }
+}
 
 //get rank of Input & alphaValue -- make sure it is of rank 1 
 mlir::LogicalResult LowPassFilter1stOrderOp::verify() {
-  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
-  auto alphaValueType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
-  // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+  // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
+  // auto alphaValueType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
+  // // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
 
-  auto inputRank = inputType.getRank();
-  auto alphaValueRank = alphaValueType.getRank();
+  // auto inputRank = inputType.getRank();
+  // auto alphaValueRank = alphaValueType.getRank();
 
-  // llvm::errs() << "inputRank: " << inputRank << " alphaValueRank: " << alphaValueRank << "\n";
-  //once ensured only 1 rank from above -- also make sure there is just 1 elem  
-  if( inputRank != 1 || alphaValueRank != 0 )
-  {
-    llvm::errs() << "inputRank: " << inputRank << " alphaValueRank: " << alphaValueRank << "\n";
-    return emitError()
-           << "expected rank of input & Upsampling is 1";
-  }
+  // // llvm::errs() << "inputRank: " << inputRank << " alphaValueRank: " << alphaValueRank << "\n";
+  // //once ensured only 1 rank from above -- also make sure there is just 1 elem  
+  // if( inputRank != 1 || alphaValueRank != 0 )
+  // {
+  //   llvm::errs() << "inputRank: " << inputRank << " alphaValueRank: " << alphaValueRank << "\n";
+  //   return emitError()
+  //          << "expected rank of input & Upsampling is 1";
+  // }
   return mlir::success();
 } 
 
@@ -891,17 +897,17 @@ void HighPassFilterOp::inferShapes() {
 }
 
 mlir::LogicalResult HighPassFilterOp::verify() {
-  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
-  auto inputRank = inputType.getRank();
+  // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
+  // auto inputRank = inputType.getRank();
 
-  // llvm::errs() << "inputRank: " << inputRank << " alphaValueRank: " << alphaValueRank << "\n";
-  //once ensured only 1 rank from above --   
-  if( inputRank != 1 )
-  {
-    llvm::errs() << "inputRank: " << inputRank <<  "\n";
-    return emitError()
-           << "expected rank of input  is 1";
-  }
+  // llvm::errs() << "inputRank: " << inputRank <<  "\n";
+  // //once ensured only 1 rank from above --   
+  // if( inputRank != 1 )
+  // {
+  //   llvm::errs() << "inputRank: " << inputRank <<  "\n";
+  //   return emitError()
+  //          << "expected rank of input  is 1";
+  // }
   return mlir::success();
 }
 
@@ -983,6 +989,80 @@ mlir::LogicalResult IFFT1DOp::verify() {
     return emitError()
            << "expected rank of input  is 1";
   }
+  return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
+// HammingWindowOp
+//===----------------------------------------------------------------------===//
+
+void HammingWindowOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                        mlir::Value value) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands(value);
+}
+
+void HammingWindowOp::inferShapes() {
+  //for each rank
+  //Get the shape/size of input 
+  //output size = input_size 
+  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
+
+  auto shapeOfInput = inputType.getShape();
+
+  std::vector<int64_t> shapeForOutput ;
+
+  int64_t FirstOpInt = 1;
+
+  //To extract value from the SSA value:
+    //get the Operand 
+    //convert it to ConstantOp
+    //convert it to corresponding elements attribute
+    //extract the value as float then convert to int
+  // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+  Value hammingLen = getOperand();
+  dsp::ConstantOp constantOp1stArg = hammingLen.getDefiningOp<dsp::ConstantOp>();
+  // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+  DenseElementsAttr constantLhsValue = constantOp1stArg.getValue();
+  // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+  auto elements = constantLhsValue.getValues<FloatAttr>();
+  float FirstValue = elements[0].getValueAsDouble();
+  FirstOpInt = (int64_t) FirstValue;
+  // llvm::errs() << "FirstOpInt " << FirstOpInt << "\n" ;
+  // llvm::errs() << "shapeOfInput.size() " << shapeOfInput.size() << "\n" ;
+
+  // for(size_t i=0; i < shapeOfInput.size() ; i++){
+    // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+    shapeForOutput.push_back(FirstOpInt);
+  // }
+
+  mlir::TensorType outputType = mlir::RankedTensorType::get(shapeForOutput, 
+    getInput().getType().getElementType());
+    // getOperand().getType());
+    // getOperand().getType().getElementType());
+
+  getResult().setType(outputType);
+  // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+  
+
+}
+
+mlir::LogicalResult HammingWindowOp::verify() {
+  // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+  // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
+  // if(!inputType)
+  // {
+  //   llvm::errs() << "HammingWindowOp failed --\n";
+  //   return failure();
+  // }
+  // auto shapeOfInput = inputType.getShape();
+
+  // for(size_t i=0; i < shapeOfInput.size() ; i++){
+  //   if(shapeOfInput[i] < 3){
+  //     llvm::errs() << "Warning:HammingWindowOp = Input size < 3 " << "size= " << shapeOfInput[i] << "\n"  ;
+  //   }
+  // }
+
   return mlir::success();
 }
 
