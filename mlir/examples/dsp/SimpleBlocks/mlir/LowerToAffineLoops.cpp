@@ -1123,6 +1123,111 @@ namespace {
 
 
 //===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: HammingWindowOp operations
+//===----------------------------------------------------------------------===//
+
+struct HammingWindowOpLowering : public ConversionPattern {
+  HammingWindowOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::HammingWindowOp::getOperationName(), 1, ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
+    
+    //Pseudo-code:
+      //  y[k] = 0.54 - 0.46 cos(2 *pi * k/N) , 0<=n<=N 
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+
+    //output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));  
+    // llvm::errs() << "tensorType " << tensorType.get;  
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+    
+    //construct affine loops for the input
+    SmallVector<int64_t, 4> lowerBounds(tensorType.getRank(), /*Value*/0);
+    SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);    
+    
+
+    //For loop -- iterate from 1 to last
+    // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+    int64_t lb = 0 ;
+    int64_t ub = tensorType.getShape()[0];   
+    int64_t step = 1;
+
+    // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+    //get constants -- 0.54 & 0.46
+    Value constant0_54 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(0.54));
+    Value constant0_46 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(0.46));
+    Value const2pi = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(6.28318530718));
+
+
+    //loop for Y
+    affine::AffineForOp forOpY = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto ivY = forOpY.getInductionVar();
+    rewriter.setInsertionPointToStart(forOpY.getBody());
+    //convert index to f64
+    Value IndxY = rewriter.create<arith::IndexCastUIOp>(loc, rewriter.getIntegerType(32), ivY);
+    Value k = rewriter.create<arith::UIToFPOp>(loc, rewriter.getF64Type(), IndxY);
+
+
+    //get 2*pi * k / N    
+    Value mul2pi_k = rewriter.create<arith::MulFOp>(loc, const2pi , k);  
+
+    // getOperand().getType()
+    // auto inputTensorType = llvm::cast<RankedTensorType>(op->getOperand(0).getType());
+    float LengthOfInput = (float) ub;
+    Value N = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(LengthOfInput));
+    
+    Value divIndxByN = rewriter.create<arith::DivFOp>(loc, mul2pi_k, N )  ;     
+
+    // get cos(2*pi * k/N)
+    Value GetCos = rewriter.create<math::CosOp>(loc, divIndxByN);
+    Value MulCos0_46 = rewriter.create<arith::MulFOp>(loc, constant0_46 , GetCos);   
+    Value Sub0_54_Cos = rewriter.create<arith::SubFOp>(loc, constant0_54 ,MulCos0_46) ;
+    rewriter.create<AffineStoreOp>(loc, Sub0_54_Cos, alloc, ValueRange{ivY}); 
+    // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+    rewriter.setInsertionPointAfter(forOpY);
+    //debug
+    // forOpX->dump();
+    // forOpY->dump();
+
+
+        // %cst = arith.constant 6.2831853071800001 : f64
+        // %cst_0 = arith.constant 4.600000e-01 : f64
+        // %cst_1 = arith.constant 5.400000e-01 : f64
+        // %cst_2 = arith.constant 4.000000e+00 : f64
+        // %alloc = memref.alloc() : memref<4xf64>
+        // %alloc_3 = memref.alloc() : memref<f64>
+        // affine.store %cst_2, %alloc_3[] : memref<f64>
+        // affine.for %arg0 = 0 to 4 {
+        //   %0 = arith.index_castui %arg0 : index to i32
+        //   %1 = arith.uitofp %0 : i32 to f64
+        //   %2 = arith.mulf %1, %cst : f64
+        //   %3 = arith.divf %2, %cst_2 : f64
+        //   %4 = math.cos %3 : f64
+        //   %5 = arith.mulf %4, %cst_0 : f64
+        //   %6 = arith.subf %cst_1, %5 : f64
+        //   affine.store %6, %alloc[%arg0] : memref<4xf64>
+        // }
+
+
+        // }
+        // }
+    rewriter.replaceOp(op, alloc);
+    //rewriter.replaceOp(op, ValueRange{alloc,alloc_img});
+    
+    return success();
+  }
+};
+
+//===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: IFFT1DOp operations
 //===----------------------------------------------------------------------===//
 
@@ -1511,7 +1616,7 @@ struct HighPassFilterOpLowering : public ConversionPattern {
       //y[i] = x[i] - x[i -1 ]
       // replace this upsampling op with the output_mem_allocation op
 
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
 
     //output for result type
     auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));    
@@ -1551,7 +1656,7 @@ struct HighPassFilterOpLowering : public ConversionPattern {
     AffineMap addMapForHighPassFilter = AffineMap::get(1, 0, ExprForPrevX);
 
     //x[n-1]
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
     Value PrevX = rewriter.create<AffineLoadOp>(loc, highPassFilterAdaptor.getInput(), addMapForHighPassFilter, 
                   ValueRange{iv}); //memRefType
     // PrevX.dump();
@@ -2515,7 +2620,8 @@ void ToyToAffineLoweringPass::runOnOperation() {
                DelayOpLowering, GainOpLowering, SubOpLowering, FIRFilterOpLowering, 
                SlidingWindowAvgOpLowering, DownSamplingOpLowering, 
                UpSamplingOpLowering, LowPassFilter1stOrderOpLowering, 
-               HighPassFilterOpLowering, FFT1DOpLowering, IFFT1DOpLowering>(
+               HighPassFilterOpLowering, FFT1DOpLowering, IFFT1DOpLowering,
+               HammingWindowOpLowering>(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the
