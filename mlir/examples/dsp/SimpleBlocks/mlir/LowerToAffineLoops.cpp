@@ -1123,6 +1123,204 @@ namespace {
 
 
 //===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: DCT operations
+//===----------------------------------------------------------------------===//
+
+
+struct DCTOpLowering : public ConversionPattern {
+  DCTOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::DCTOp::getOperationName(), 1, ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
+    
+    //Pseudo-code:
+      //  y[k] = sqrt(2/N) * SumOverAllN( x[n] cos(pi * k * (n +0.5)/N)) , 0<=n<=N-1 : 
+      // for y[0] , the answer will be multiplied by 1/sqrt(2)
+     
+      //init  output mem for y as 0 
+      //iterate for output from k=0 to last 
+        //iterate for all x from n=0 to last
+          //perform the calculations : ie x[n] cos(pi * k * (n +0.5)/N) and sum and store them at y[k]
+          // 
+      // replace this upsampling op with the output_mem_allocation op
+
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+
+    //output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));  
+        
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+    DCTOpAdaptor dctAdaptor(operands);
+
+    //construct affine loops for the input
+    SmallVector<int64_t, 4> lowerBounds(tensorType.getRank(), /*Value*/0);
+    SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);    
+
+    //constant values:
+    const float sqrt2 = 1.41421356237;
+    const float pi = 3.14159265358;
+
+    // affine.for %y = 0 to 4 {
+        //     affine.store %cst_3, %alloc[%y] : memref<4xf64>
+        // }
+    Value constant0 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(0));
+
+
+    //For loop -- iterate from 0 to last
+    int64_t lb = 0 ;
+    int64_t ub = tensorType.getShape()[0];
+    int64_t step = 1;
+
+    affine::AffineForOp forOp1 = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto iv = forOp1.getInductionVar();
+    rewriter.setInsertionPointToStart(forOp1.getBody());
+    rewriter.create<AffineStoreOp>(loc, constant0, alloc, ValueRange{iv});
+    rewriter.setInsertionPointAfter(forOp1);
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+
+    //loop for Y
+    affine::AffineForOp forOpY = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto ivY = forOpY.getInductionVar();
+    rewriter.setInsertionPointToStart(forOpY.getBody());
+
+    //loop for X
+    affine::AffineForOp forOpX = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto ivX = forOpX.getInductionVar();
+    rewriter.setInsertionPointToStart(forOpX.getBody());
+
+    //load from X, & Y
+    // DCTOpAdaptor dctAdaptor(operands);
+    Value inputX = rewriter.create<AffineLoadOp>(loc, dctAdaptor.getInput(), ValueRange{ivX});
+    Value loadYReal = rewriter.create<AffineLoadOp>(loc, alloc, ValueRange{ivY});
+
+    //convert index to f64
+    Value IndxY = rewriter.create<arith::IndexCastUIOp>(loc, rewriter.getIntegerType(32), ivY);
+    Value k = rewriter.create<arith::UIToFPOp>(loc, rewriter.getF64Type(), IndxY);
+
+    Value IndxX = rewriter.create<arith::IndexCastUIOp>(loc, rewriter.getIntegerType(32), ivX);
+    Value i = rewriter.create<arith::UIToFPOp>(loc, rewriter.getF64Type(), IndxX);
+
+    //get pi * k * (i + 0.5) / N
+    Value constant0_5 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(0.5));
+
+    Value add_i_half = rewriter.create<arith::AddFOp>(loc, i, constant0_5);
+    Value muli_k =  rewriter.create<arith::MulFOp>(loc, k , add_i_half);
+    
+    Value constpi = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(pi));
+    Value mulpiKI_half = rewriter.create<arith::MulFOp>(loc, constpi , muli_k);  
+
+    // Get N
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    float LengthOfInput = (float) ub;
+    Value N = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(LengthOfInput));
+
+    Value divIndxByN = rewriter.create<arith::DivFOp>(loc, mulpiKI_half, N )  ;     
+
+    // Get cos ( pi * k * (n +0.5)/N))
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    Value GetCos = rewriter.create<math::CosOp>(loc, divIndxByN);
+    Value xMulCos = rewriter.create<arith::MulFOp>(loc, inputX , GetCos);   
+    Value realSum = rewriter.create<arith::AddFOp>(loc, loadYReal ,xMulCos) ;
+    rewriter.create<AffineStoreOp>(loc, realSum, alloc, ValueRange{ivY}); 
+    
+    rewriter.setInsertionPointAfter(forOpX);
+
+    //multiply Y(k) with sqrt(2) / sqrt(N) 
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    Value loadYReal1 = rewriter.create<AffineLoadOp>(loc, alloc, ValueRange{ivY});
+    Value constSqrt2 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(sqrt2));
+    // Type floatType = rewriter.getF64Type();
+    Value N2 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(LengthOfInput));
+    // Define fast math flags
+    // auto fastMathFlags = arith::FastMathFlagsAttr::get(
+    //   rewriter.getContext(), arith::FastMathFlags::none);
+      // arith::FastMathFlags::ApproximateSqrt |
+      // arith::FastMathFlags::AllowReciprocal);
+    Value sqrtN = rewriter.create<math::RsqrtOp>(loc,  N2  );
+    // Value sqrtN = rewriter.create<math::RsqrtOp>(loc, TypeRange{ floatType } , N2 , fastMathFlags );
+
+    Value mulSqrt2ByN = rewriter.create<arith::MulFOp>(loc, constSqrt2 , sqrtN);
+    Value mulSqrt2ByNByY = rewriter.create<arith::MulFOp>(loc, mulSqrt2ByN , loadYReal1);
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    rewriter.create<AffineStoreOp>(loc, mulSqrt2ByNByY, alloc, ValueRange{ivY}); 
+    rewriter.setInsertionPointAfter(forOpY);
+
+    //get Y0 multiplied by sqrt(2)
+    Value constantIndx0 = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+    Value GetY0 = rewriter.create<AffineLoadOp>(loc, alloc, /* iv */ ValueRange{constantIndx0});
+    Value valSqrt2 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(sqrt2));
+    Value Y0MulSqrt2 = rewriter.create<arith::DivFOp>(loc, GetY0, valSqrt2);
+    rewriter.create<AffineStoreOp>(loc, Y0MulSqrt2, alloc, ValueRange{constantIndx0});
+    
+    //debug
+    // forOpX->dump();
+    // forOpY->dump();
+        // affine.for %y = 0 to 4 {
+        //     affine.store %cst_3, %alloc[%y] : memref<4xf64>
+        //     affine.store %cst_3, %alloc_img[%y] : memref<4xf64>
+        // }
+
+
+        // affine.for %y = 0 to 4 {
+        // //   %0 = affine.load %alloc_3[%arg0] : memref<4xf64>
+        // //   affine.store %0, %alloc[%arg0] : memref<4xf64>
+        // affine.for %x = 0 to 4 {
+        //     // CAcluations
+        //           %1 = affine.load %alloc_3[%x] : memref<4xf64>
+        //           %2 = affine.load %alloc[%y] : memref<4xf64>
+        //           %3 = affine.load %alloc_img[%y] : memref<4xf64>
+        //           // index cast for multiply 
+        //           %4 = arith.index_castui %y : index to i32
+        //           %k = arith.uitofp %4 : i32 to f64
+        //           %6 = arith.index_castui %x : index to i32
+        //           %i = arith.uitofp %6 : i32 to f64
+        //         //   %8 = arith.index_castui %arg3 : index to i32
+        //         //   %9 = arith.uitofp %8 : i32 to f64
+        //         //   %10 = arith.index_castui %arg4 : index to i32
+        //         //   %11 = arith.uitofp %10 : i32 to f64
+                
+        //           %mul_1 = arith.mulf %i, %k : f64
+        //           %mul = arith.mulf %mul_1, %cst_2pi : f64
+        //         //  ixk / N
+        //           %div = arith.divf %mul, %N : f64
+        //         //   cos of the above
+        //           %res_cos = math.cos %div : f64
+        //         //   %16 = arith.addf %14, %15 : f64
+        //         //   %res_sin = arith.mulf %16, %cst_0 : f64
+                 
+        //           %res_sin = math.sin %div : f64
+        //           %real_prod = arith.mulf %1, %res_cos : f64
+        //           %img_prod_1 = arith.mulf %1, %res_sin : f64
+        //           %img_prod = arith.mulf %cst_5, %img_prod_1 : f64
+
+        //           %real = arith.addf %2, %real_prod : f64
+        //           %img = arith.addf %3, %img_prod : f64
+        //           affine.store %real, %alloc[%y] : memref<4xf64>
+        //         //    dsp.print %alloc : memref<4xf64>
+        //           affine.store %img, %alloc_img[%y] : memref<4xf64>
+
+        // }
+        // }
+    rewriter.replaceOp(op, alloc);
+    // rewriter.replaceOp(op, ValueRange{alloc,alloc_img});
+    
+    return success();
+  }
+};
+
+//===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: HammingWindowOp operations
 //===----------------------------------------------------------------------===//
 
@@ -2621,7 +2819,7 @@ void ToyToAffineLoweringPass::runOnOperation() {
                SlidingWindowAvgOpLowering, DownSamplingOpLowering, 
                UpSamplingOpLowering, LowPassFilter1stOrderOpLowering, 
                HighPassFilterOpLowering, FFT1DOpLowering, IFFT1DOpLowering,
-               HammingWindowOpLowering>(
+               HammingWindowOpLowering, DCTOpLowering>(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the
