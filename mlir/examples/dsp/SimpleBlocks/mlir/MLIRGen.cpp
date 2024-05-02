@@ -456,6 +456,15 @@ private:
       return builder.create<HammingWindowOp>(location, operands[0] );
     }
 
+    if(callee == "dct"){
+      if(call.getArgs().size() != 1){
+        emitError(location, "MLIR codegen encountered an error: dsp.dct "
+                            "accepts only 1 arguments");
+        return nullptr;
+      }
+      return builder.create<DCTOp>(location, operands[0] );
+    }
+
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.
     // if(callee == "delay"){
