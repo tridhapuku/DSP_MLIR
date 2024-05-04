@@ -628,7 +628,7 @@ def DownsamplingOp : Dsp_Op<"downsampling" ,
   // let hasCustomAssemblyFormat = 1;
   
   // Enable registering canonicalization patterns with this operation.
-  // let hasCanonicalizer = 1;
+  let hasCanonicalizer = 1;
 
   let hasVerifier = 1;
 }
