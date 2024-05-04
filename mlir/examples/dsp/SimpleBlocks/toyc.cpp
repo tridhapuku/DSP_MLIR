@@ -142,6 +142,7 @@ int loadMLIR(mlir::MLIRContext &context,
   }
 
   // Parse the input mlir.
+  llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
   llvm::SourceMgr sourceMgr;
   sourceMgr.AddNewSourceBuffer(std::move(*fileOrErr), llvm::SMLoc());
   module = mlir::parseSourceFile<mlir::ModuleOp>(sourceMgr, &context);
@@ -158,6 +159,7 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
     return error;
 
   mlir::PassManager pm(module.get()->getName());
+  // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
   // Apply any generic pass manager command line options and run the pipeline.
   if (mlir::failed(mlir::applyPassManagerCLOptions(pm)))
     return 4;
@@ -167,14 +169,17 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
   bool isLoweringTosaToLinalg = emitAction >= Action::DumpMLIRLinalg;
   bool isLoweringToLLVM = emitAction >= Action::DumpMLIRLLVM;
   // bool isAffineToLLVM = emitAction >= Action::DumpMLIRAffineToLLVM;
-
+  // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
   if (enableOpt || isLoweringToAffine ) {
     // Inline all functions into main and then delete them.
+    llvm::errs() << "Going for inliner pass \n";
     pm.addPass(mlir::createInlinerPass());
 
     // Now that there is only one function, we can infer the shapes of each of
     // the operations.
     mlir::OpPassManager &optPM = pm.nest<mlir::dsp::FuncOp>();
+    llvm::errs() << "Going for shape inference pass \n";
+
     optPM.addPass(mlir::dsp::createShapeInferencePass());
     optPM.addPass(mlir::createCanonicalizerPass());
     optPM.addPass(mlir::createCSEPass());
@@ -208,8 +213,30 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
 
     // Add optimizations if enabled.
     if (enableOpt) {
+      llvm::errs() << "Opt enabled --loop fusion &  \n";
+      llvm::errs() << "Opt enabled --createAffineScalarReplacementPass \n";
       optPM.addPass(mlir::affine::createLoopFusionPass());
       optPM.addPass(mlir::affine::createAffineScalarReplacementPass());
+
+      //all affine optimizations
+      // llvm::errs() << "All affine optimizations\n" ;
+      // // optPM.addPass(mlir::affine::createAffineDataCopyGenerationPass());
+      // optPM.addPass(mlir::affine::createLoopFusionPass());
+      // optPM.addPass(mlir::affine::createAffineLoopInvariantCodeMotionPass());
+      // // optPM.addPass(mlir::affine::createLoopTilingPass());
+      // optPM.addPass(mlir::affine::createLoopUnrollPass());
+      // optPM.addPass(mlir::affine::createLoopUnrollAndJamPass());
+      // optPM.addPass(mlir::affine::createPipelineDataTransferPass());
+      // optPM.addPass(mlir::affine::createAffineScalarReplacementPass());
+      // // optPM.addPass(mlir::affine::createAffineVectorizePass()); //no-option
+      // // optPM.addPass(mlir::affine::createAffineParallelizePass());
+      // optPM.addPass(mlir::affine::createAffineLoopNormalizePass());
+      // optPM.addPass(mlir::affine::createLoopCoalescingPass());
+      // optPM.addPass(mlir::affine::createSimplifyAffineStructuresPass());
+      // optPM.addPass(mlir::affine::createAffineExpandIndexOpsPass());
+
+      //All mlir-optimizations
+      optPM.addPass(mlir::createCSEPass());
     }
   }
 
@@ -219,18 +246,18 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
 
     // Add a few cleanups post lowering.
     mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
-pm.addNestedPass<mlir::func::FuncOp>(mlir::tosa::createTosaOptionalDecompositions());
-  pm.addNestedPass<mlir::func::FuncOp>(mlir::createCanonicalizerPass());
+    pm.addNestedPass<mlir::func::FuncOp>(mlir::tosa::createTosaOptionalDecompositions());
+    pm.addNestedPass<mlir::func::FuncOp>(mlir::createCanonicalizerPass());
 
-  pm.addNestedPass<mlir::func::FuncOp>(mlir::tosa::createTosaInferShapesPass());
-  pm.addNestedPass<mlir::func::FuncOp>(mlir::tosa::createTosaMakeBroadcastablePass());
-  pm.addNestedPass<mlir::func::FuncOp>(
-      mlir::tosa::createTosaToLinalgNamed());
-  pm.addNestedPass<mlir::func::FuncOp>(mlir::createCanonicalizerPass());
-  // TODO: Remove pass that operates on const tensor and enable optionality
-  pm.addNestedPass<mlir::func::FuncOp>(mlir::tosa::createTosaLayerwiseConstantFoldPass());
-  pm.addNestedPass<mlir::func::FuncOp>(mlir::tosa::createTosaMakeBroadcastablePass());
-  // optPM.addPass(mlir::tosa::createTosaValidation());
+    pm.addNestedPass<mlir::func::FuncOp>(mlir::tosa::createTosaInferShapesPass());
+    pm.addNestedPass<mlir::func::FuncOp>(mlir::tosa::createTosaMakeBroadcastablePass());
+    pm.addNestedPass<mlir::func::FuncOp>(
+        mlir::tosa::createTosaToLinalgNamed());
+    pm.addNestedPass<mlir::func::FuncOp>(mlir::createCanonicalizerPass());
+    // TODO: Remove pass that operates on const tensor and enable optionality
+    pm.addNestedPass<mlir::func::FuncOp>(mlir::tosa::createTosaLayerwiseConstantFoldPass());
+    pm.addNestedPass<mlir::func::FuncOp>(mlir::tosa::createTosaMakeBroadcastablePass());
+    // optPM.addPass(mlir::tosa::createTosaValidation());
     pm.addNestedPass<mlir::func::FuncOp>(mlir::dsp::createLowerTosaToLinalgPass());
 
     pm.addPass(mlir::createCanonicalizerPass());

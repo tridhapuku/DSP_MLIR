@@ -55,6 +55,99 @@ struct SimplifyRedundantTranspose : public mlir::OpRewritePattern<TransposeOp> {
 };
 
 
+
+//Pseudo-Code
+//Find back to back gain operation
+    // result1 = upsampling(input1, rate1)
+    // result2 = downsampling(result1, rate2)
+// if rate1 == rate2 then result2 = input1
+  // result2 will be now delay(input1, gain1 + gain2)
+  // replaceOp 
+struct SimplifyUpsamplingDownsampling : public mlir::OpRewritePattern<DownsamplingOp> {
+  /// We register this pattern to match every dsp.downsampling in the IR.
+  /// The "benefit" is used by the framework to order the patterns and process
+  /// them in order of profitability.
+  SimplifyUpsamplingDownsampling(mlir::MLIRContext *context)
+      : OpRewritePattern<DownsamplingOp>(context, /*benefit=*/1) {}
+
+  /// This method attempts to match a pattern and rewrite it. The rewriter
+  /// argument is the orchestrator of the sequence of rewrites. The pattern is
+  /// expected to interact with it to perform any changes to the IR from here.
+  mlir::LogicalResult
+  matchAndRewrite(DownsamplingOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    // Look through the input of the current downsampling.
+    mlir::Value downsamplingOperand1_Rate = op.getOperand(1);
+    mlir::Value downsamplingOperand0_input = op.getOperand(0);
+    dsp::UpsamplingOp prev_UpSamplingOp = downsamplingOperand0_input.getDefiningOp<UpsamplingOp>();
+
+    // Input defined by another downsampling? If not, no match.
+    if (!prev_UpSamplingOp)
+      return failure();
+
+    //Get operands for UpSamplingOp
+    mlir::Value UpsamplingOperand1_Rate = prev_UpSamplingOp.getOperand(1);
+    mlir::Value UpsamplingOperand0_input = prev_UpSamplingOp.getOperand(0);
+
+    //get constant value from the downsamplingOp -- operand1
+    dsp::ConstantOp constant_Op1_downsamplingOp = downsamplingOperand1_Rate.getDefiningOp<dsp::ConstantOp>();
+  	// llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+    DenseElementsAttr DenseValueFrmDownsampling = constant_Op1_downsamplingOp.getValue();
+  	// llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+    auto elements = DenseValueFrmDownsampling.getValues<FloatAttr>();
+    float FirstValue = elements[0].getValueAsDouble();
+    int64_t DownsamplingRate = (int64_t) FirstValue;
+
+    //Get constant value from upsampling: -- operand1
+    dsp::ConstantOp constant_Op1_upSamplingOp = UpsamplingOperand1_Rate.getDefiningOp<dsp::ConstantOp>();
+  	// llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+    DenseElementsAttr DenseValueFrmUpsampling = constant_Op1_upSamplingOp.getValue();
+  	// llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+    elements = DenseValueFrmUpsampling.getValues<FloatAttr>();
+    FirstValue = elements[0].getValueAsDouble();
+    int64_t UpsamplingRate = (int64_t) FirstValue;
+
+    llvm::errs() << "DownsamplingRate = " << DownsamplingRate << " UpsamplingRate" << UpsamplingRate << "\n";
+    if(DownsamplingRate == UpsamplingRate)
+    {
+	    // Otherwise, we have a redundant downsampling. Use the rewriter.
+	    // rewriter.replaceOp(op, {downsamplingInputOp.getOperand()}); //downsamplingOperand0_input
+      llvm::errs() << "Going for Downsampling pass\n";
+      rewriter.replaceOp(op, UpsamplingOperand0_input);
+	    return success();
+
+    }
+    else if(UpsamplingRate > DownsamplingRate)
+    {
+      //check if UpSamplingRate is a multiple of DownsamplingRate
+      //if yes, final result should be UpSampling with SamplingRate as division 
+      if(UpsamplingRate % DownsamplingRate != 0)
+      {
+        return failure();
+      }
+
+      //
+      if(DownsamplingRate == 0)
+      {
+        llvm::errs() << "DownSamplingRate= 0 Not allowed" << "\n"; 
+        return failure();
+      }
+      double finalUpSamplingRate = (double) UpsamplingRate / DownsamplingRate;
+
+      auto constOp_finalSamplingRate = rewriter.create<ConstantOp>(op.getLoc(), finalUpSamplingRate);
+
+      auto finalUpSamplingOp = rewriter.create<UpsamplingOp>(op.getLoc(),
+                          UpsamplingOperand0_input , constOp_finalSamplingRate);
+
+      llvm::errs() << "Going for Downsampling pass\n";
+      rewriter.replaceOp(op, finalUpSamplingOp);
+
+    }
+    return failure();
+
+  }
+};
+
 //Pseudo-Code
 //Find back to back gain operation
     // result1 = gain(input1, gain1)
@@ -95,13 +188,7 @@ struct SimplifyBack2BackGain: public mlir::OpRewritePattern<GainOp>{
     }
 };
 
-//Pseudo-Code
-//Find back to back delay operation
-    // result1 = delay(input1, unit1)
-    // result2 = delay(result1, unit2)
-// if result1 is coming from another delay operation
-  // result2 will be now delay(input1, unit1 + unit2)
-  // replaceOp 
+
 struct SimplifyBack2BackDelay: public mlir::OpRewritePattern<DelayOp>{
   //
   SimplifyBack2BackDelay(mlir::MLIRContext *context) 
@@ -138,6 +225,11 @@ struct SimplifyBack2BackDelay: public mlir::OpRewritePattern<DelayOp>{
 
 /// Register our patterns as "canonicalization" patterns on the TransposeOp so
 /// that they can be picked up by the Canonicalization framework.
+void DownsamplingOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                              MLIRContext *context){
+  // results.add<SimplifyUpsamplingDownsampling>(context);
+}
+
 void TransposeOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                               MLIRContext *context) {
   results.add<SimplifyRedundantTranspose>(context);
