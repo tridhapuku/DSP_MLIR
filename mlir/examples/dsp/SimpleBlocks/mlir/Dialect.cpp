@@ -1105,6 +1105,48 @@ mlir::LogicalResult DCTOp::verify() {
 }
 
 
+
+//===----------------------------------------------------------------------===//
+// filterOp
+//===----------------------------------------------------------------------===//
+
+void filterOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                  mlir::Value b, mlir::Value a, mlir::Value x) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands({b, a, x});
+}
+
+
+
+/// Infer the output shape of the filterOp, this is required by the shape inference
+/// interface.
+//ToDo -- shape should be the length of Lhs + Rhs - 1
+void filterOp::inferShapes() { 
+  //get the shape of Lhs & rhs 
+  //add the shape for each dimension
+  // auto tensorInput =  llvm::cast<RankedTensorType>(getLhs().getType());
+  auto tensorInput =  getX().getType();
+  getResult().setType(tensorInput );
+  }
+
+//get rank of Input & Filter -- make sure it is of rank 1 
+mlir::LogicalResult filterOp::verify() {
+  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
+  auto filterType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
+  // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+
+  auto inputRank = inputType.getRank();
+  auto filterRank = filterType.getRank();
+
+  if( inputRank != 1 || filterRank != 1)
+  {
+    return emitError()
+           << "expected rank of input & filter is 1";
+  }
+
+  return mlir::success();
+} 
+
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
