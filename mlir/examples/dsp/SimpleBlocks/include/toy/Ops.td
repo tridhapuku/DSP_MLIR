@@ -915,6 +915,7 @@ def DCTOp : Dsp_Op<"dct",
   let hasVerifier = 1;
 }
 
+
 def SinOp : Dsp_Op<"sin",
     [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "sin operation";
@@ -972,6 +973,41 @@ def CosOp : Dsp_Op<"cos",
   ];
 
   // Indicate that additional verification for this operation is necessary.
+}
+
+//===----------------------------------------------------------------------===//
+// filterOp
+//===----------------------------------------------------------------------===//
+
+def filterOp : Dsp_Op<"filter" ,
+    [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "get filter response given b,a and x";
+  let description = [{
+    The "filterOp" operation is basically the filter response of input x and filter represented as b/a rational transfer function form
+    ex: x[n] = [2,1,3,2,4], b[0,1,2,3,4] and a[1,2,3,4,5] then
+      y[i] = sum(b[j] * x(i-j) - a[j] *x[i-j] ) j=1 to i and  i=1 to len(x)
+      also, y[0] = b[0] * x[0]
+  }];
+
+  let arguments = (ins F64Tensor:$b, F64Tensor:$a, F64Tensor:$x); //working -- F64
+  let results =  (outs F64Tensor);
+  
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input1 , $input2) `)` attr-dict `to` type(results)
+  // }];
+  // Allow building a filterOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$b, "Value":$a, "Value":$x)>
+  ];
+
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+  
+  // Enable registering canonicalization patterns with this operation.
+  //let hasCanonicalizer = 1;
+
   let hasVerifier = 1;
 }
 

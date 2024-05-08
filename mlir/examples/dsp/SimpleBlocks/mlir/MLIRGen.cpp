@@ -481,6 +481,15 @@ private:
         return nullptr;
       }
       return builder.create<CosOp>(location, operands[0] );
+
+    if(callee == "filter"){
+      if(call.getArgs().size() != 3){
+        emitError(location, "MLIR codegen encountered an error: dsp.filter "
+                            "accepts only 1 arguments");
+        return nullptr;
+      }
+      return builder.create<filterOp>(location, operands[0],operands[1], operands[2] );
+
     }
 
     // Builtin calls have their custom operation, meaning this is a

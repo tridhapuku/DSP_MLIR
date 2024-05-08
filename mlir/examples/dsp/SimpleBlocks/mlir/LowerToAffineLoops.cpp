@@ -1121,6 +1121,219 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
 
 namespace {
 
+//===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: FIRFilter operations
+//===----------------------------------------------------------------------===//
+struct filterOpLowering: public ConversionPattern {
+      filterOpLowering(MLIRContext *ctx)
+        : ConversionPattern(dsp::filterOp::getOperationName(), 1 , ctx) {}
+
+    LogicalResult 
+    matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+              ConversionPatternRewriter &rewriter) const final {
+      //dsp.filterOp has 3 operands -- both of type tensor f64 
+
+    //Pseudo-code:
+      // y[i] = sum(b[j] * x(i-j) - a[j] *x[i-j] ) j=1 to i and  i=1 to len(x)
+      // also, y[0] = b[0] * x[0]
+     
+    // 1) calculate y[0]
+    // 2) iterate for indx=1 to input_len:
+    //     load y[indx] = b[0] * x[indx]
+    //     3) iterate for j=1 to indx : 
+    //             load b[j] , x[i-j] , a[j] , y[i-j]
+    //             y[indx] = y[indx] + b[j] * x[i-j] - a[j]*y[i-j]
+
+    auto loc = op->getLoc();
+    //output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));  
+        
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+    filterOpAdaptor filterOpAdaptor1(operands);
+
+    //construct affine loops for the input
+    SmallVector<int64_t, 4> lowerBounds(tensorType.getRank(), /*Value*/0);
+    SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);    
+
+    // IR:
+    // ConstantIndx0 
+    // b0 = affine.load(b, ConstantIndx0)
+    // x0 = affine.load(x, ConstantIndx0)
+    // tempY0 = arith.mulf(b0,x0)
+
+    // lb = 1, ub = x.size() , ivY = forLoopY.inductionVariable() 
+    // forLoopY
+    // xIvY = affine.load(x,ivY )
+    // tempYIndx = affine.mulf(b0, xIvY)
+    // affine.store(xIvY, y, ivY)
+
+    //     forloopJ , ivJ = forloopJ.inductionVariable()
+    //         //optional get min ivY and len(b) -- iterate for this
+    //         load (b,ivJ) ; (x, map(ivY - ivJ)) , (a, ivJ) , 
+    //         (y, map(ivY - ivJ) ), (y , ivJ)
+
+    //         tempBxX = arith.mulf(b , x)
+    //         tempAxY = arith.mulf(a , Y_i-j)
+    //         tempB_A = arith.subf( tempBxX - tempAxY)
+    //         sumY_A = arith.addf( Y , tempB_A )
+    //         affine.store(sumY_A , y , ivY)
+
+    // ConstantIndx0 
+    // b0 = affine.load(b, ConstantIndx0)
+    // x0 = affine.load(x, ConstantIndx0)
+    // tempY0 = arith.mulf(b0,x0)
+
+    Value constantIndx0 = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+    Value b0 = rewriter.create<affine::AffineLoadOp>(loc, filterOpAdaptor1.getB() ,ValueRange{constantIndx0} );
+    Value x0 = rewriter.create<affine::AffineLoadOp>(loc, filterOpAdaptor1.getX() ,ValueRange{constantIndx0} );
+    Value tempY0 = rewriter.create<arith::MulFOp>(loc, b0, x0);
+
+    //store at Y0
+    rewriter.create<affine::AffineStoreOp>(loc, tempY0 , alloc,ValueRange{constantIndx0} );
+
+    //For loop -- iterate from 1 to last
+    // lb = 1, ub = x.size() , ivY = forLoopY.inductionVariable() 
+    //     forLoopY
+    //     xIvY = affine.load(x,ivY )
+    //     tempYIndx = affine.mulf(b0, xIvY)
+    //     affine.store(tempYIndx, y, ivY)
+
+    int64_t lb = 1 ;
+    int64_t ub = tensorType.getShape()[0];
+    int64_t step = 1;
+
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+
+    //loop for Y
+    affine::AffineForOp forOpY = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto ivY = forOpY.getInductionVar();
+    rewriter.setInsertionPointToStart(forOpY.getBody());
+
+    Value xIvY = rewriter.create<affine::AffineLoadOp>(loc, filterOpAdaptor1.getX() , ivY);
+    Value b0mulxIvY = rewriter.create<arith::MulFOp>(loc, b0, xIvY);
+    rewriter.create<affine::AffineStoreOp>(loc, b0mulxIvY , alloc,ivY );
+
+    //loop for X-- 1 to upperIndx ie, ivY
+      // forloopJ , ivJ = forloopJ.inductionVariable()
+      // //optional get min ivY and len(b) -- iterate for this
+      // load (b,ivJ) ; (x, map(ivY - ivJ)) , (a, ivJ) , 
+      // (y, map(ivY - ivJ) ), (y , ivJ)
+
+      // tempBxX = arith.mulf(b , x)
+      // tempAxY = arith.mulf(a , Y_i-j)
+      // tempB_A = arith.subf( tempBxX - tempAxY)
+      // sumY_A = arith.addf( Y , tempB_A )
+      // affine.store(sumY_A , y , ivY)
+
+    //look for here
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    //Future -- try to loop 
+    Value forlb = rewriter.create<arith::ConstantIndexOp>(loc, 1);
+    AffineExpr expr0;
+    bindDims(rewriter.getContext(), expr0);
+    AffineMap lbMap = AffineMap::get(1, 0, expr0);
+
+    // affine::AffineForOp forOpJ = rewriter.create<AffineForOp>(loc, lbMap, ValueRange{forlb} ,lbMap , ValueRange{ivY}, step);
+    affine::AffineForOp forOpJ = rewriter.create<AffineForOp>(loc, lb, ub, step);
+
+    auto ivJ = forOpJ.getInductionVar();
+    rewriter.setInsertionPointToStart(forOpJ.getBody());
+
+    //load from X, & Y
+    // DCTOpAdaptor dctAdaptor(operands);
+    //For affine expression: #map1 = affine_map<(%ivY , ivJ)[] : (%ivY - ivJ)
+    AffineExpr d0, d1, s0;
+    bindDims(rewriter.getContext(), d0, d1);
+    // AffineExpr ExprForIndxYminusX = rewriter.getAffineDimExpr(0) - rewriter.getAffineDimExpr(1); //d0 - d1; 
+    AffineExpr ExprForIndxYminusX = d0 - d1; 
+
+    AffineMap addMapForYminusX = AffineMap::get(2, 0, ExprForIndxYminusX);
+
+    // load (b,ivJ) ; (x, map(ivY - ivJ)) , (a, ivJ) , 
+    // (y, map(ivY - ivJ) ), (y , ivJ)
+    Value inputX = rewriter.create<AffineLoadOp>(loc, filterOpAdaptor1.getX(),addMapForYminusX, ValueRange{ivY,ivJ});
+    Value inputB = rewriter.create<AffineLoadOp>(loc, filterOpAdaptor1.getB(), ValueRange{ivJ});
+    Value inputA = rewriter.create<AffineLoadOp>(loc, filterOpAdaptor1.getA(), ValueRange{ivJ});
+    Value inputPrevY = rewriter.create<AffineLoadOp>(loc, alloc,addMapForYminusX, ValueRange{ivY,ivJ});
+    Value outY = rewriter.create<AffineLoadOp>(loc, alloc, ValueRange{ivY});
+
+    // tempBxX = arith.mulf(b , x)
+    // tempAxY = arith.mulf(a , Y_i-j)
+    // tempB_A = arith.subf( tempBxX - tempAxY)
+    // sumY_A = arith.addf( Y , tempB_A )
+    // affine.store(sumY_A , y , ivY)
+
+    Value tempBxX = rewriter.create<arith::MulFOp>(loc, inputB, inputX);
+    Value tempAxY = rewriter.create<arith::MulFOp>(loc, inputA, inputPrevY);
+    Value tempBminusA = rewriter.create<arith::SubFOp>(loc, tempBxX, tempAxY);
+    Value sumY_A = rewriter.create<arith::AddFOp>(loc, outY, tempBminusA);
+    rewriter.create<affine::AffineStoreOp>(loc, sumY_A , alloc,ivY );
+
+ 
+    rewriter.setInsertionPointAfter(forOpJ);
+    rewriter.setInsertionPointAfter(forOpY);
+    // forOpJ->dump();
+  
+    //debug
+    // forOpJ->dump();
+    // forOpY->dump();
+        // affine.for %y = 0 to 4 {
+        //     affine.store %cst_3, %alloc[%y] : memref<4xf64>
+        //     affine.store %cst_3, %alloc_img[%y] : memref<4xf64>
+        // }
+
+
+        // affine.for %y = 0 to 4 {
+        // //   %0 = affine.load %alloc_3[%arg0] : memref<4xf64>
+        // //   affine.store %0, %alloc[%arg0] : memref<4xf64>
+        // affine.for %x = 0 to 4 {
+        //     // CAcluations
+        //           %1 = affine.load %alloc_3[%x] : memref<4xf64>
+        //           %2 = affine.load %alloc[%y] : memref<4xf64>
+        //           %3 = affine.load %alloc_img[%y] : memref<4xf64>
+        //           // index cast for multiply 
+        //           %4 = arith.index_castui %y : index to i32
+        //           %k = arith.uitofp %4 : i32 to f64
+        //           %6 = arith.index_castui %x : index to i32
+        //           %i = arith.uitofp %6 : i32 to f64
+        //         //   %8 = arith.index_castui %arg3 : index to i32
+        //         //   %9 = arith.uitofp %8 : i32 to f64
+        //         //   %10 = arith.index_castui %arg4 : index to i32
+        //         //   %11 = arith.uitofp %10 : i32 to f64
+                
+        //           %mul_1 = arith.mulf %i, %k : f64
+        //           %mul = arith.mulf %mul_1, %cst_2pi : f64
+        //         //  ixk / N
+        //           %div = arith.divf %mul, %N : f64
+        //         //   cos of the above
+        //           %res_cos = math.cos %div : f64
+        //         //   %16 = arith.addf %14, %15 : f64
+        //         //   %res_sin = arith.mulf %16, %cst_0 : f64
+                 
+        //           %res_sin = math.sin %div : f64
+        //           %real_prod = arith.mulf %1, %res_cos : f64
+        //           %img_prod_1 = arith.mulf %1, %res_sin : f64
+        //           %img_prod = arith.mulf %cst_5, %img_prod_1 : f64
+
+        //           %real = arith.addf %2, %real_prod : f64
+        //           %img = arith.addf %3, %img_prod : f64
+        //           affine.store %real, %alloc[%y] : memref<4xf64>
+        //         //    dsp.print %alloc : memref<4xf64>
+        //           affine.store %img, %alloc_img[%y] : memref<4xf64>
+
+        // }
+        // }
+    rewriter.replaceOp(op, alloc);
+    // rewriter.replaceOp(op, ValueRange{alloc,alloc_img});
+    
+    return success();
+    }
+
+
+};
+
 
 //===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: DCT operations
@@ -2856,7 +3069,7 @@ void ToyToAffineLoweringPass::runOnOperation() {
                SlidingWindowAvgOpLowering, DownSamplingOpLowering, 
                UpSamplingOpLowering, LowPassFilter1stOrderOpLowering, 
                HighPassFilterOpLowering, FFT1DOpLowering, IFFT1DOpLowering,
-               HammingWindowOpLowering, DCTOpLowering, SinOpLowering, CosOpLowering>(
+               HammingWindowOpLowering, DCTOpLowering, SinOpLowering, CosOpLowering,filterOpLowering >(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the
