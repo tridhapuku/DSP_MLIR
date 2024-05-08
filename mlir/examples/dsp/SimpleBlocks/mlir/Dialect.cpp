@@ -585,13 +585,6 @@ void FIRFilterOp::inferShapes() {
   auto shapeOfFilter = tensorFilter.getShape();
   std::vector<int64_t> shapeForOutput ;
 
-  for (auto i : shapeOfInput)
-  {
-    /* code */
-    llvm::errs() << "InputShape= " << i << " \n"; 
-    
-  }
-
   for(size_t i=0; i < shapeOfInput.size() ; i++){
     shapeForOutput.push_back(shapeOfInput[i] + shapeOfFilter[i] - 1);
   }
@@ -1089,6 +1082,82 @@ void DCTOp::inferShapes() {
 }
 
 mlir::LogicalResult DCTOp::verify() {
+  // llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
+  auto inputRank = inputType.getRank();
+
+  // llvm::errs() << "inputRank: " << inputRank << " alphaValueRank: " << alphaValueRank << "\n";
+  //once ensured only 1 rank from above --   
+  if( inputRank != 1 )
+  {
+    llvm::errs() << "inputRank: " << inputRank <<  "\n";
+    return emitError()
+           << "expected rank of input  is 1";
+  }
+  return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
+// CosOp
+//===----------------------------------------------------------------------===//
+
+void CosOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                        mlir::Value value) {
+  // llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands(value);
+  // llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+}
+
+void CosOp::inferShapes() {
+  //for each rank
+  //Get the shape/size of input 
+  //output size = input_size 
+  auto tensorInput =  getInput().getType(); 
+  getResult().setType(tensorInput);
+  // getResult(0).setType(tensorInput);
+  // getResult(1).setType(tensorInput);
+}
+
+mlir::LogicalResult CosOp::verify() {
+  // llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
+  auto inputRank = inputType.getRank();
+
+  // llvm::errs() << "inputRank: " << inputRank << " alphaValueRank: " << alphaValueRank << "\n";
+  //once ensured only 1 rank from above --   
+  if( inputRank != 1 )
+  {
+    llvm::errs() << "inputRank: " << inputRank <<  "\n";
+    return emitError()
+           << "expected rank of input  is 1";
+  }
+  return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
+// SinOp
+//===----------------------------------------------------------------------===//
+
+void SinOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                        mlir::Value value) {
+  // llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands(value);
+  // llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+}
+
+void SinOp::inferShapes() {
+  //for each rank
+  //Get the shape/size of input 
+  //output size = input_size 
+  auto tensorInput =  getInput().getType(); 
+  getResult().setType(tensorInput);
+  // getResult(0).setType(tensorInput);
+  // getResult(1).setType(tensorInput);
+}
+
+mlir::LogicalResult SinOp::verify() {
   // llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
   auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
   auto inputRank = inputType.getRank();
