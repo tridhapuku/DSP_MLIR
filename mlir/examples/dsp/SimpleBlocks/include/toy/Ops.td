@@ -915,66 +915,6 @@ def DCTOp : Dsp_Op<"dct",
   let hasVerifier = 1;
 }
 
-
-def SinOp : Dsp_Op<"sin",
-    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
-  let summary = "sin operation";
-  let description = [{
-    The sin operation computes the sine of a given value. It takes one operand of floating point type (i.e., scalar, tensor or vector) and returns one result of the same type. It has no standard attributes.
-  }];
-
-  let arguments = (ins F64Tensor:$input);
-  // let results = (outs F64Tensor:$real, F64Tensor:$img); //(ins F64Tensor:$lhs, F64Tensor:$rhs);
-  let results = (outs F64Tensor);
-  let assemblyFormat = [{
-    `(` $input `:` type($input) `)` attr-dict `to` type(results)
-  }];
-
-  // let assemblyFormat = [{
-  //   `(` $input `:` type($input) `)` attr-dict `to` `(` type($real) `,` type($img) `)`
-  // }];
-
-  // Enable registering canonicalization patterns with this operation.
-  // let hasCanonicalizer = 1;
-
-  // Allow building a DCT with from the input operand.
-  let builders = [
-    OpBuilder<(ins "Value":$lhs)>
-  ];
-
-  // Indicate that additional verification for this operation is necessary.
-  let hasVerifier = 1;
-}
-
-def CosOp : Dsp_Op<"cos",
-    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
-  let summary = "cos operation";
-  let description = [{
-    The cos operation computes the cosine of a given value. It takes one operand of floating point type (i.e., scalar, tensor or vector) and returns one result of the same type. It has no standard attributes.
-  }];
-
-  let arguments = (ins F64Tensor:$input);
-  // let results = (outs F64Tensor:$real, F64Tensor:$img); //(ins F64Tensor:$lhs, F64Tensor:$rhs);
-  let results = (outs F64Tensor);
-  let assemblyFormat = [{
-    `(` $input `:` type($input) `)` attr-dict `to` type(results)
-  }];
-
-  // let assemblyFormat = [{
-  //   `(` $input `:` type($input) `)` attr-dict `to` `(` type($real) `,` type($img) `)`
-  // }];
-
-  // Enable registering canonicalization patterns with this operation.
-  // let hasCanonicalizer = 1;
-
-  // Allow building a DCT with from the input operand.
-  let builders = [
-    OpBuilder<(ins "Value":$lhs)>
-  ];
-
-  // Indicate that additional verification for this operation is necessary.
-}
-
 //===----------------------------------------------------------------------===//
 // filterOp
 //===----------------------------------------------------------------------===//
