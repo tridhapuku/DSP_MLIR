@@ -1122,6 +1122,97 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
 namespace {
 
 //===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: SumOp operations
+//===----------------------------------------------------------------------===//
+
+struct SumOpLowering : public ConversionPattern {
+  SumOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::SumOp::getOperationName(), 1, ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
+    
+    //Pseudo-code:
+      //output = 0
+      //iterate for len = 0 to inputLen
+      //  output = load output
+      //  elem = a[i]
+      //  output = output + elem 
+      //  store output
+
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+
+    //output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));    
+    
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+
+    //construct affine loops for the input
+    SmallVector<int64_t, 4> lowerBounds(tensorType.getRank(), /*Value*/0);
+    SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);
+
+    
+    //For loop
+    SumOpAdaptor sumOpAdaptor(operands);
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    auto inputType = llvm::dyn_cast<RankedTensorType>(op->getOperand(0).getType()); //op->getOperand(
+    // auto inputType = llvm::dyn_cast<RankedTensorType>(sumOpAdaptor.getInput().getType());
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+
+    int64_t lb = 0 ;
+    int64_t ub = inputType.getShape()[0];
+    int64_t step = 1;
+
+    //init 0 for output
+    Value constantIndx0 = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+    // Value GetInputX0 = rewriter.create<AffineLoadOp>(loc, lowPassFilterAdaptor.getLhs(), /* iv */ ValueRange{constantIndx0});
+    Value constant0 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(0));
+    // Value elemIn = rewriter.create<AffineLoadOp>(loc, upsamplingAdaptor.getLhs(), iv);
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    rewriter.create<AffineStoreOp>(loc, constant0, alloc, ValueRange{constantIndx0});
+
+    affine::AffineForOp forOp1 = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto iv = forOp1.getInductionVar();
+
+    rewriter.setInsertionPointToStart(forOp1.getBody());
+    
+    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    Value elemIn = rewriter.create<AffineLoadOp>(loc, sumOpAdaptor.getInput(), iv);
+    Value loadSum = rewriter.create<AffineLoadOp>(loc, alloc, ValueRange{constantIndx0});
+    
+    Value sum = rewriter.create<arith::AddFOp>(loc, elemIn , loadSum);
+    
+    //store the result
+    rewriter.create<AffineStoreOp>(loc, sum, alloc, ValueRange{constantIndx0});
+
+    rewriter.setInsertionPointAfter(forOp1);
+    //debug
+    // forOp1->dump();
+      //   %cont3 = arith.const 3 : f64
+      //   affine.for %arg0 = 0 to 8 {
+      //    %elem1 = affine.load input[%arg0]
+      //    #map1 = affine_map<(%arg0)[] : (%arg0 + 1)
+      //    #map2 = affine_map<(%arg0)[] : (%arg0 + 2)
+      //    %elem2 = affine.load input[#map1] <-- affine apply 
+      //    %elem3 = affine.load input[#map2]
+
+      //    %sum1 = arith.addf %elem1 , %elem2
+      //    %sum2 = arith.addf %sum1, %elem3
+      //    %res = arith.divf %sum2 , 
+      //    affine.store %sum2, out[%arg0]
+      // }
+    rewriter.replaceOp(op, alloc);
+    
+    return success();
+  }
+};
+
+
+//===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: FIRFilter operations
 //===----------------------------------------------------------------------===//
 struct filterOpLowering: public ConversionPattern {
@@ -3032,7 +3123,8 @@ void ToyToAffineLoweringPass::runOnOperation() {
                SlidingWindowAvgOpLowering, DownSamplingOpLowering, 
                UpSamplingOpLowering, LowPassFilter1stOrderOpLowering, 
                HighPassFilterOpLowering, FFT1DOpLowering, IFFT1DOpLowering,
-               HammingWindowOpLowering, DCTOpLowering, filterOpLowering, DivOpLowering >(
+               HammingWindowOpLowering, DCTOpLowering, filterOpLowering, DivOpLowering,
+               SumOpLowering >(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the
