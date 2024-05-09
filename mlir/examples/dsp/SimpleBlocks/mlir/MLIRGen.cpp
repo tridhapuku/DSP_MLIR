@@ -485,6 +485,15 @@ private:
       return builder.create<DivOp>(location, operands[0] , operands[1]);
     }
 
+    if(callee == "sum"){
+      if(call.getArgs().size() != 1){
+        emitError(location, "MLIR codegen encountered an error: dsp.sum "
+                            "accepts only 1 arguments");
+        return nullptr;
+      }
+      return builder.create<SumOp>(location, operands[0] );
+    }
+
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.
     // if(callee == "delay"){

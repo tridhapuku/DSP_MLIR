@@ -976,4 +976,32 @@ def filterOp : Dsp_Op<"filter" ,
   let hasVerifier = 1;
 }
 
+
+//===----------------------------------------------------------------------===//
+// SumOp
+//===----------------------------------------------------------------------===//
+
+def SumOp : Dsp_Op<"sum",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "sum of all the elements operation";
+
+  let arguments = (ins F64Tensor:$input);
+  let results = (outs F64Tensor);
+
+  let assemblyFormat = [{
+    `(` $input `:` type($input) `)` attr-dict `to` type(results)
+  }];
+
+  // Enable registering canonicalization patterns with this operation.
+  // let hasCanonicalizer = 1;
+
+  // Allow building a Sum with from the input operand.
+  let builders = [
+    OpBuilder<(ins "Value":$input)>
+  ];
+
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
+}
+
 #endif // TOY_OPS
