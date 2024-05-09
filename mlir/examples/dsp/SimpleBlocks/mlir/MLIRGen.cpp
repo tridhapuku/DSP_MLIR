@@ -214,6 +214,8 @@ private:
       return builder.create<AddOp>(location, lhs, rhs);
     case '*':
       return builder.create<MulOp>(location, lhs, rhs);
+    case '/':
+      return builder.create<DivOp>(location, lhs, rhs);
     }
 
     emitError(location, "invalid binary operator '") << binop.getOp() << "'";
@@ -472,6 +474,15 @@ private:
         return nullptr;
       }
       return builder.create<filterOp>(location, operands[0],operands[1], operands[2] );
+    }
+
+    if(callee == "div"){
+      if(call.getArgs().size() != 2){
+        emitError(location, "MLIR codegen encountered an error: dsp.div "
+                            "accepts only 2 arguments");
+        return nullptr;
+      }
+      return builder.create<DivOp>(location, operands[0] , operands[1]);
     }
 
     // Builtin calls have their custom operation, meaning this is a
