@@ -1168,6 +1168,44 @@ mlir::LogicalResult filterOp::verify() {
   return mlir::success();
 } 
 
+
+//===----------------------------------------------------------------------===//
+// SumOp
+//===----------------------------------------------------------------------===//
+
+void SumOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                        mlir::Value value) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands(value);
+}
+
+void SumOp::inferShapes() {
+  auto tensorInput =  getInput().getType();
+  auto shapeOfInput = tensorInput.getShape();
+  std::vector<int64_t> shapeForOutput;
+
+  shapeForOutput.push_back(1);
+
+  mlir::TensorType manipulatedType = mlir::RankedTensorType::get(shapeForOutput, 
+          getInput().getType().getElementType());
+  getResult().setType(manipulatedType);
+}
+
+mlir::LogicalResult SumOp::verify() {
+  // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
+  // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+  // if (!inputType || !resultType)
+  //   return mlir::success();
+
+  // auto inputShape = inputType.getShape();
+  // if (!std::equal(inputShape.begin(), inputShape.end(),
+  //                 resultType.getShape().rbegin())) {
+  //   return emitError()
+  //          << "expected result shape to be a transpose of the input";
+  // }
+  return mlir::success();
+}
+
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
