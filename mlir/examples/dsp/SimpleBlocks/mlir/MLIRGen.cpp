@@ -494,6 +494,24 @@ private:
       return builder.create<SumOp>(location, operands[0] );
     }
 
+    if(callee == "sin"){
+       if(call.getArgs().size() != 1){
+         emitError(location, "MLIR codegen encountered an error: dsp.sin "
+                             "accepts only 1 arguments");
+         return nullptr;
+       }
+       return builder.create<SinOp>(location, operands[0] );
+     }
+
+     if(callee == "cos"){
+       if(call.getArgs().size() != 1){
+         emitError(location, "MLIR codegen encountered an error: dsp.cos "
+                             "accepts only 1 arguments");
+         return nullptr;
+       }
+       return builder.create<CosOp>(location, operands[0] );
+     }
+
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.
     // if(callee == "delay"){
