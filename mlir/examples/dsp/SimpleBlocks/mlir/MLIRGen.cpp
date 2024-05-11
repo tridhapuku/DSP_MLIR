@@ -440,6 +440,24 @@ private:
       // return builder.create<FFT1DOp>(location, operands[0] );
     }
 
+    if(callee == "fft1dreal"){
+      if(call.getArgs().size() != 1){
+        emitError(location, "MLIR codegen encountered an error: dsp.fft1dreal "
+                            "accepts only 1 arguments");
+        return nullptr;
+      }
+      return builder.create<FFT1DRealOp>(location, operands[0] );
+    }
+
+    if(callee == "fft1dimg"){
+      if(call.getArgs().size() != 1){
+        emitError(location, "MLIR codegen encountered an error: dsp.fft1dimg "
+                            "accepts only 1 arguments");
+        return nullptr;
+      }
+      return builder.create<FFT1DImgOp>(location, operands[0] );
+    }
+
     if(callee == "ifft1d"){
       if(call.getArgs().size() != 1){
         emitError(location, "MLIR codegen encountered an error: dsp.ifft1d "
@@ -511,6 +529,15 @@ private:
        }
        return builder.create<CosOp>(location, operands[0] );
      }
+
+     if(callee == "square"){
+      if(call.getArgs().size() != 1){
+        emitError(location, "MLIR codegen encountered an error: dsp.sum "
+                            "accepts only 1 arguments");
+        return nullptr;
+      }
+      return builder.create<SquareOp>(location, operands[0] );
+    }
 
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.
