@@ -15,13 +15,18 @@ def main() {
 
   #size 10
   # var N = 4;
-
-  var c = sum(a10);
+  # var d = square(a10);
+  # var c = sum(a10);
+  var e = fft1dreal(a10);
+  var f = fft1dimg(a10);
   # filter b,a should be of same length and also, a[0] should be 1
   # var c = filter(a10,a10,a10);
   # var e = delay(c, d);
   # var f = e[0];
-  print(c);
+  # print(c);
+  # print(d);
+  print(e);
+  print(f);
   # print(N);
   # print(e);
 
