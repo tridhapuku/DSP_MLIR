@@ -16,6 +16,7 @@
 #include "mlir/IR/Value.h"
 #include "mlir/Support/LogicalResult.h"
 #include "toy/Dialect.h"
+#include "toy/DebugConfig.h"
 #include <numeric>
 using namespace mlir;
 using namespace dsp;
@@ -223,8 +224,10 @@ struct SimplifyBack2BackDelay: public mlir::OpRewritePattern<DelayOp>{
 };
 
 
+
 /// Register our patterns as "canonicalization" patterns on the TransposeOp so
 /// that they can be picked up by the Canonicalization framework.
+
 void DownsamplingOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                               MLIRContext *context){
   // results.add<SimplifyUpsamplingDownsampling>(context);

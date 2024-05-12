@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 #include <iostream>
 #include "toy/Dialect.h"
+#include "toy/DebugConfig.h"
 
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
@@ -932,11 +933,11 @@ mlir::LogicalResult HighPassFilterOp::verify() {
 
 void FFT1DOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                         mlir::Value value) {
-  llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  DEBUG_PRINT_NO_ARGS() ;
   state.addTypes({UnrankedTensorType::get(builder.getF64Type()), 
                 UnrankedTensorType::get(builder.getF64Type())});
   state.addOperands(value);
-  llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  DEBUG_PRINT_NO_ARGS() ;
 }
 
 void FFT1DOp::inferShapes() {
@@ -951,7 +952,7 @@ void FFT1DOp::inferShapes() {
 }
 
 mlir::LogicalResult FFT1DOp::verify() {
-  llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  DEBUG_PRINT_NO_ARGS() ;
   // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
   // auto inputRank = inputType.getRank();
 
@@ -973,11 +974,11 @@ mlir::LogicalResult FFT1DOp::verify() {
 
 void IFFT1DOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                         mlir::Value value) {
-  llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  DEBUG_PRINT_NO_ARGS() ;
   state.addTypes({UnrankedTensorType::get(builder.getF64Type()), 
                 UnrankedTensorType::get(builder.getF64Type())});
   state.addOperands(value);
-  llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  DEBUG_PRINT_NO_ARGS() ;
 }
 
 void IFFT1DOp::inferShapes() {
@@ -991,7 +992,7 @@ void IFFT1DOp::inferShapes() {
 }
 
 mlir::LogicalResult IFFT1DOp::verify() {
-  // llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  // DEBUG_PRINT_NO_ARGS() ;
   auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
   auto inputRank = inputType.getRank();
 
@@ -1086,10 +1087,10 @@ mlir::LogicalResult HammingWindowOp::verify() {
 
 void DCTOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                         mlir::Value value) {
-  // llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  // DEBUG_PRINT_NO_ARGS() ;
   state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
   state.addOperands(value);
-  // llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  // DEBUG_PRINT_NO_ARGS() ;
 }
 
 void DCTOp::inferShapes() {
@@ -1103,7 +1104,7 @@ void DCTOp::inferShapes() {
 }
 
 mlir::LogicalResult DCTOp::verify() {
-  // llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  // DEBUG_PRINT_NO_ARGS() ;
   auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
   auto inputRank = inputType.getRank();
 
@@ -1205,10 +1206,10 @@ mlir::LogicalResult SumOp::verify() {
 
  void CosOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                          mlir::Value value) {
-   // llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+   // DEBUG_PRINT_NO_ARGS() ;
    state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
    state.addOperands(value);
-   // llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+   // DEBUG_PRINT_NO_ARGS() ;
  }
 
  void CosOp::inferShapes() {
@@ -1222,7 +1223,7 @@ mlir::LogicalResult SumOp::verify() {
  }
 
  mlir::LogicalResult CosOp::verify() {
-   // llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+   // DEBUG_PRINT_NO_ARGS() ;
    auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
    auto inputRank = inputType.getRank();
 
@@ -1243,10 +1244,10 @@ mlir::LogicalResult SumOp::verify() {
 
  void SinOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                          mlir::Value value) {
-   // llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+   // DEBUG_PRINT_NO_ARGS() ;
    state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
    state.addOperands(value);
-   // llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+   // DEBUG_PRINT_NO_ARGS() ;
  }
 
  void SinOp::inferShapes() {
@@ -1260,7 +1261,7 @@ mlir::LogicalResult SumOp::verify() {
  }
 
  mlir::LogicalResult SinOp::verify() {
-   // llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+   // DEBUG_PRINT_NO_ARGS() ;
    auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
    auto inputRank = inputType.getRank();
 
@@ -1313,10 +1314,10 @@ mlir::LogicalResult SquareOp::verify() {
 
 void FFT1DRealOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                         mlir::Value value) {
-  llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  DEBUG_PRINT_NO_ARGS() ;
   state.addTypes({UnrankedTensorType::get(builder.getF64Type())});
   state.addOperands(value);
-  llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  DEBUG_PRINT_NO_ARGS() ;
 }
 
 void FFT1DRealOp::inferShapes() {
@@ -1330,7 +1331,7 @@ void FFT1DRealOp::inferShapes() {
 }
 
 mlir::LogicalResult FFT1DRealOp::verify() {
-  llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  DEBUG_PRINT_NO_ARGS();
   // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
   // auto inputRank = inputType.getRank();
 
@@ -1351,10 +1352,10 @@ mlir::LogicalResult FFT1DRealOp::verify() {
 
 void FFT1DImgOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                         mlir::Value value) {
-  llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  DEBUG_PRINT_NO_ARGS() ;
   state.addTypes({UnrankedTensorType::get(builder.getF64Type())});
   state.addOperands(value);
-  llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  DEBUG_PRINT_NO_ARGS() ;
 }
 
 void FFT1DImgOp::inferShapes() {
@@ -1368,7 +1369,7 @@ void FFT1DImgOp::inferShapes() {
 }
 
 mlir::LogicalResult FFT1DImgOp::verify() {
-  llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  DEBUG_PRINT_NO_ARGS() ;
   // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
   // auto inputRank = inputType.getRank();
 
