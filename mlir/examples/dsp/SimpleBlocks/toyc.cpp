@@ -16,6 +16,7 @@
 #include "mlir/Support/LogicalResult.h"
 #include "toy/AST.h"
 #include "toy/Dialect.h"
+#include "toy/DebugConfig.h"
 #include "toy/Lexer.h"
 #include "toy/MLIRGen.h"
 #include "toy/Parser.h"
@@ -142,7 +143,7 @@ int loadMLIR(mlir::MLIRContext &context,
   }
 
   // Parse the input mlir.
-  llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+  DEBUG_PRINT_NO_ARGS() ;
   llvm::SourceMgr sourceMgr;
   sourceMgr.AddNewSourceBuffer(std::move(*fileOrErr), llvm::SMLoc());
   module = mlir::parseSourceFile<mlir::ModuleOp>(sourceMgr, &context);
@@ -159,7 +160,7 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
     return error;
 
   mlir::PassManager pm(module.get()->getName());
-  // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+  // DEBUG_PRINT_NO_ARGS() ;
   // Apply any generic pass manager command line options and run the pipeline.
   if (mlir::failed(mlir::applyPassManagerCLOptions(pm)))
     return 4;
@@ -169,16 +170,16 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
   bool isLoweringTosaToLinalg = emitAction >= Action::DumpMLIRLinalg;
   bool isLoweringToLLVM = emitAction >= Action::DumpMLIRLLVM;
   // bool isAffineToLLVM = emitAction >= Action::DumpMLIRAffineToLLVM;
-  // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+  // DEBUG_PRINT_NO_ARGS() ;
   if (enableOpt || isLoweringToAffine ) {
     // Inline all functions into main and then delete them.
-    llvm::errs() << "Going for inliner pass \n";
+    DEBUG_PRINT_WITH_ARGS("Going for inliner pass \n");
     pm.addPass(mlir::createInlinerPass());
 
     // Now that there is only one function, we can infer the shapes of each of
     // the operations.
     mlir::OpPassManager &optPM = pm.nest<mlir::dsp::FuncOp>();
-    llvm::errs() << "Going for shape inference pass \n";
+    DEBUG_PRINT_WITH_ARGS("Going for shape inference pass \n");
 
     optPM.addPass(mlir::dsp::createShapeInferencePass());
     optPM.addPass(mlir::createCanonicalizerPass());
@@ -213,8 +214,8 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
 
     // Add optimizations if enabled.
     if (enableOpt) {
-      llvm::errs() << "Opt enabled --loop fusion &  \n";
-      llvm::errs() << "Opt enabled --createAffineScalarReplacementPass \n";
+      DEBUG_PRINT_WITH_ARGS("Opt enabled --loop fusion &  \n");
+      DEBUG_PRINT_WITH_ARGS("Opt enabled --createAffineScalarReplacementPass \n");
       optPM.addPass(mlir::affine::createLoopFusionPass());
       optPM.addPass(mlir::affine::createAffineScalarReplacementPass());
 

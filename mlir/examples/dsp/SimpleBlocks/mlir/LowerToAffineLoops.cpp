@@ -27,6 +27,7 @@
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Support/TypeID.h"
 #include "toy/Dialect.h"
+#include "toy/DebugConfig.h"
 #include "toy/Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
@@ -1145,14 +1146,14 @@ struct FFT1DImgOpLowering : public ConversionPattern {
           // 
       // replace this upsampling op with the output_mem_allocation op
 
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
 
     //output for result type
     auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));  
     //iterate to result1 --not needed for now but for future reference  
     // auto tensorType1 =  llvm::cast<RankedTensorType>(*std::next(op->result_type_begin(), 1));
 
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n"; 
+    // DEBUG_PRINT_NO_ARGS() ; 
     //tensorType.getShape()[0]
     // llvm::errs() << "tensorType1.getShape()[0] " << tensorType1.getShape()[0] << " func= " << __func__ << "\n"; 
     
@@ -1232,7 +1233,7 @@ struct FFT1DImgOpLowering : public ConversionPattern {
     Value NegImgSum = rewriter.create<arith::MulFOp>(loc, constMinus1 , imgSum);
     rewriter.create<AffineStoreOp>(loc, NegImgSum, alloc_img, ValueRange{ivY}); 
     //x[n-1]
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
     // Value xMinusPrevX = rewriter.create<arith::SubFOp>(loc, inputX ,PrevX );
 
     rewriter.setInsertionPointAfter(forOpX);
@@ -1321,14 +1322,14 @@ struct FFT1DRealOpLowering : public ConversionPattern {
           // 
       // replace this upsampling op with the output_mem_allocation op
 
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
 
     //output for result type
     auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));  
     //iterate to result1 --not needed for now but for future reference  
     // auto tensorType1 =  llvm::cast<RankedTensorType>(*std::next(op->result_type_begin(), 1));
 
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n"; 
+    // DEBUG_PRINT_NO_ARGS() ; 
     //tensorType.getShape()[0]
     // llvm::errs() << "tensorType1.getShape()[0] " << tensorType1.getShape()[0] << " func= " << __func__ << "\n"; 
     
@@ -1405,7 +1406,7 @@ struct FFT1DRealOpLowering : public ConversionPattern {
     rewriter.create<AffineStoreOp>(loc, realSum, alloc_real, ValueRange{ivY}); 
     
 
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
   
     rewriter.setInsertionPointAfter(forOpX);
     // forOpX->dump();
@@ -1487,7 +1488,7 @@ struct SquareOpLowering : public ConversionPattern {
       //  output[i] = elem * elem 
       //  store output
 
-    //llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    //DEBUG_PRINT_NO_ARGS() ;
 
     //output for result type
     auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));    
@@ -1503,7 +1504,7 @@ struct SquareOpLowering : public ConversionPattern {
     
     //For loop
     SquareOpAdaptor squareOpAdaptor(operands);
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
     
     int64_t lb = 0 ;
     int64_t ub = tensorType.getShape()[0];
@@ -1515,7 +1516,7 @@ struct SquareOpLowering : public ConversionPattern {
 
     rewriter.setInsertionPointToStart(forOp1.getBody());
     
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
     Value elemIn = rewriter.create<AffineLoadOp>(loc, squareOpAdaptor.getInput(), iv);   
     Value square = rewriter.create<arith::MulFOp>(loc, elemIn , elemIn);
     
@@ -1558,7 +1559,7 @@ struct SumOpLowering : public ConversionPattern {
       //  output = output + elem 
       //  store output
 
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
 
     //output for result type
     auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));    
@@ -1574,10 +1575,10 @@ struct SumOpLowering : public ConversionPattern {
     
     //For loop
     SumOpAdaptor sumOpAdaptor(operands);
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
     auto inputType = llvm::dyn_cast<RankedTensorType>(op->getOperand(0).getType()); //op->getOperand(
     // auto inputType = llvm::dyn_cast<RankedTensorType>(sumOpAdaptor.getInput().getType());
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
 
     int64_t lb = 0 ;
     int64_t ub = inputType.getShape()[0];
@@ -1588,7 +1589,7 @@ struct SumOpLowering : public ConversionPattern {
     // Value GetInputX0 = rewriter.create<AffineLoadOp>(loc, lowPassFilterAdaptor.getLhs(), /* iv */ ValueRange{constantIndx0});
     Value constant0 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(0));
     // Value elemIn = rewriter.create<AffineLoadOp>(loc, upsamplingAdaptor.getLhs(), iv);
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
     rewriter.create<AffineStoreOp>(loc, constant0, alloc, ValueRange{constantIndx0});
 
     affine::AffineForOp forOp1 = rewriter.create<AffineForOp>(loc, lb, ub, step);
@@ -1596,7 +1597,7 @@ struct SumOpLowering : public ConversionPattern {
 
     rewriter.setInsertionPointToStart(forOp1.getBody());
     
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
     Value elemIn = rewriter.create<AffineLoadOp>(loc, sumOpAdaptor.getInput(), iv);
     Value loadSum = rewriter.create<AffineLoadOp>(loc, alloc, ValueRange{constantIndx0});
     
@@ -1711,7 +1712,7 @@ struct filterOpLowering: public ConversionPattern {
     int64_t ub = tensorType.getShape()[0];
     int64_t step = 1;
 
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
 
     //loop for Y
     affine::AffineForOp forOpY = rewriter.create<AffineForOp>(loc, lb, ub, step);
@@ -1735,7 +1736,7 @@ struct filterOpLowering: public ConversionPattern {
       // affine.store(sumY_A , y , ivY)
 
     //look for here
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
     //Future -- try to loop 
     Value forlb = rewriter.create<arith::ConstantIndexOp>(loc, 1);
     AffineExpr expr0;
@@ -1867,7 +1868,7 @@ struct DCTOpLowering : public ConversionPattern {
           // 
       // replace this upsampling op with the output_mem_allocation op
 
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
 
     //output for result type
     auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));  
@@ -1902,7 +1903,7 @@ struct DCTOpLowering : public ConversionPattern {
     rewriter.setInsertionPointToStart(forOp1.getBody());
     rewriter.create<AffineStoreOp>(loc, constant0, alloc, ValueRange{iv});
     rewriter.setInsertionPointAfter(forOp1);
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
 
     //loop for Y
     affine::AffineForOp forOpY = rewriter.create<AffineForOp>(loc, lb, ub, step);
@@ -1938,7 +1939,7 @@ struct DCTOpLowering : public ConversionPattern {
     Value mulpiKI_half = rewriter.create<arith::MulFOp>(loc, constpi , muli_k);  
 
     // Get N
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
     float LengthOfInput = (float) ub;
     Value N = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
                                                          rewriter.getF64FloatAttr(LengthOfInput));
@@ -1946,7 +1947,7 @@ struct DCTOpLowering : public ConversionPattern {
     Value divIndxByN = rewriter.create<arith::DivFOp>(loc, mulpiKI_half, N )  ;     
 
     // Get cos ( pi * k * (n +0.5)/N))
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
     Value GetCos = rewriter.create<math::CosOp>(loc, divIndxByN);
     Value xMulCos = rewriter.create<arith::MulFOp>(loc, inputX , GetCos);   
     Value realSum = rewriter.create<arith::AddFOp>(loc, loadYReal ,xMulCos) ;
@@ -1955,7 +1956,7 @@ struct DCTOpLowering : public ConversionPattern {
     rewriter.setInsertionPointAfter(forOpX);
 
     //multiply Y(k) with sqrt(2) / sqrt(N) 
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
     Value loadYReal1 = rewriter.create<AffineLoadOp>(loc, alloc, ValueRange{ivY});
     Value constSqrt2 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
                                                          rewriter.getF64FloatAttr(sqrt2));
@@ -1972,7 +1973,7 @@ struct DCTOpLowering : public ConversionPattern {
 
     Value mulSqrt2ByN = rewriter.create<arith::MulFOp>(loc, constSqrt2 , sqrtN);
     Value mulSqrt2ByNByY = rewriter.create<arith::MulFOp>(loc, mulSqrt2ByN , loadYReal1);
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
     rewriter.create<AffineStoreOp>(loc, mulSqrt2ByNByY, alloc, ValueRange{ivY}); 
     rewriter.setInsertionPointAfter(forOpY);
 
@@ -2055,7 +2056,7 @@ struct HammingWindowOpLowering : public ConversionPattern {
     
     //Pseudo-code:
       //  y[k] = 0.54 - 0.46 cos(2 *pi * k/N) , 0<=n<=N 
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
 
     //output for result type
     auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));  
@@ -2070,12 +2071,12 @@ struct HammingWindowOpLowering : public ConversionPattern {
     
 
     //For loop -- iterate from 1 to last
-    // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+    DEBUG_PRINT_NO_ARGS() ;
     int64_t lb = 0 ;
     int64_t ub = tensorType.getShape()[0];   
     int64_t step = 1;
 
-    // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+    DEBUG_PRINT_NO_ARGS() ;
     //get constants -- 0.54 & 0.46
     Value constant0_54 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
                                                          rewriter.getF64FloatAttr(0.54));
@@ -2110,7 +2111,7 @@ struct HammingWindowOpLowering : public ConversionPattern {
     Value MulCos0_46 = rewriter.create<arith::MulFOp>(loc, constant0_46 , GetCos);   
     Value Sub0_54_Cos = rewriter.create<arith::SubFOp>(loc, constant0_54 ,MulCos0_46) ;
     rewriter.create<AffineStoreOp>(loc, Sub0_54_Cos, alloc, ValueRange{ivY}); 
-    // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+    DEBUG_PRINT_NO_ARGS() ;
     rewriter.setInsertionPointAfter(forOpY);
     //debug
     // forOpX->dump();
@@ -2169,14 +2170,14 @@ struct IFFT1DOpLowering : public ConversionPattern {
           // 
       // replace this upsampling op with the output_mem_allocation op
 
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
 
     //output for result type
     auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));  
     //iterate to result1 --not needed for now but for future reference  
     // auto tensorType1 =  llvm::cast<RankedTensorType>(*std::next(op->result_type_begin(), 1));
 
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n"; 
+    // DEBUG_PRINT_NO_ARGS() ; 
     //tensorType.getShape()[0]
     // llvm::errs() << "tensorType1.getShape()[0] " << tensorType1.getShape()[0] << " func= " << __func__ << "\n"; 
     
@@ -2265,7 +2266,7 @@ struct IFFT1DOpLowering : public ConversionPattern {
     // Value NegImgSum = rewriter.create<arith::MulFOp>(loc, constMinus1 , imgSum);
     rewriter.create<AffineStoreOp>(loc, imgSum, alloc_img, ValueRange{ivY}); 
     //x[n-1]
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
     // Value xMinusPrevX = rewriter.create<arith::SubFOp>(loc, inputX ,PrevX );
 
     rewriter.setInsertionPointAfter(forOpX);
@@ -2355,14 +2356,14 @@ struct FFT1DOpLowering : public ConversionPattern {
           // 
       // replace this upsampling op with the output_mem_allocation op
 
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
 
     //output for result type
     auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));  
     //iterate to result1 --not needed for now but for future reference  
     // auto tensorType1 =  llvm::cast<RankedTensorType>(*std::next(op->result_type_begin(), 1));
 
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n"; 
+    // DEBUG_PRINT_NO_ARGS() ; 
     //tensorType.getShape()[0]
     // llvm::errs() << "tensorType1.getShape()[0] " << tensorType1.getShape()[0] << " func= " << __func__ << "\n"; 
     
@@ -2451,7 +2452,7 @@ struct FFT1DOpLowering : public ConversionPattern {
     Value NegImgSum = rewriter.create<arith::MulFOp>(loc, constMinus1 , imgSum);
     rewriter.create<AffineStoreOp>(loc, NegImgSum, alloc_img, ValueRange{ivY}); 
     //x[n-1]
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
     // Value xMinusPrevX = rewriter.create<arith::SubFOp>(loc, inputX ,PrevX );
 
     rewriter.setInsertionPointAfter(forOpX);
@@ -2534,7 +2535,7 @@ struct HighPassFilterOpLowering : public ConversionPattern {
       //y[i] = x[i] - x[i -1 ]
       // replace this upsampling op with the output_mem_allocation op
 
-    llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    DEBUG_PRINT_NO_ARGS() ;
 
     //output for result type
     auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));    
@@ -2574,7 +2575,7 @@ struct HighPassFilterOpLowering : public ConversionPattern {
     AffineMap addMapForHighPassFilter = AffineMap::get(1, 0, ExprForPrevX);
 
     //x[n-1]
-    llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    DEBUG_PRINT_NO_ARGS() ;
     Value PrevX = rewriter.create<AffineLoadOp>(loc, highPassFilterAdaptor.getInput(), addMapForHighPassFilter, 
                   ValueRange{iv}); //memRefType
     // PrevX.dump();
@@ -2628,7 +2629,7 @@ struct LowPassFilter1stOrderOpLowering : public ConversionPattern {
       //y[i] = (1 - alpha) * y[i-1] + alpha * x[i]
       // replace this upsampling op with the output_mem_allocation op
 
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
 
     //output for result type
     auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));    
@@ -2668,7 +2669,7 @@ struct LowPassFilter1stOrderOpLowering : public ConversionPattern {
     AffineMap addMapForLowPassFilter = AffineMap::get(1, 0, ExprForPrevY);
 
     //y[n-1]
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
     // Value PrevY = rewriter.create<AffineLoadOp>(loc, lowPassFilterAdaptor.getLhs(), addMapForLowPassFilter, 
     //               ValueRange{iv});
     // Value PrevY = rewriter.create<AffineLoadOp>(loc, (*op->result_type_begin()), addMapForLowPassFilter, 
@@ -2687,7 +2688,7 @@ struct LowPassFilter1stOrderOpLowering : public ConversionPattern {
     Value mulAlphaX = rewriter.create<arith::MulFOp>(loc, alpha ,inputX);
 
     Value AddmulAlphaXAndPreYAlphaMinus1 = rewriter.create<arith::AddFOp>(loc, mulPrevYAlphaMinus1 ,mulAlphaX);
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
     // AddmulAlphaXAndPreYAlphaMinus1.dump();
     // forOp1->dump();
 
@@ -2750,7 +2751,7 @@ struct UpSamplingOpLowering : public ConversionPattern {
       // store in y at that index
       // replace this upsampling op with the output_mem_allocation op
 
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
 
     //output for result type
     auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));    
@@ -2823,7 +2824,7 @@ struct UpSamplingOpLowering : public ConversionPattern {
     
     AffineMap addMapForUpSampling = AffineMap::get(1, 1, ExprForUpSampling);
 
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
     // Value elem2 = rewriter.create<AffineLoadOp>(loc, upsamplingAdaptor.getLhs(), addMapForUpSampling, 
     //               ValueRange{iv,constantSamplingRateIndx});
     // elem2.dump();
@@ -2870,7 +2871,7 @@ struct DownSamplingOpLowering : public ConversionPattern {
       // store in y 
       // replace this op with the output_mem 
 
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
 
     //output for result type
     auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));    
@@ -2922,7 +2923,7 @@ struct DownSamplingOpLowering : public ConversionPattern {
     // AffineMap addMapForDownSampling = AffineMap::get(1, 1, ValueRange{d0,s0 });
     // AffineMap addMapForDownSampling = AffineMap::get(1, 1, ExprForDownSampling, rewriter.getContext());
     // AffineMap addMapForDownSampling = AffineMap::get(1, 0, { d0}); //Working
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
     Value elem2 = rewriter.create<AffineLoadOp>(loc, downsamplingAdaptor.getLhs(), addMapForDownSampling, 
                   ValueRange{iv,constantSamplingRateIndx});
     elem2.dump();
@@ -2965,7 +2966,7 @@ struct SlidingWindowAvgOpLowering : public ConversionPattern {
       // store the result to output_mem
       // replace this op with the output_mem 
 
-    // llvm::errs() << "line= " << __LINE__ << " func= " << __func__ << "\n";
+    // DEBUG_PRINT_NO_ARGS() ;
 
     //output for result type
     auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));    
