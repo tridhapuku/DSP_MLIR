@@ -1098,6 +1098,8 @@ def SquareOp : Dsp_Op<"square",
 
   // Indicate that additional verification for this operation is necessary.
   let hasVerifier = 1;
+
+  let hasCanonicalizer = 1;
 }
 
 //===----------------------------------------------------------------------===//

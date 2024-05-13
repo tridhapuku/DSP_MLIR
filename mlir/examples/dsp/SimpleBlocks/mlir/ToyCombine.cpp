@@ -223,6 +223,53 @@ struct SimplifyBack2BackDelay: public mlir::OpRewritePattern<DelayOp>{
     }
 };
 
+// Pseudo-code
+// if operand of square is coming from real part of fft1d 
+// replace fft1d with fft1dreal 
+// still squareOp will remain same
+struct SimplifyFFTSquare : public mlir::OpRewritePattern<SquareOp> {
+  /// We register this pattern to match every dsp.downsampling in the IR.
+  /// The "benefit" is used by the framework to order the patterns and process
+  /// them in order of profitability.
+  SimplifyFFTSquare(mlir::MLIRContext *context)
+      : OpRewritePattern<SquareOp>(context, /*benefit=*/1) {}
+
+  /// This method attempts to match a pattern and rewrite it. The rewriter
+  /// argument is the orchestrator of the sequence of rewrites. The pattern is
+  /// expected to interact with it to perform any changes to the IR from here.
+  mlir::LogicalResult
+  matchAndRewrite(SquareOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    // Look through the input of the current downsampling.
+    // mlir::Value squareOperand1_Rate = op.getOperand(1);
+    mlir::Value squareOperand0_input = op.getInput();
+    dsp::FFT1DOp prev_FFT1DOp = squareOperand0_input.getDefiningOp<FFT1DOp>();
+    // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+    // Input defined by another FFT1D? If not, no match.
+    if (!prev_FFT1DOp)
+      return failure();
+
+    //Replace fft1d with fft1dreal
+    DEBUG_PRINT_WITH_ARGS( squareOperand0_input) ;
+    DEBUG_PRINT_WITH_ARGS( "Going fr some") ;
+    DEBUG_PRINT_NO_ARGS() ;
+  	mlir::Value prev_FFT1DOp_Operand = prev_FFT1DOp.getInput();
+  	auto fft1drealOp1 = rewriter.create<FFT1DRealOp>(op.getLoc(),
+                          prev_FFT1DOp_Operand );
+    // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+  	auto SquareOp1 = rewriter.create<SquareOp>(op.getLoc(), fft1drealOp1);
+
+    rewriter.replaceOp(op, SquareOp1);
+    return mlir::success();
+  }
+};
+
+/// Register our patterns as "canonicalization" patterns on the TransposeOp so
+/// that they can be picked up by the Canonicalization framework.
+void SquareOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                              MLIRContext *context){
+  results.add<SimplifyFFTSquare>(context);
+}
 
 
 /// Register our patterns as "canonicalization" patterns on the TransposeOp so
