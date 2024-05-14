@@ -1181,4 +1181,43 @@ def FFT1DImgOp : Dsp_Op<"fft1dimg",
   let hasVerifier = 1;
 }
 
+
+//===----------------------------------------------------------------------===//
+// SincOp
+//===----------------------------------------------------------------------===//
+
+
+def SincOp : Dsp_Op<"sinc",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "sinc operation";
+  let description = [{
+    y = sinc(wc * n) = [1, sin(wc)/pi , sin(2* wc)/2*pi , ... sin(n * wc)/n*pi]
+    The "SINc" operation gives sin(wc *n)/n*pi 
+    ex: x=[10,0,0,0] &  Output : [10,10,10,10] , [10,10,]
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins F64Tensor:$wc , F64Tensor:$n);
+  let results = (outs F64Tensor); //(ins F64Tensor:$lhs, F64Tensor:$rhs);
+  // let results = (outs F64Tensor:$real);
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input) `)` attr-dict `to` type(results)
+  // }];
+
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input) `)` attr-dict `to` `(` type($real) `,` type($img) `)`
+  // }];
+
+  // Enable registering canonicalization patterns with this operation.
+  // let hasCanonicalizer = 1;
+
+  // Allow building a SINc with from the input operand.
+  let builders = [
+    OpBuilder<(ins "Value":$wc, "Value":$n)>
+  ];
+
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
+}
+
 #endif // TOY_OPS

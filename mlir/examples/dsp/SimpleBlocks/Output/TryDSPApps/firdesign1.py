@@ -9,13 +9,17 @@ def main() {
   var a10 = [ 10,20,30,40,50,60,70,80,90,100];
 
   var N = 10;
-  var n = [1,2,3,4,5,6,7,8,9,10];
-  var ones = [1,1,1,1,1,1,1,1,1,1];
-  var pi = 3.14;
-  var hid = div(ones,pi*n)  * sin(wc * n)
-  var ham = hamming(N);
-  var in_mul_ham = a10 * ham;
-  var sliding_out = slidingWindowAvg(in_mul_ham);
+
+  var wc = 100;
+  var hid = sinc(wc, N);
+  print(hid);
+
+  # var ones = [1,1,1,1,1,1,1,1,1,1];
+  # var pi = 3.14;
+  # var hid = div(ones,pi*n)  * sin(wc * n)
+  # var ham = hamming(N);
+  # var in_mul_ham = a10 * ham;
+  # var sliding_out = slidingWindowAvg(in_mul_ham);
   
   # Get fft 
   
@@ -29,7 +33,7 @@ def main() {
   # var h<15> = FIRFilter(g,g);
   # var e = delay(c, d);
   # var f = e[0];
-  print(sliding_out);
+  # print(sliding_out);
   # print(d);
   # print(e);
 

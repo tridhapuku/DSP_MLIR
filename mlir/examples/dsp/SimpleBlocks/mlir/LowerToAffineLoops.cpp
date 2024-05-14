@@ -1123,6 +1123,107 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
 namespace {
 
 //===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: SincOp operations
+//===----------------------------------------------------------------------===//
+
+struct SincOpLowering : public ConversionPattern {
+  SincOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::SincOp::getOperationName(), 1, ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
+    
+    //Pseudo-code:
+      //  y = sinc(wc * n) = [1, sin(wc)/pi , sin(2* wc)/2*pi , ... sin(n * wc)/n*pi] , 0<=n<=N 
+    
+
+    //output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));  
+     
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+    
+    //construct affine loops for the input
+    SmallVector<int64_t, 4> lowerBounds(tensorType.getRank(), /*Value*/0);
+    SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);    
+    
+
+    //For loop -- iterate from 1 to last
+    int64_t lb = 1 ;
+    int64_t ub = tensorType.getShape()[0];   
+    int64_t step = 1;
+
+    DEBUG_PRINT_NO_ARGS();
+    //get constants -- 0.54 & 0.46
+    Value constantIndx0 = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+    // rewriter.create<AffineStoreOp>(loc, constant0, alloc, ValueRange{constantIndx0});
+    
+    Value constant1 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(1));
+    Value constpi = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(3.14159265359));
+    rewriter.create<AffineStoreOp>(loc, constant1, alloc, ValueRange{constantIndx0});
+
+    //For loop
+    SincOpAdaptor sincOpAdaptor(operands);
+    //loop for Y
+    affine::AffineForOp forOpY = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto ivY = forOpY.getInductionVar();
+    rewriter.setInsertionPointToStart(forOpY.getBody());
+    //convert index to f64
+    Value IndxY = rewriter.create<arith::IndexCastUIOp>(loc, rewriter.getIntegerType(32), ivY);
+    Value i = rewriter.create<arith::UIToFPOp>(loc, rewriter.getF64Type(), IndxY);
+
+
+    //get wc * i 
+    Value wc = rewriter.create<AffineLoadOp>(loc, sincOpAdaptor.getWc(), ValueRange{});
+    
+    Value mulwc_i = rewriter.create<arith::MulFOp>(loc, wc , i);  
+
+    // get sin(wc*i) / pi * i
+    Value GetSin = rewriter.create<math::SinOp>(loc, mulwc_i);
+    Value piMuli = rewriter.create<arith::MulFOp>(loc, constpi , i);   
+    Value GetDiv = rewriter.create<arith::DivFOp>(loc, GetSin ,piMuli) ;
+    rewriter.create<AffineStoreOp>(loc, GetDiv, alloc, ValueRange{ivY}); 
+    // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+    rewriter.setInsertionPointAfter(forOpY);
+    //debug
+    // forOpX->dump();
+    // forOpY->dump();
+
+
+        // %cst = arith.constant 6.2831853071800001 : f64
+        // %cst_0 = arith.constant 4.600000e-01 : f64
+        // %cst_1 = arith.constant 5.400000e-01 : f64
+        // %cst_2 = arith.constant 4.000000e+00 : f64
+        // %alloc = memref.alloc() : memref<4xf64>
+        // %alloc_3 = memref.alloc() : memref<f64>
+        // affine.store %cst_2, %alloc_3[] : memref<f64>
+        // affine.for %arg0 = 0 to 4 {
+        //   %0 = arith.index_castui %arg0 : index to i32
+        //   %1 = arith.uitofp %0 : i32 to f64
+        //   %2 = arith.mulf %1, %cst : f64
+        //   %3 = arith.divf %2, %cst_2 : f64
+        //   %4 = math.cos %3 : f64
+        //   %5 = arith.mulf %4, %cst_0 : f64
+        //   %6 = arith.subf %cst_1, %5 : f64
+        //   affine.store %6, %alloc[%arg0] : memref<4xf64>
+        // }
+
+
+        // }
+        // }
+    rewriter.replaceOp(op, alloc);
+      
+    return success();
+  }
+};
+
+
+//===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: FFT1DImg operations
 //===----------------------------------------------------------------------===//
 
@@ -1738,10 +1839,10 @@ struct filterOpLowering: public ConversionPattern {
     //look for here
     // DEBUG_PRINT_NO_ARGS() ;
     //Future -- try to loop 
-    Value forlb = rewriter.create<arith::ConstantIndexOp>(loc, 1);
+    // Value forlb = rewriter.create<arith::ConstantIndexOp>(loc, 1);
     AffineExpr expr0;
     bindDims(rewriter.getContext(), expr0);
-    AffineMap lbMap = AffineMap::get(1, 0, expr0);
+    // AffineMap lbMap = AffineMap::get(1, 0, expr0);
 
     // affine::AffineForOp forOpJ = rewriter.create<AffineForOp>(loc, lbMap, ValueRange{forlb} ,lbMap , ValueRange{ivY}, step);
     affine::AffineForOp forOpJ = rewriter.create<AffineForOp>(loc, lb, ub, step);
@@ -3580,7 +3681,7 @@ void ToyToAffineLoweringPass::runOnOperation() {
                HighPassFilterOpLowering, FFT1DOpLowering, IFFT1DOpLowering,
                HammingWindowOpLowering, DCTOpLowering, filterOpLowering, DivOpLowering,
                SumOpLowering, SinOpLowering, CosOpLowering, SquareOpLowering,
-               FFT1DRealOpLowering, FFT1DImgOpLowering >(
+               FFT1DRealOpLowering, FFT1DImgOpLowering, SincOpLowering >(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the
