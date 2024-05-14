@@ -7,20 +7,35 @@
 // Enable or disable debug output
 #define DEBUG_OUTPUT false
 
+template<typename... Args>
+void debugPrintWithArgs(const Args&... args) {
+    llvm::errs() << "Line: " << __LINE__ << " file= " << __FILE__;
+    ((llvm::errs() << " " << args), ...);
+    llvm::errs() << "\n";
+}
+
 #if DEBUG_OUTPUT
     // Macro for debugging with arguments
-    #define DEBUG_PRINT_WITH_ARGS(...) do { \
-        llvm::errs() << "Line: " << __LINE__ << " file= " << __FILE__; \
-        llvm::errs() << " " << __VA_ARGS__; \
-        llvm::errs() << "\n"; \
-    } while (0)
+    // #define DEBUG_PRINT_WITH_ARGS(...) do { \
+    //     llvm::errs() << "Line: " << __LINE__ << " file= " << __FILE__; \
+    //     llvm::errs() << " " << __VA_ARGS__; \
+    //     llvm::errs() << "\n"; \
+    // } while (0)
+
+    // #define DEBUG_PRINT_WITH_ARGS(...) do { \
+    //     llvm::errs() << "Line: " << __LINE__ << " file= " << __FILE__; \
+    //     llvm::errs(); \
+    //     ((llvm::errs() << " ") , ... , (llvm::errs() << __VA_ARGS__ )); \
+    //     llvm::errs() << "\n"; \
+    // } while (0)
+    #define DEBUG_PRINT_WITH_ARGS(...) debugPrintWithArgs(__VA_ARGS__)
 
     // Macro for debugging without arguments
     #define DEBUG_PRINT_NO_ARGS() do { \
         llvm::errs() << "Line: " << __LINE__ << " file= " << __FILE__ << "\n"; \
     } while (0)
 #else
-    #define DEBUG_PRINT_WITH_ARGS(...)
+    #define DEBUG_PRINT_WITH_ARGS(...) 
     #define DEBUG_PRINT_NO_ARGS(...)
 #endif
 
