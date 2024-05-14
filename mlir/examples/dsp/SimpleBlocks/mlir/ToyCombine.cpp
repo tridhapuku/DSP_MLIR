@@ -264,6 +264,46 @@ struct SimplifyFFTSquare : public mlir::OpRewritePattern<SquareOp> {
   }
 };
 
+struct SimplifyGainwZero: public mlir::OpRewritePattern<GainOp>{
+  SimplifyGainwZero(mlir::MLIRContext *context) 
+    : OpRewritePattern<GainOp>(context, 1) {}
+
+    mlir::LogicalResult matchAndRewrite(GainOp op, 
+                        mlir::PatternRewriter &rewriter) const override {
+     
+     //
+     mlir::Value gainOp_operand1 = op.getOperand(1);
+     
+     //check if the value is zero
+     DEBUG_PRINT_NO_ARGS();
+     dsp::ConstantOp constant_Op1 = gainOp_operand1.getDefiningOp<dsp::ConstantOp>();
+    DenseElementsAttr DenseValueFrmgainOp = constant_Op1.getValue();
+    auto elements = DenseValueFrmgainOp.getValues<FloatAttr>();
+    float FirstValue = elements[0].getValueAsDouble();
+    int64_t GainRate = (int64_t) FirstValue;
+
+     if(!GainRate==0)
+        return failure();
+
+    mlir::Value gainOp_operand0 = op.getOperand(0);
+    dsp::ConstantOp constant_Op0 = gainOp_operand0.getDefiningOp<dsp::ConstantOp>();
+    DenseElementsAttr InputValueFrmgainOp = constant_Op0.getValue();
+    int64_t inputSize = InputValueFrmgainOp.size();
+
+  // Define the type of the tensor (tensor<f64>).
+  RankedTensorType tensorType = RankedTensorType::get({inputSize}, rewriter.getF64Type());
+
+  // Create a constant operation with the specified value and type.
+  DenseElementsAttr zerovalue = DenseElementsAttr::get(tensorType, 0.0);
+  Operation* constantOp = rewriter.create<ConstantOp>(op.getLoc(), zerovalue);
+
+
+    rewriter.replaceOp(op, constantOp);
+    return mlir::success();
+
+    }
+};
+
 /// Register our patterns as "canonicalization" patterns on the TransposeOp so
 /// that they can be picked up by the Canonicalization framework.
 void SquareOp::getCanonicalizationPatterns(RewritePatternSet &results,
@@ -293,7 +333,7 @@ void DelayOp::getCanonicalizationPatterns(RewritePatternSet &results,
 
 void GainOp::getCanonicalizationPatterns(RewritePatternSet &results, 
                                               MLIRContext *context) {
-  results.add<SimplifyBack2BackGain>(context);
+  results.add<SimplifyBack2BackGain, SimplifyGainwZero>(context);
 }
 
 /// Register our patterns as "canonicalization" patterns on the ReshapeOp so
