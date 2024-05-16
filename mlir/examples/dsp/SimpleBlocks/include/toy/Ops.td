@@ -1220,4 +1220,61 @@ def SincOp : Dsp_Op<"sinc",
   let hasVerifier = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// GetElemAtIndxOp
+//===----------------------------------------------------------------------===//
+
+def GetElemAtIndxOp : Dsp_Op<"getElemAtIndx",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "get elem at given indx of the vector";
+
+  let arguments = (ins F64Tensor:$input, F64Tensor:$indx);
+  let results = (outs F64Tensor);
+
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input) `)` attr-dict `to` type(results)
+  // }];
+
+  // Enable registering canonicalization patterns with this operation.
+  // let hasCanonicalizer = 1;
+
+  // Allow building a GetElemAtIndx with from the input operand.
+  let builders = [
+    OpBuilder<(ins "Value":$input, "Value":$indx)>
+  ];
+
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
+}
+
+
+//===----------------------------------------------------------------------===//
+// SetElemAtIndxOp
+//===----------------------------------------------------------------------===//
+
+def SetElemAtIndxOp : Dsp_Op<"setElemAtIndx",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "set elem at given indx of the vector";
+
+  let arguments = (ins F64Tensor:$input, F64Tensor:$indx , F64Tensor:$val);
+  let results = (outs F64Tensor);
+
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input) `)` attr-dict `to` type(results)
+  // }];
+
+  // Enable registering canonicalization patterns with this operation.
+  // let hasCanonicalizer = 1;
+
+  // Allow building a SetElemAtIndx with from the input operand.
+  let builders = [
+    OpBuilder<(ins "Value":$input, "Value":$indx, "Value":$val)>
+  ];
+
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
+}
+
+
+
 #endif // TOY_OPS

@@ -1449,6 +1449,77 @@ mlir::LogicalResult SincOp::verify() {
   return mlir::success();
 }
 
+//===----------------------------------------------------------------------===//
+// GetElemAtIndxOp
+//===----------------------------------------------------------------------===//
+
+void GetElemAtIndxOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                        mlir::Value input, mlir::Value indx) {
+  DEBUG_PRINT_NO_ARGS();
+  state.addTypes({UnrankedTensorType::get(builder.getF64Type())});
+  state.addOperands({input, indx} );
+  DEBUG_PRINT_NO_ARGS();
+}
+
+void GetElemAtIndxOp::inferShapes() {
+  // auto tensorInput =  getInput().getType();
+  // auto shapeOfInput = tensorInput.getShape();
+  std::vector<int64_t> shapeForOutput;
+  DEBUG_PRINT_NO_ARGS();
+  shapeForOutput.push_back(1);
+
+  mlir::TensorType manipulatedType = mlir::RankedTensorType::get(shapeForOutput, 
+          getInput().getType().getElementType());
+  getResult().setType(manipulatedType);
+  DEBUG_PRINT_NO_ARGS();
+}
+
+mlir::LogicalResult GetElemAtIndxOp::verify() {
+  // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
+  // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+  // if (!inputType || !resultType)
+  //   return mlir::success();
+
+  // auto inputShape = inputType.getShape();
+  // if (!std::equal(inputShape.begin(), inputShape.end(),
+  //                 resultType.getShape().rbegin())) {
+  //   return emitError()
+  //          << "expected result shape to be a transpose of the input";
+  // }
+  return mlir::success();
+}
+
+
+//===----------------------------------------------------------------------===//
+// SetElemAtIndxOp
+//===----------------------------------------------------------------------===//
+
+void SetElemAtIndxOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                        mlir::Value input, mlir::Value indx, mlir::Value val) {
+  DEBUG_PRINT_NO_ARGS();
+  state.addTypes({UnrankedTensorType::get(builder.getF64Type())});
+  state.addOperands({input, indx, val} );
+  DEBUG_PRINT_NO_ARGS();
+}
+
+void SetElemAtIndxOp::inferShapes() {
+  // auto tensorInput =  getInput().getType();
+  // auto shapeOfInput = tensorInput.getShape();
+  std::vector<int64_t> shapeForOutput;
+  DEBUG_PRINT_NO_ARGS();
+  shapeForOutput.push_back(1);
+
+  mlir::TensorType manipulatedType = mlir::RankedTensorType::get(shapeForOutput, 
+          getInput().getType().getElementType());
+  getResult().setType(manipulatedType);
+  DEBUG_PRINT_NO_ARGS();
+}
+
+mlir::LogicalResult SetElemAtIndxOp::verify() {
+  return mlir::success();
+}
+
+
 
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions

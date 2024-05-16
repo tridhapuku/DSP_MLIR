@@ -1122,6 +1122,157 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
 
 namespace {
 
+//Lowering code 
+//===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: SetElemAtIndx operations
+//===----------------------------------------------------------------------===//
+
+struct SetElemAtIndxOpLowering : public ConversionPattern {
+  SetElemAtIndxOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::SetElemAtIndxOp::getOperationName(), 1, ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
+    
+    //Pseudo-code:
+      //  output = input[index] 
+
+      // replace this upsampling op with the output_mem_allocation op
+
+    DEBUG_PRINT_NO_ARGS();
+
+    //output for result type
+    SetElemAtIndxOpAdaptor setElemAtIndxAdaptor(operands);
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));  
+    // auto tensorType = llvm::cast<RankedTensorType>(setElemAtIndxAdaptor.getInput());
+    //iterate to result1 --not needed for now but for future reference  
+   
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+
+    //For loop -- iterate from 1 to last
+    // int64_t lb = 0 ;
+    // int64_t ub = tensorType.getShape()[0];   
+    // int64_t step = 1;
+    // affine::AffineForOp forOpY = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    // auto ivY = forOpY.getInductionVar();
+    // rewriter.setInsertionPointToStart(forOpY.getBody());
+
+    // Value inputX = rewriter.create<AffineLoadOp>(loc, setElemAtIndxAdaptor.getInput(), ValueRange{ivY});
+    // rewriter.create<AffineStoreOp>(loc, inputX, alloc, ValueRange{ivY});
+
+    // rewriter.setInsertionPointAfter(forOpY);
+    DEBUG_PRINT_WITH_ARGS("\nCheck for index --here");
+    //load from X, using 2nd operand as index
+
+    // Value GetValueAtIndx2ndArg = setElemAtIndxAdaptor.getIndx(); // getOperand(1);
+    DEBUG_PRINT_NO_ARGS();
+    Value GetValueAtIndx2ndArg = op->getOperand(1);
+    dsp::ConstantOp constantOp2ndArg = GetValueAtIndx2ndArg.getDefiningOp<dsp::ConstantOp>();
+    DenseElementsAttr constantRhsValue = constantOp2ndArg.getValue();;
+    auto elements = constantRhsValue.getValues<FloatAttr>();
+    float SecondValue = elements[0].getValueAsDouble();
+    int SecondValueInt = (int64_t) SecondValue;
+    DEBUG_PRINT_WITH_ARGS("Indx is" , SecondValueInt);
+
+    Value constantIndx2Indx = rewriter.create<arith::ConstantIndexOp>(loc, SecondValueInt);
+    Value constantIndx0 = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+    // Value constant0 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+    //                                                      rewriter.getF64FloatAttr(15));
+
+    // Value ValToStore = setElemAtIndxAdaptor.getVal(); 
+    // Value ValToStore = op->getOperand(2);
+    Value ValToStore = rewriter.create<AffineLoadOp>(loc, setElemAtIndxAdaptor.getVal(), ValueRange{constantIndx0});
+    // Value ValToStore = rewriter.create<AffineLoadOp>(loc, setElemAtIndxAdaptor.getVal(), ValueRange{});
+
+    // rewriter.create<AffineStoreOp>(loc, constant0, alloc, ValueRange{constantIndx2Indx});
+    rewriter.create<AffineStoreOp>(loc, ValToStore, setElemAtIndxAdaptor.getInput(), ValueRange{constantIndx2Indx});
+
+
+    //debug
+    // forOpY->dump();
+      // affine.store %cst, %alloc_10[] : memref<f64>
+      // %0 = affine.load %alloc_11[4] : memref<10xf64>
+      // affine.store %0, %alloc[0] : memref<1xf64>
+    
+    rewriter.replaceOp(op, alloc);
+    
+    return success();
+  }
+};
+
+//===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: GetElemAtIndx operations
+//===----------------------------------------------------------------------===//
+
+
+struct GetElemAtIndxOpLowering : public ConversionPattern {
+  GetElemAtIndxOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::GetElemAtIndxOp::getOperationName(), 1, ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
+    
+    //Pseudo-code:
+      //  output = input[index] 
+
+      // replace this upsampling op with the output_mem_allocation op
+
+    DEBUG_PRINT_NO_ARGS();
+
+    //output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));  
+    //iterate to result1 --not needed for now but for future reference  
+   
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+    // auto memRefType2 = convertTensorToMemRef(tensorType1);
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+
+    // Value constant0 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+    //                                                      rewriter.getF64FloatAttr(0));
+
+
+
+    DEBUG_PRINT_WITH_ARGS("\nCheck for index --here");
+    //load from X, using 2nd operand as index
+    GetElemAtIndxOpAdaptor getElemAtIndxAdaptor(operands);
+    // Value GetValueAtIndx2ndArg = getElemAtIndxAdaptor.getIndx(); // getOperand(1);
+    DEBUG_PRINT_NO_ARGS();
+    Value GetValueAtIndx2ndArg = op->getOperand(1);
+    dsp::ConstantOp constantOp2ndArg = GetValueAtIndx2ndArg.getDefiningOp<dsp::ConstantOp>();
+    DenseElementsAttr constantRhsValue = constantOp2ndArg.getValue();;
+    auto elements = constantRhsValue.getValues<FloatAttr>();
+    float SecondValue = elements[0].getValueAsDouble();
+    int SecondValueInt = (int64_t) SecondValue;
+    DEBUG_PRINT_WITH_ARGS("Indx is" , SecondValueInt);
+
+    Value constantIndx2Indx = rewriter.create<arith::ConstantIndexOp>(loc, SecondValueInt);
+    Value constantIndx0 = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+    
+    Value inputX = rewriter.create<AffineLoadOp>(loc, getElemAtIndxAdaptor.getInput(), ValueRange{constantIndx2Indx});
+    rewriter.create<AffineStoreOp>(loc, inputX, alloc, ValueRange{constantIndx0});
+
+
+    //debug
+    // forOpX->dump();
+    // forOpY->dump();
+      // affine.store %cst, %alloc_10[] : memref<f64>
+      // %0 = affine.load %alloc_11[4] : memref<10xf64>
+      // affine.store %0, %alloc[0] : memref<1xf64>
+    
+    rewriter.replaceOp(op, alloc);
+    
+    return success();
+  }
+};
+
+
 //===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: SincOp operations
 //===----------------------------------------------------------------------===//
@@ -3681,7 +3832,8 @@ void ToyToAffineLoweringPass::runOnOperation() {
                HighPassFilterOpLowering, FFT1DOpLowering, IFFT1DOpLowering,
                HammingWindowOpLowering, DCTOpLowering, filterOpLowering, DivOpLowering,
                SumOpLowering, SinOpLowering, CosOpLowering, SquareOpLowering,
-               FFT1DRealOpLowering, FFT1DImgOpLowering, SincOpLowering >(
+               FFT1DRealOpLowering, FFT1DImgOpLowering, SincOpLowering, GetElemAtIndxOpLowering,
+               SetElemAtIndxOpLowering >(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the
