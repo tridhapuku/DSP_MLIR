@@ -973,11 +973,10 @@ mlir::LogicalResult FFT1DOp::verify() {
 //===----------------------------------------------------------------------===//
 
 void IFFT1DOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
-                        mlir::Value value) {
+                        mlir::Value real, mlir::Value img) {
   DEBUG_PRINT_NO_ARGS() ;
-  state.addTypes({UnrankedTensorType::get(builder.getF64Type()), 
-                UnrankedTensorType::get(builder.getF64Type())});
-  state.addOperands(value);
+  state.addTypes({UnrankedTensorType::get(builder.getF64Type())});
+  state.addOperands({real , img});
   DEBUG_PRINT_NO_ARGS() ;
 }
 
@@ -985,25 +984,25 @@ void IFFT1DOp::inferShapes() {
   //for each rank
   //Get the shape/size of input 
   //output size = input_size 
-  auto tensorInput =  getInput().getType(); 
-  // getResult().setType(tensorInput);
-  getResult(0).setType(tensorInput);
-  getResult(1).setType(tensorInput);
+  auto tensorInput =  getReal().getType(); 
+  getResult().setType(tensorInput);
+  // getResult(0).setType(tensorInput);
+  // getResult(1).setType(tensorInput);
 }
 
 mlir::LogicalResult IFFT1DOp::verify() {
-  // DEBUG_PRINT_NO_ARGS() ;
-  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
-  auto inputRank = inputType.getRank();
+  DEBUG_PRINT_NO_ARGS() ;
+  // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
+  // auto inputRank = inputType.getRank();
 
-  // llvm::errs() << "inputRank: " << inputRank << " alphaValueRank: " << alphaValueRank << "\n";
-  //once ensured only 1 rank from above --   
-  if( inputRank != 1 )
-  {
-    llvm::errs() << "inputRank: " << inputRank <<  "\n";
-    return emitError()
-           << "expected rank of input  is 1";
-  }
+  // // llvm::errs() << "inputRank: " << inputRank << " alphaValueRank: " << alphaValueRank << "\n";
+  // //once ensured only 1 rank from above --   
+  // if( inputRank != 1 )
+  // {
+  //   llvm::errs() << "inputRank: " << inputRank <<  "\n";
+  //   return emitError()
+  //          << "expected rank of input  is 1";
+  // }
   return mlir::success();
 }
 

@@ -1442,6 +1442,7 @@ struct FFT1DImgOpLowering : public ConversionPattern {
     auto ivY = forOpY.getInductionVar();
     rewriter.setInsertionPointToStart(forOpY.getBody());
 
+    
     //loop for X
     affine::AffineForOp forOpX = rewriter.create<AffineForOp>(loc, lb, ub, step);
     auto ivX = forOpX.getInductionVar();
@@ -1478,19 +1479,16 @@ struct FFT1DImgOpLowering : public ConversionPattern {
     // Img part = -1 * Sum(x[i] * sin(div) )
     Value GetSin = rewriter.create<math::SinOp>(loc, divIndxByN);
     Value xMulSin = rewriter.create<arith::MulFOp>(loc, inputX , GetSin);   
-    Value imgSum = rewriter.create<arith::AddFOp>(loc, loadYImg ,xMulSin) ;
+    Value imgSum = rewriter.create<arith::SubFOp>(loc, loadYImg ,xMulSin) ;
 
-    Value constMinus1 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
-                                                         rewriter.getF64FloatAttr(-1));
-    Value NegImgSum = rewriter.create<arith::MulFOp>(loc, constMinus1 , imgSum);
-    rewriter.create<AffineStoreOp>(loc, NegImgSum, alloc_img, ValueRange{ivY}); 
-    //x[n-1]
-    // DEBUG_PRINT_NO_ARGS() ;
-    // Value xMinusPrevX = rewriter.create<arith::SubFOp>(loc, inputX ,PrevX );
-
+    // Value constMinus1 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+    //                                                      rewriter.getF64FloatAttr(-1));
+    // Value NegImgSum = rewriter.create<arith::MulFOp>(loc, constMinus1 , imgSum);
+    rewriter.create<AffineStoreOp>(loc, imgSum, alloc_img, ValueRange{ivY}); 
+    // x[n-1]
     rewriter.setInsertionPointAfter(forOpX);
-    // forOpX->dump();
-    // rewriter.create<AffineYieldOp>(loc, ValueRange{alloc_real, alloc_img});
+    // Calculate y[k] = 1/N * y[k]
+    
     rewriter.setInsertionPointAfter(forOpY);
     //debug
     // forOpX->dump();
@@ -2413,32 +2411,30 @@ struct IFFT1DOpLowering : public ConversionPattern {
     
     //Pseudo-code:
       //  y[k] = y_real[k] + j *y_img[k] 
-      // y_real = sumOver_n(x[n]*cos[2*pi * k *n/N ] 
-      // y_img = sumOver_n(x[n]*sin[2*pi * k *n/N ] * -1
-      //init  output mem for y_real & y_img as 0 
+      // y_real = sumOver_n(x[k]*cos[2*pi * k *n/N ] 
+      // y_img = sumOver_n(x[k]*sin[2*pi * k *n/N ] 
+      // here, x[k] is complex ie, x_real[k] + x_complex[k]
+      //so, y[k] = sumOver_n(x[k]e^(2*pi * k *n/N)) 
+    	// ==>   = x_real[k]cos(2*pi * k *n/N) - x_complex[k]sin(2*pi * k *n/N)
+
+      //init  output mem for y_real  
       //iterate for output from k=0 to last 
         //iterate for all x from n=0 to last
-          //perform the calculations : ie x[n] * cos[2*pi * k *n/N ] and sum and store them at y[k]
+          //perform the calculations : ie x_real[k]cos(2*pi * k *n/N) - x_complex[k]sin(2*pi * k *n/N) and 
+    	  //sum and store them at y[k]
           // 
-      // replace this upsampling op with the output_mem_allocation op
-
-    // DEBUG_PRINT_NO_ARGS() ;
+ 
+    DEBUG_PRINT_NO_ARGS() ;
 
     //output for result type
     auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));  
     //iterate to result1 --not needed for now but for future reference  
-    // auto tensorType1 =  llvm::cast<RankedTensorType>(*std::next(op->result_type_begin(), 1));
-
     // DEBUG_PRINT_NO_ARGS() ; 
-    //tensorType.getShape()[0]
-    // llvm::errs() << "tensorType1.getShape()[0] " << tensorType1.getShape()[0] << " func= " << __func__ << "\n"; 
-    
+       
     //allocation & deallocation for the result of this operation
     auto memRefType = convertTensorToMemRef(tensorType);
-    // auto memRefType2 = convertTensorToMemRef(tensorType1);
     auto alloc_real = insertAllocAndDealloc(memRefType, loc, rewriter);
-    auto alloc_img = insertAllocAndDealloc(memRefType, loc, rewriter);
-
+    
     //construct affine loops for the input
     SmallVector<int64_t, 4> lowerBounds(tensorType.getRank(), /*Value*/0);
     SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);    
@@ -2450,8 +2446,8 @@ struct IFFT1DOpLowering : public ConversionPattern {
     Value constant0 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
                                                          rewriter.getF64FloatAttr(0));
 
-
-    //For loop -- iterate from 1 to last
+    DEBUG_PRINT_NO_ARGS() ;
+    //For loop -- iterate from 0 to last
     int64_t lb = 0 ;
     int64_t ub = tensorType.getShape()[0];
     int64_t step = 1;
@@ -2460,7 +2456,6 @@ struct IFFT1DOpLowering : public ConversionPattern {
     auto iv = forOp1.getInductionVar();
     rewriter.setInsertionPointToStart(forOp1.getBody());
     rewriter.create<AffineStoreOp>(loc, constant0, alloc_real, ValueRange{iv});
-    rewriter.create<AffineStoreOp>(loc, constant0, alloc_img, ValueRange{iv});
     rewriter.setInsertionPointAfter(forOp1);
 
     //loop for Y
@@ -2475,10 +2470,9 @@ struct IFFT1DOpLowering : public ConversionPattern {
 
     //load from X, & y1 & y2
     IFFT1DOpAdaptor ifft1DAdaptor(operands);
-    Value inputX = rewriter.create<AffineLoadOp>(loc, ifft1DAdaptor.getInput(), ValueRange{ivX});
+    Value inputReal = rewriter.create<AffineLoadOp>(loc, ifft1DAdaptor.getReal(), ValueRange{ivX});
     Value loadYReal = rewriter.create<AffineLoadOp>(loc, alloc_real, ValueRange{ivY});
-    Value loadYImg = rewriter.create<AffineLoadOp>(loc, alloc_img, ValueRange{ivY});
-
+    
     //convert index to f64
     Value IndxY = rewriter.create<arith::IndexCastUIOp>(loc, rewriter.getIntegerType(32), ivY);
     Value k = rewriter.create<arith::UIToFPOp>(loc, rewriter.getF64Type(), IndxY);
@@ -2502,28 +2496,35 @@ struct IFFT1DOpLowering : public ConversionPattern {
 
     Value divIndxByN = rewriter.create<arith::DivFOp>(loc, mul2piKI, N )  ;     
 
-    // Real part = Sum(x[i] * cos(div) )
+    // Real Cos part = x_real[i] * cos(div) 
     Value GetCos = rewriter.create<math::CosOp>(loc, divIndxByN);
-    Value xMulCos = rewriter.create<arith::MulFOp>(loc, inputX , GetCos);   
-    Value realSum = rewriter.create<arith::AddFOp>(loc, loadYReal ,xMulCos) ;
+    Value xMulCos = rewriter.create<arith::MulFOp>(loc, inputReal , GetCos);   
+
+    // Real Sin part =  x_complex[i] * sin(div) 
+    Value inputImg = rewriter.create<AffineLoadOp>(loc, ifft1DAdaptor.getImg(), ValueRange{ivX});
+    Value GetSin = rewriter.create<math::SinOp>(loc, divIndxByN);
+    Value xMulSin = rewriter.create<arith::MulFOp>(loc, inputImg , GetSin);   
+
+    //Get real Ans = x_real[i] * cos(div) - x_complex[i] * sin(div)
+    //Then sum over real_Ans by loading YReal
+    Value realAns = rewriter.create<arith::SubFOp>(loc, xMulCos ,xMulSin) ;
+    Value realSum = rewriter.create<arith::AddFOp>(loc, loadYReal ,realAns) ;
     rewriter.create<AffineStoreOp>(loc, realSum, alloc_real, ValueRange{ivY}); 
     
-    // Img part =  Sum(x[i] * sin(div) )
-    Value GetSin = rewriter.create<math::SinOp>(loc, divIndxByN);
-    Value xMulSin = rewriter.create<arith::MulFOp>(loc, inputX , GetSin);   
-    Value imgSum = rewriter.create<arith::AddFOp>(loc, loadYImg ,xMulSin) ;
-
-    // Value constMinus1 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
-    //                                                      rewriter.getF64FloatAttr(-1));
-    // Value NegImgSum = rewriter.create<arith::MulFOp>(loc, constMinus1 , imgSum);
-    rewriter.create<AffineStoreOp>(loc, imgSum, alloc_img, ValueRange{ivY}); 
     //x[n-1]
-    // DEBUG_PRINT_NO_ARGS() ;
+    DEBUG_PRINT_NO_ARGS() ;
     // Value xMinusPrevX = rewriter.create<arith::SubFOp>(loc, inputX ,PrevX );
 
     rewriter.setInsertionPointAfter(forOpX);
-    // forOpX->dump();
-    // rewriter.create<AffineYieldOp>(loc, ValueRange{alloc_real, alloc_img});
+    // Calculate y[k] = 1/N * y[k]
+    Value loadY = rewriter.create<AffineLoadOp>(loc, alloc_real, ValueRange{ivY});
+    // float LengthOfInput = (float) ub;
+    Value N1 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(LengthOfInput));
+    Value SumDivByN = rewriter.create<arith::DivFOp>(loc,loadY , N1 );
+    rewriter.create<AffineStoreOp>(loc, SumDivByN, alloc_real, ValueRange{ivY}); 
+
+
     rewriter.setInsertionPointAfter(forOpY);
     //debug
     // forOpX->dump();
@@ -2574,8 +2575,8 @@ struct IFFT1DOpLowering : public ConversionPattern {
 
         // }
         // }
-    // rewriter.replaceOp(op, alloc_real);
-    rewriter.replaceOp(op, ValueRange{alloc_real,alloc_img});
+    rewriter.replaceOp(op, alloc_real);
+    // rewriter.replaceOp(op, ValueRange{alloc_real,alloc_img});
     
     return success();
   }
@@ -2697,12 +2698,12 @@ struct FFT1DOpLowering : public ConversionPattern {
     // Img part = -1 * Sum(x[i] * sin(div) )
     Value GetSin = rewriter.create<math::SinOp>(loc, divIndxByN);
     Value xMulSin = rewriter.create<arith::MulFOp>(loc, inputX , GetSin);   
-    Value imgSum = rewriter.create<arith::AddFOp>(loc, loadYImg ,xMulSin) ;
+    Value imgSum = rewriter.create<arith::SubFOp>(loc, loadYImg ,xMulSin) ;
 
-    Value constMinus1 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
-                                                         rewriter.getF64FloatAttr(-1));
-    Value NegImgSum = rewriter.create<arith::MulFOp>(loc, constMinus1 , imgSum);
-    rewriter.create<AffineStoreOp>(loc, NegImgSum, alloc_img, ValueRange{ivY}); 
+    // Value constMinus1 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+    //                                                      rewriter.getF64FloatAttr(-1));
+    // Value NegImgSum = rewriter.create<arith::MulFOp>(loc, constMinus1 , imgSum);
+    rewriter.create<AffineStoreOp>(loc, imgSum, alloc_img, ValueRange{ivY}); 
     //x[n-1]
     // DEBUG_PRINT_NO_ARGS() ;
     // Value xMinusPrevX = rewriter.create<arith::SubFOp>(loc, inputX ,PrevX );

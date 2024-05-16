@@ -459,12 +459,12 @@ private:
     }
 
     if(callee == "ifft1d"){
-      if(call.getArgs().size() != 1){
+      if(call.getArgs().size() != 2){
         emitError(location, "MLIR codegen encountered an error: dsp.ifft1d "
                             "accepts only 1 arguments");
         return nullptr;
       }
-      // return builder.create<FFT1DOp>(location, operands[0] );
+      return builder.create<IFFT1DOp>(location, operands[0], operands[1]);
     }
 
     if(callee == "hamming"){
