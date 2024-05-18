@@ -24,31 +24,38 @@ def main() {
   # var Fs = 10000 ; #Sampling freq
   # var F1 = 1000 ;
   # var F2 = 5000;
-  # var G1 = 4;
+  var G1 = 4;
   # var G2 = 2;
 
   # k1 & k2 are indexes
   # var k1 = (F1 * N) / Fs; #formula for k1
-  # var k1 = [1];
+  var k1 = [1];
+  var k2 = [4];
 
   # var k2 = F2 * N / Fs;
-  var fft10 = fft1dreal(a10);
+  var fft10real = fft1dreal(a10);
   var fft10img = fft1dimg(a10);
-  # var ValatIndxK1 = getElemAtIndx(fft10 , k1); #k1
-  # var ValatIndxK2 = getElemAtIndx(a10 , k1);
+  var ValAtK1real = getElemAtIndx(fft10real , k1); #k1
+  var ValAtK1img = getElemAtIndx(fft10img , k1);
+
+  # var ValAtK2real = getElemAtIndx(a10 , k1);
 
   #Apply gain at index k1 & k2
-  # var modifiedValAtk1 = gain(ValatIndxK1 , G1);
+  var modifiedValAtk1real = gain(ValAtK1real , G1);
+  var modifiedValAtk1img = gain(ValAtK1img , G1);
   # var modifiedValAtk2 = gain(ValatIndxK2 , G2);
 
   #set the values at index 
-  # var b1 = setElemAtIndx(fft10 , k1 , modifiedValAtk1);
+  var b1 = setElemAtIndx(fft10real , k1 , modifiedValAtk1real);
+  var b2 = setElemAtIndx(fft10img , k1 , modifiedValAtk1img);
   # var b2 = setElemAtIndx(fft10 , k2 , modifiedValAtk2);
 
   #Do ifft
   # print(fft10);
   # print(fft10img);
-  var res1 = ifft1d(fft10 , fft10img);
+  var res1 = ifft1d(fft10real , fft10img);
+  print(b1);
+  print(b2);
   print(res1);
 
   # print(b1);
