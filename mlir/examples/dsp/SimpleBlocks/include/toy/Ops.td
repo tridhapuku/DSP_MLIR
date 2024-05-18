@@ -1277,6 +1277,45 @@ def SetElemAtIndxOp : Dsp_Op<"setElemAtIndx",
   let hasVerifier = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// LowPassFilter
+//===----------------------------------------------------------------------===//
+
+
+def LowPassFIRFilterOp : Dsp_Op<"lowPassFIRFilter",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "lowPassFilter operation";
+  let description = [{
+    y_lpf[n] = wc/pi * sinc(wc * (n- (N-1)/2)) , n!= (N-1)/2 : 
+             = wc/pi , n = (N-1)/2
+    
+    The "LowpassFilter" operation is the base filter 
+    ex: N = odd for symmetry &  Output : y= [0.08,0.54,1,0.54] 
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins F64Tensor:$wc, F64Tensor:$n);
+  // let results = (outs F64Tensor:$real, F64Tensor:$img); //(ins F64Tensor:$lhs, F64Tensor:$rhs);
+  let results = (outs F64Tensor);
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input) `)` attr-dict `to` type(results)
+  // }];
+
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input) `)` attr-dict `to` `(` type($real) `,` type($img) `)`
+  // }];
+
+  // Enable registering canonicalization patterns with this operation.
+  // let hasCanonicalizer = 1;
+
+  // Allow building a LowpassFilter with from the input operand.
+  let builders = [
+    OpBuilder<(ins "Value":$wc,"Value":$n)>
+  ];
+
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
+}
 
 
 #endif // TOY_OPS

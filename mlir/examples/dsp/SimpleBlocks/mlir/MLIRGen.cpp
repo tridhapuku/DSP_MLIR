@@ -532,7 +532,7 @@ private:
 
      if(callee == "square"){
       if(call.getArgs().size() != 1){
-        emitError(location, "MLIR codegen encountered an error: dsp.sum "
+        emitError(location, "MLIR codegen encountered an error: dsp.square "
                             "accepts only 1 arguments");
         return nullptr;
       }
@@ -567,6 +567,16 @@ private:
          return nullptr;
        }
        return builder.create<SetElemAtIndxOp>(location, operands[0], operands[1], operands[2]);
+    }
+
+    // lowPassFilter Op
+    if(callee == "lowPassFIRFilter"){
+       if(call.getArgs().size() != 2){
+         emitError(location, "MLIR codegen encountered an error: dsp.lowPassFilter "
+                             "accepts only 2 arguments");
+         return nullptr;
+       }
+       return builder.create<LowPassFIRFilterOp>(location, operands[0], operands[1]);
     }
 
     // Builtin calls have their custom operation, meaning this is a

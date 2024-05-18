@@ -1123,6 +1123,143 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
 namespace {
 
 //Lowering code 
+
+//===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: LowPassFIRFilterOp operations
+//===----------------------------------------------------------------------===//
+
+struct LowPassFIRFilterOpLowering : public ConversionPattern {
+  LowPassFIRFilterOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::LowPassFIRFilterOp::getOperationName(), 1, ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
+    
+    //Pseudo-code:
+      //  y_lpf[n] = wc/pi * sinc(wc * (n- (N-1)/2)) , n!= (N-1)/2 : 
+      //           = wc/pi , n = (N-1)/2
+
+      // 2 loops : first from 0 <= n <= (N-1)/2 - 1
+      //      2nd from (N-1)/2 +1 <= n < N
+
+    //output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));  
+     
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+    
+    //construct affine loops for the input
+    SmallVector<int64_t, 4> lowerBounds(tensorType.getRank(), /*Value*/0);
+    SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);    
+    
+
+    //first from 0 <= i <= (N-1)/2 - 1
+    int64_t lb = 0 ;
+    int64_t N = tensorType.getShape()[0];   
+    int64_t ub = (N-1) / 2 ;
+    int64_t step = 1;
+
+    DEBUG_PRINT_NO_ARGS();
+    LowPassFIRFilterOpAdaptor lowPassfirFilterOpAdaptor(operands);
+    //Handle middle y[mid] = wc / pi
+    int64_t midIndx = ub ;
+    Value constantIndxMid = rewriter.create<arith::ConstantIndexOp>(loc, midIndx);
+    // rewriter.create<AffineStoreOp>(loc, constant0, alloc, ValueRange{constantIndx0});
+    Value wc = rewriter.create<AffineLoadOp>(loc, lowPassfirFilterOpAdaptor.getWc(), ValueRange{});
+
+    Value constpi = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(3.14159265359));
+    Value wcByPi = rewriter.create<arith::DivFOp>(loc, wc, constpi);
+
+    rewriter.create<AffineStoreOp>(loc, wcByPi, alloc, ValueRange{constantIndxMid});
+
+    //first from 0 <= i <= (N-1)/2 - 1
+
+    //calculate i-(N-1)/2 
+    Value Nminus1By2 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr((float) ub));
+    affine::AffineForOp forOpY = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto ivY = forOpY.getInductionVar();
+    rewriter.setInsertionPointToStart(forOpY.getBody());
+    //convert index to f64
+    Value IndxY = rewriter.create<arith::IndexCastUIOp>(loc, rewriter.getIntegerType(32), ivY);
+    Value i = rewriter.create<arith::UIToFPOp>(loc, rewriter.getF64Type(), IndxY);
+
+    //get sin(wc * (i - (N-1)/ 2))
+    Value iMinusMid = rewriter.create<arith::SubFOp>(loc, i, Nminus1By2);
+    Value mulwc_iMinusMid = rewriter.create<arith::MulFOp>(loc, wc , iMinusMid);  
+
+    Value GetSin = rewriter.create<math::SinOp>(loc, mulwc_iMinusMid);
+        
+    // get sin(wc*i) / pi * i
+
+    Value piMuliMinusMid = rewriter.create<arith::MulFOp>(loc, constpi , iMinusMid);   
+    Value GetDiv = rewriter.create<arith::DivFOp>(loc, GetSin ,piMuliMinusMid) ;
+    rewriter.create<AffineStoreOp>(loc, GetDiv, alloc, ValueRange{ivY}); 
+    // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+    rewriter.setInsertionPointAfter(forOpY);
+
+    //2nd loop from (N-1)/2 + 1 <= i < N
+    lb = ub + 1 ; 
+    ub = N ;
+
+    affine::AffineForOp forOp1 = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto iv1 = forOp1.getInductionVar();
+    rewriter.setInsertionPointToStart(forOp1.getBody());
+    //convert index to f64
+    Value Indx1 = rewriter.create<arith::IndexCastUIOp>(loc, rewriter.getIntegerType(32), iv1);
+    Value i1 = rewriter.create<arith::UIToFPOp>(loc, rewriter.getF64Type(), Indx1);
+
+    //get sin(wc * (i1 - (N-1)/ 2))
+    Value iMinusMid1 = rewriter.create<arith::SubFOp>(loc, i1, Nminus1By2);
+    Value mulwc_iMinusMid1 = rewriter.create<arith::MulFOp>(loc, wc , iMinusMid1);  
+    Value GetSin1 = rewriter.create<math::SinOp>(loc, mulwc_iMinusMid1);
+
+    //get sin(i1 - (N-1)/ 2) / (i1 - (N-1)/ 2) * pi 
+    // get sin(wc*i1) / pi * i1
+
+    Value piMuliMinusMid1 = rewriter.create<arith::MulFOp>(loc, constpi , iMinusMid1);   
+    Value GetDiv1 = rewriter.create<arith::DivFOp>(loc, GetSin1 ,piMuliMinusMid1) ;
+    rewriter.create<AffineStoreOp>(loc, GetDiv1, alloc, ValueRange{iv1}); 
+    // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+    rewriter.setInsertionPointAfter(forOp1);
+
+    //debug
+    // forOpX->dump();
+    // forOpY->dump();
+
+
+        // %cst = arith.constant 6.2831853071800001 : f64
+        // %cst_0 = arith.constant 4.600000e-01 : f64
+        // %cst_1 = arith.constant 5.400000e-01 : f64
+        // %cst_2 = arith.constant 4.000000e+00 : f64
+        // %alloc = memref.alloc() : memref<4xf64>
+        // %alloc_3 = memref.alloc() : memref<f64>
+        // affine.store %cst_2, %alloc_3[] : memref<f64>
+        // affine.for %arg0 = 0 to 4 {
+        //   %0 = arith.index_castui %arg0 : index to i32
+        //   %1 = arith.uitofp %0 : i32 to f64
+        //   %2 = arith.mulf %1, %cst : f64
+        //   %3 = arith.divf %2, %cst_2 : f64
+        //   %4 = math.cos %3 : f64
+        //   %5 = arith.mulf %4, %cst_0 : f64
+        //   %6 = arith.subf %cst_1, %5 : f64
+        //   affine.store %6, %alloc[%arg0] : memref<4xf64>
+        // }
+
+
+        // }
+        // }
+    rewriter.replaceOp(op, alloc);
+      
+    return success();
+  }
+};
+
+
 //===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: SetElemAtIndx operations
 //===----------------------------------------------------------------------===//
@@ -3834,7 +3971,7 @@ void ToyToAffineLoweringPass::runOnOperation() {
                HammingWindowOpLowering, DCTOpLowering, filterOpLowering, DivOpLowering,
                SumOpLowering, SinOpLowering, CosOpLowering, SquareOpLowering,
                FFT1DRealOpLowering, FFT1DImgOpLowering, SincOpLowering, GetElemAtIndxOpLowering,
-               SetElemAtIndxOpLowering >(
+               SetElemAtIndxOpLowering ,LowPassFIRFilterOpLowering >(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the
