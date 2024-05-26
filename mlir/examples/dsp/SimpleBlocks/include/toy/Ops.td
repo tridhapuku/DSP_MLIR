@@ -1318,4 +1318,43 @@ def LowPassFIRFilterOp : Dsp_Op<"lowPassFIRFilter",
 }
 
 
+//===----------------------------------------------------------------------===//
+// HighPassFilter
+//===----------------------------------------------------------------------===//
+
+
+def HighPassFIRFilterOp : Dsp_Op<"highPassFIRFilter",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "highPassFIRFilter operation";
+  let description = [{
+   y_hpf[n] = dirac(n-(N-1)/2) - y_lpf[n] = -1 * wc/pi * sinc(wc * (n- (N-1)/2)) , n!= (N-1)/2 : 
+             = 1 - wc/pi , n = (N-1)/2
+    
+    The "highPassFIRFilter" operation gives the coefficients of high pass filter  for 
+    cut-off freq, wc= 2*pi*fc and filter order, N .. choose N=odd for symmetry
+    ex: N = odd for symmetry &  Output : y= [0.08,0.54,1,0.54] 
+  }];
+
+  let arguments = (ins F64Tensor:$wc, F64Tensor:$N);
+  let results = (outs F64Tensor);
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input) `)` attr-dict `to` type(results)
+  // }];
+
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input) `)` attr-dict `to` `(` type($real) `,` type($img) `)`
+  // }];
+
+  // Enable registering canonicalization patterns with this operation.
+  // let hasCanonicalizer = 1;
+
+  // Allow building a LowpassFilter with from the input operand.
+  let builders = [
+    OpBuilder<(ins "Value":$wc,"Value":$N)>
+  ];
+
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
+}
+
 #endif // TOY_OPS

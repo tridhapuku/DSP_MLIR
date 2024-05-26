@@ -10,18 +10,21 @@ def main() {
   #size 10
   var a10 = [ 10,20,30,40,50,60,70,80,90,100];
 
-  var N = 7;
+  var N = 5;
 
   # for cut-off freq
   var pi = 3.14159265359;
   var fc = 500;
   var Fs = 8000;
-  var wc = 2 * pi * fc / Fs;
+  var wc = 2 * pi * fc / Fs; #wc should vary from 0 to pi
 
   # var hid = sinc(wc, N);
   var lpf = lowPassFIRFilter(wc, N);
+  var hpf = highPassFIRFilter(wc, N);
   
   print(lpf);
+  print(hpf);
+  # print(hpf);
   # print(hid);
 
   # var ones = [1,1,1,1,1,1,1,1,1,1];
