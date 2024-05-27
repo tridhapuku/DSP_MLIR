@@ -870,10 +870,10 @@ def HammingWindowOp : Dsp_Op<"hamming",
     [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "hamming operation";
   let description = [{
-    y[n] = 0.54 - 0.46 cos(2 *pi * n/N) , 0<=n<N : Taking length as N 0 to N-1
+    y[n] = 0.54 - 0.46 cos(2 *pi * n/N-1) , 0<=n<N : Taking length as N 0 to N-1
     
     The "HammingWindow" operation calculates the 
-    ex: N = 4 &  Output : y= [0.08,0.54,1,0.54] 
+    ex: N = 5 &  Output : y= [0.080000 0.540000 1.000000 0.540000 0.0800004] 
     The shapes of the tensor operands are expected to match.
   }];
 

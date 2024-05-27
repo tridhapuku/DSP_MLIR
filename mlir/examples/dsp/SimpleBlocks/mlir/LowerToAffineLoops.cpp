@@ -2589,7 +2589,7 @@ struct HammingWindowOpLowering : public ConversionPattern {
     auto loc = op->getLoc();
     
     //Pseudo-code:
-      //  y[k] = 0.54 - 0.46 cos(2 *pi * k/N) , 0<=n<=N 
+      //  y[k] = 0.54 - 0.46 cos(2 *pi * k/N-1) , 0<=n<N 
     // DEBUG_PRINT_NO_ARGS() ;
 
     //output for result type
@@ -2629,19 +2629,19 @@ struct HammingWindowOpLowering : public ConversionPattern {
     Value k = rewriter.create<arith::UIToFPOp>(loc, rewriter.getF64Type(), IndxY);
 
 
-    //get 2*pi * k / N    
+    //get 2*pi * k / (N -1)  
     Value mul2pi_k = rewriter.create<arith::MulFOp>(loc, const2pi , k);  
 
     // getOperand().getType()
     // auto inputTensorType = llvm::cast<RankedTensorType>(op->getOperand(0).getType());
-    float LengthOfInput = (float) ub;
-    Value N = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
-                                                         rewriter.getF64FloatAttr(LengthOfInput));
+    float LengthOfInput = (float) ub ;
+    Value NMinus1 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(LengthOfInput - 1));
     
-    Value divIndxByN = rewriter.create<arith::DivFOp>(loc, mul2pi_k, N )  ;     
+    Value divIndxByNMinus1 = rewriter.create<arith::DivFOp>(loc, mul2pi_k, NMinus1 )  ;     
 
-    // get cos(2*pi * k/N)
-    Value GetCos = rewriter.create<math::CosOp>(loc, divIndxByN);
+    // get cos(2*pi * k/(N-1)
+    Value GetCos = rewriter.create<math::CosOp>(loc, divIndxByNMinus1);
     Value MulCos0_46 = rewriter.create<arith::MulFOp>(loc, constant0_46 , GetCos);   
     Value Sub0_54_Cos = rewriter.create<arith::SubFOp>(loc, constant0_54 ,MulCos0_46) ;
     rewriter.create<AffineStoreOp>(loc, Sub0_54_Cos, alloc, ValueRange{ivY}); 
