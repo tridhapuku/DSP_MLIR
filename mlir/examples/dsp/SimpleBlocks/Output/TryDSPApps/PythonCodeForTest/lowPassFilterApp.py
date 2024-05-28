@@ -4,11 +4,14 @@ from scipy.signal import freqz, lfilter
 
 # Signal parameters
 fs = 8000  # Sampling rate (Hz)
-t = np.arange(0, 0.05, 1.0/fs)  # Time vector (50 milliseconds for better visualization)
+# t = np.arange(0, 0.05, 1.0/fs)  # Time vector (50 milliseconds for better visualization)
+# print(t) 0.001125
+t = np.arange(0, 0.006375, 1.0/fs)
+print(len(t))
 # print(t)
-
-t1 = np.arange(0, 10, 2)
-print(t1)
+# t1 = np.arange(0, 10, 2)
+# print(t1)
+print(1.0/fs)
 # Generate a clean sine wave (signal frequency 500 Hz)
 f_signal = 500  # Signal frequency (Hz)
 clean_signal = np.sin(2 * np.pi * f_signal * t)
@@ -19,7 +22,7 @@ noise = 0.5 * np.sin(2 * np.pi * f_noise * t)
 
 # Add noise to the clean signal
 noisy_signal = clean_signal + noise
-
+# print(noisy_signal)
 # Design a low-pass FIR filter
 N = 51  # Filter length (must be odd for symmetry)
 cutoff_freq = 1000  # Cutoff frequency (Hz)
@@ -34,14 +37,17 @@ def ideal_lp(n, wc):
 
 # Create the low-pass filter coefficients
 h_lp = np.array([ideal_lp(n - (N-1)//2, wc) for n in range(N)])
-
+# print(h_lp)
 # Apply a Hamming window to the low-pass filter coefficients
 hamming_window = np.hamming(N)
+# print(np.hamming(5))
 h_lp_w = h_lp * hamming_window
-
+print(h_lp_w)
 # Apply the low-pass filter to the noisy signal
 filtered_signal = lfilter(h_lp_w, 1.0, noisy_signal)
-
+print(filtered_signal)
+print(len(filtered_signal))
+exit()
 # Plot the original, noisy, and filtered signals
 plt.figure(figsize=(12, 8))
 

@@ -9,7 +9,7 @@ def main() {
   # var filter = [10,20,30,40,50,60, 70, 80, 90 , 100];
 
   var input = [1,2];
-  var filter = [1,3];
+  var filter = [1,3,4];
 
   var output = FIRFilter(input , filter);
   print(output);
