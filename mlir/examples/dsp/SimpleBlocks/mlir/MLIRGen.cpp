@@ -589,6 +589,15 @@ private:
        return builder.create<HighPassFIRFilterOp>(location, operands[0], operands[1]);
     }
 
+    if(callee == "getRangeOfVector"){
+      if(call.getArgs().size() != 3){
+        emitError(location, "MLIR codegen encountered an error: dsp.getRangeOfVector "
+                            "accepts only 3 arguments");
+        return nullptr;
+      }
+      return builder.create<GetRangeOfVectorOp>(location, operands[0],operands[1], operands[2] );
+    }
+
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.
     // if(callee == "delay"){

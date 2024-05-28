@@ -1357,4 +1357,43 @@ def HighPassFIRFilterOp : Dsp_Op<"highPassFIRFilter",
   let hasVerifier = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// GetRangeOfVector
+//===----------------------------------------------------------------------===//
+
+
+def GetRangeOfVectorOp : Dsp_Op<"getRangeOfVector",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "getRangeOfVector operation";
+  let description = [{
+   y[n] = [first to N elements using step]  -- similar to np.arange(first,last,step)
+   But here, the difference is we are mentioning NoOfElements and not the last element
+    
+    The "getRangeOfVector" operation gives the vector from first to last --
+    Ex: y = getRangeOfVector(0,5,2) => y = [0 2 4 6 8]
+    
+  }];
+
+  let arguments = (ins F64Tensor:$first, F64Tensor:$N, F64Tensor:$step);
+  let results = (outs F64Tensor);
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input) `)` attr-dict `to` type(results)
+  // }];
+
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input) `)` attr-dict `to` `(` type($real) `,` type($img) `)`
+  // }];
+
+  // Enable registering canonicalization patterns with this operation.
+  // let hasCanonicalizer = 1;
+
+  // Allow building a LowpassFilter with from the input operand.
+  let builders = [
+    OpBuilder<(ins "Value":$first,"Value":$N, "Value":$step)>
+  ];
+
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
+}
+
 #endif // TOY_OPS

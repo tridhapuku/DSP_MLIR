@@ -1649,6 +1649,71 @@ mlir::LogicalResult HighPassFIRFilterOp::verify() {
   return mlir::success();
 }
 
+//===----------------------------------------------------------------------===//
+// GetRangeOfVectorOp
+//===----------------------------------------------------------------------===//
+
+void GetRangeOfVectorOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                        mlir::Value first, mlir::Value N, mlir::Value step) {
+  DEBUG_PRINT_NO_ARGS() ;
+  state.addTypes({UnrankedTensorType::get(builder.getF64Type())});
+  state.addOperands({first, N, step});
+  DEBUG_PRINT_NO_ARGS() ;
+}
+
+void GetRangeOfVectorOp::inferShapes() {
+  //for each rank
+  //Get the shape/size of input 
+  //output size = input_size 
+  // auto inputType = llvm::dyn_cast<RankedTensorType>(getN().getType());
+
+  // auto shapeOfInput = inputType.getShape();
+
+  std::vector<int64_t> shapeForOutput ;
+
+  int64_t GetLen = 1;
+
+  //To extract value from the SSA value:
+    //get the Operand 
+    //convert it to ConstantOp
+    //convert it to corresponding elements attribute
+    //extract the value as float then convert to int
+  DEBUG_PRINT_NO_ARGS();
+  Value inputLen = getOperand(1);
+  dsp::ConstantOp constantOp1stArg = inputLen.getDefiningOp<dsp::ConstantOp>();
+  DEBUG_PRINT_NO_ARGS();
+  DenseElementsAttr constantLhsValue = constantOp1stArg.getValue();
+  auto elements = constantLhsValue.getValues<FloatAttr>();
+  float LenN = elements[0].getValueAsDouble();
+  GetLen = (int64_t) LenN;
+  DEBUG_PRINT_WITH_ARGS(GetLen);
+  DEBUG_PRINT_WITH_ARGS("GetLen= " , GetLen);
+
+  shapeForOutput.push_back(GetLen);
+  mlir::TensorType outputType = mlir::RankedTensorType::get(shapeForOutput, 
+    getFirst().getType().getElementType());
+
+
+  getResult().setType(outputType);
+
+}
+
+mlir::LogicalResult GetRangeOfVectorOp::verify() {
+  DEBUG_PRINT_NO_ARGS() ;
+  // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
+  // auto inputRank = inputType.getRank();
+
+  // // llvm::errs() << "inputRank: " << inputRank << " alphaValueRank: " << alphaValueRank << "\n";
+  // //once ensured only 1 rank from above --   
+  // if( inputRank != 1 )
+  // {
+  //   llvm::errs() << "inputRank: " << inputRank <<  "\n";
+  //   return emitError()
+  //          << "expected rank of input  is 1";
+  // }
+  return mlir::success();
+}
+
 
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
