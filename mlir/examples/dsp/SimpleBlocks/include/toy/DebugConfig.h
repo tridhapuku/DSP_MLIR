@@ -5,6 +5,7 @@
 #include "llvm/Support/raw_ostream.h"  // Include for llvm::errs()
 
 // Enable or disable debug output
+// #define DEBUG_OUTPUT true
 #define DEBUG_OUTPUT false
 
 template<typename... Args>
