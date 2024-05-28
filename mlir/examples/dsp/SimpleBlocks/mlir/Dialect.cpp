@@ -620,18 +620,18 @@ void FIRFilterOp::inferShapes() {
 
 //get rank of Input & Filter -- make sure it is of rank 1 
 mlir::LogicalResult FIRFilterOp::verify() {
-  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
-  auto filterType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
-  // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+  // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
+  // auto filterType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
+  // // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
 
-  auto inputRank = inputType.getRank();
-  auto filterRank = filterType.getRank();
+  // auto inputRank = inputType.getRank();
+  // auto filterRank = filterType.getRank();
 
-  if( inputRank != 1 || filterRank != 1)
-  {
-    return emitError()
-           << "expected rank of input & filter is 1";
-  }
+  // if( inputRank != 1 || filterRank != 1)
+  // {
+  //   return emitError()
+  //          << "expected rank of input & filter is 1";
+  // }
 
   return mlir::success();
 } 
@@ -1145,18 +1145,18 @@ void filterOp::inferShapes() {
 
 //get rank of Input & Filter -- make sure it is of rank 1 
 mlir::LogicalResult filterOp::verify() {
-  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
-  auto filterType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
-  // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+  // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
+  // auto filterType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
+  // // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
 
-  auto inputRank = inputType.getRank();
-  auto filterRank = filterType.getRank();
+  // auto inputRank = inputType.getRank();
+  // auto filterRank = filterType.getRank();
 
-  if( inputRank != 1 || filterRank != 1)
-  {
-    return emitError()
-           << "expected rank of input & filter is 1";
-  }
+  // if( inputRank != 1 || filterRank != 1)
+  // {
+  //   return emitError()
+  //          << "expected rank of input & filter is 1";
+  // }
 
   return mlir::success();
 } 
@@ -1223,17 +1223,17 @@ mlir::LogicalResult SumOp::verify() {
 
  mlir::LogicalResult CosOp::verify() {
    // DEBUG_PRINT_NO_ARGS() ;
-   auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
-   auto inputRank = inputType.getRank();
+  //  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
+  //  auto inputRank = inputType.getRank();
 
-   // llvm::errs() << "inputRank: " << inputRank << " alphaValueRank: " << alphaValueRank << "\n";
-   //once ensured only 1 rank from above --   
-   if( inputRank != 1 )
-   {
-     llvm::errs() << "inputRank: " << inputRank <<  "\n";
-     return emitError()
-            << "expected rank of input  is 1";
-   }
+  //  // llvm::errs() << "inputRank: " << inputRank << " alphaValueRank: " << alphaValueRank << "\n";
+  //  //once ensured only 1 rank from above --   
+  //  if( inputRank != 1 )
+  //  {
+  //    llvm::errs() << "inputRank: " << inputRank <<  "\n";
+  //    return emitError()
+  //           << "expected rank of input  is 1";
+  //  }
    return mlir::success();
  }
 
@@ -1261,17 +1261,17 @@ mlir::LogicalResult SumOp::verify() {
 
  mlir::LogicalResult SinOp::verify() {
    // DEBUG_PRINT_NO_ARGS() ;
-   auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
-   auto inputRank = inputType.getRank();
+  //  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
+  //  auto inputRank = inputType.getRank();
 
-   // llvm::errs() << "inputRank: " << inputRank << " alphaValueRank: " << alphaValueRank << "\n";
-   //once ensured only 1 rank from above --   
-   if( inputRank != 1 )
-   {
-     llvm::errs() << "inputRank: " << inputRank <<  "\n";
-     return emitError()
-            << "expected rank of input  is 1";
-   }
+  //  // llvm::errs() << "inputRank: " << inputRank << " alphaValueRank: " << alphaValueRank << "\n";
+  //  //once ensured only 1 rank from above --   
+  //  if( inputRank != 1 )
+  //  {
+  //    llvm::errs() << "inputRank: " << inputRank <<  "\n";
+  //    return emitError()
+  //           << "expected rank of input  is 1";
+  //  }
    return mlir::success();
  }
 

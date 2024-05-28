@@ -333,7 +333,8 @@ void DelayOp::getCanonicalizationPatterns(RewritePatternSet &results,
 
 void GainOp::getCanonicalizationPatterns(RewritePatternSet &results, 
                                               MLIRContext *context) {
-  results.add<SimplifyBack2BackGain, SimplifyGainwZero>(context);
+  // results.add<SimplifyBack2BackGain, SimplifyGainwZero>(context);
+  results.add<SimplifyBack2BackGain>(context);
 }
 
 /// Register our patterns as "canonicalization" patterns on the ReshapeOp so
