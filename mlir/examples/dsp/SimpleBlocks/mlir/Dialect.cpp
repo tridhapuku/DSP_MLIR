@@ -1540,7 +1540,7 @@ void LowPassFIRFilterOp::inferShapes() {
 
   std::vector<int64_t> shapeForOutput ;
 
-  int64_t GetLen = 1;
+  uint64_t GetLen = 1;
 
   //To extract value from the SSA value:
     //get the Operand 
@@ -1554,9 +1554,12 @@ void LowPassFIRFilterOp::inferShapes() {
   DenseElementsAttr constantLhsValue = constantOp1stArg.getValue();
   auto elements = constantLhsValue.getValues<FloatAttr>();
   float LenN = elements[0].getValueAsDouble();
-  GetLen = (int64_t) LenN;
+  GetLen = (uint64_t) LenN;
   DEBUG_PRINT_WITH_ARGS(GetLen);
   DEBUG_PRINT_WITH_ARGS("GetLen= " , GetLen);
+  
+  //int64_t N = tensorType.getShape()[0];  
+
 
   shapeForOutput.push_back(GetLen);
   mlir::TensorType outputType = mlir::RankedTensorType::get(shapeForOutput, 
@@ -1568,18 +1571,32 @@ void LowPassFIRFilterOp::inferShapes() {
 }
 
 mlir::LogicalResult LowPassFIRFilterOp::verify() {
-  DEBUG_PRINT_NO_ARGS() ;
-  // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
-  // auto inputRank = inputType.getRank();
+  uint64_t GetLen = 1;
 
-  // // llvm::errs() << "inputRank: " << inputRank << " alphaValueRank: " << alphaValueRank << "\n";
-  // //once ensured only 1 rank from above --   
-  // if( inputRank != 1 )
-  // {
-  //   llvm::errs() << "inputRank: " << inputRank <<  "\n";
-  //   return emitError()
-  //          << "expected rank of input  is 1";
-  // }
+  //To extract value from the SSA value:
+    //get the Operand 
+    //convert it to ConstantOp
+    //convert it to corresponding elements attribute
+    //extract the value as float then convert to int
+  DEBUG_PRINT_NO_ARGS();
+  Value inputLen = getOperand(1);
+  dsp::ConstantOp constantOp1stArg = inputLen.getDefiningOp<dsp::ConstantOp>();
+  DEBUG_PRINT_NO_ARGS();
+  DenseElementsAttr constantLhsValue = constantOp1stArg.getValue();
+  auto elements = constantLhsValue.getValues<FloatAttr>();
+  float LenN = elements[0].getValueAsDouble();
+  GetLen = (uint64_t) LenN;
+  DEBUG_PRINT_WITH_ARGS(GetLen);
+  DEBUG_PRINT_WITH_ARGS("GetLen= " , GetLen);
+  
+  //filter-order even not supported -- so making it odd
+  if(GetLen % 2 == 0 )
+  {
+    // GetLen = GetLen + 1;
+    llvm::errs() << "N for lowPassFilter must be odd but is " << GetLen << "\n";
+    // DEBUG_PRINT_WITH_ARGS("Making LowPassFilterLen Odd= " , GetLen); 
+    return mlir::failure(); 
+  }
   return mlir::success();
 }
 
@@ -1714,6 +1731,87 @@ mlir::LogicalResult GetRangeOfVectorOp::verify() {
   return mlir::success();
 }
 
+//===----------------------------------------------------------------------===//
+// FIRFilterHammingOptimizedOp
+//===----------------------------------------------------------------------===//
+
+void FIRFilterHammingOptimizedOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                        mlir::Value wc, mlir::Value n) {
+  DEBUG_PRINT_NO_ARGS() ;
+  state.addTypes({UnrankedTensorType::get(builder.getF64Type())});
+  state.addOperands({wc, n});
+  DEBUG_PRINT_NO_ARGS() ;
+}
+
+void FIRFilterHammingOptimizedOp::inferShapes() {
+  //for each rank
+  //Get the shape/size of input 
+  //output size = input_size 
+  // auto inputType = llvm::dyn_cast<RankedTensorType>(getN().getType());
+
+  // auto shapeOfInput = inputType.getShape();
+
+  std::vector<int64_t> shapeForOutput ;
+
+  uint64_t GetLen = 1;
+
+  //To extract value from the SSA value:
+    //get the Operand 
+    //convert it to ConstantOp
+    //convert it to corresponding elements attribute
+    //extract the value as float then convert to int
+  DEBUG_PRINT_NO_ARGS();
+  Value inputLen = getOperand(1);
+  dsp::ConstantOp constantOp1stArg = inputLen.getDefiningOp<dsp::ConstantOp>();
+  DEBUG_PRINT_NO_ARGS();
+  DenseElementsAttr constantLhsValue = constantOp1stArg.getValue();
+  auto elements = constantLhsValue.getValues<FloatAttr>();
+  float LenN = elements[0].getValueAsDouble();
+  GetLen = (uint64_t) LenN;
+  DEBUG_PRINT_WITH_ARGS(GetLen);
+  DEBUG_PRINT_WITH_ARGS("GetLen= " , GetLen);
+  
+  //int64_t N = tensorType.getShape()[0];  
+
+
+  shapeForOutput.push_back(GetLen);
+  mlir::TensorType outputType = mlir::RankedTensorType::get(shapeForOutput, 
+    getWc().getType().getElementType());
+
+
+  getResult().setType(outputType);
+
+}
+
+mlir::LogicalResult FIRFilterHammingOptimizedOp::verify() {
+  uint64_t GetLen = 1;
+
+  //To extract value from the SSA value:
+    //get the Operand 
+    //convert it to ConstantOp
+    //convert it to corresponding elements attribute
+    //extract the value as float then convert to int
+  DEBUG_PRINT_NO_ARGS();
+  Value inputLen = getOperand(1);
+  dsp::ConstantOp constantOp1stArg = inputLen.getDefiningOp<dsp::ConstantOp>();
+  DEBUG_PRINT_NO_ARGS();
+  DenseElementsAttr constantLhsValue = constantOp1stArg.getValue();
+  auto elements = constantLhsValue.getValues<FloatAttr>();
+  float LenN = elements[0].getValueAsDouble();
+  GetLen = (uint64_t) LenN;
+  DEBUG_PRINT_WITH_ARGS(GetLen);
+  DEBUG_PRINT_WITH_ARGS("GetLen= " , GetLen);
+  
+  //filter-order even not supported -- so making it odd
+  if(GetLen % 2 == 0 )
+  {
+    // GetLen = GetLen + 1;
+    llvm::errs() << "N for lowPassFilter must be odd but is " << GetLen << "\n";
+    // DEBUG_PRINT_WITH_ARGS("Making LowPassFilterLen Odd= " , GetLen); 
+    return mlir::failure(); 
+  }
+  return mlir::success();
+}
 
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions

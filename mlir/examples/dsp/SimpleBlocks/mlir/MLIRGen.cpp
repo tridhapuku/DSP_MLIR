@@ -598,6 +598,16 @@ private:
       return builder.create<GetRangeOfVectorOp>(location, operands[0],operands[1], operands[2] );
     }
 
+    // FIRHammingOptimizedOp
+    if(callee == "FIRFilterHammingOptimized"){
+       if(call.getArgs().size() != 2){
+         emitError(location, "MLIR codegen encountered an error: dsp.FIRFilterHammingOptimized "
+                             "accepts only 2 arguments");
+         return nullptr;
+       }
+       return builder.create<FIRFilterHammingOptimizedOp>(location, operands[0], operands[1]);
+    }
+
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.
     // if(callee == "delay"){
