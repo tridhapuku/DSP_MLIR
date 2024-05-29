@@ -92,18 +92,18 @@ struct SimplifyUpsamplingDownsampling : public mlir::OpRewritePattern<Downsampli
 
     //get constant value from the downsamplingOp -- operand1
     dsp::ConstantOp constant_Op1_downsamplingOp = downsamplingOperand1_Rate.getDefiningOp<dsp::ConstantOp>();
-  	// llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+  	// DEBUG_PRINT_NO_ARGS();
     DenseElementsAttr DenseValueFrmDownsampling = constant_Op1_downsamplingOp.getValue();
-  	// llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+  	// DEBUG_PRINT_NO_ARGS();
     auto elements = DenseValueFrmDownsampling.getValues<FloatAttr>();
     float FirstValue = elements[0].getValueAsDouble();
     int64_t DownsamplingRate = (int64_t) FirstValue;
 
     //Get constant value from upsampling: -- operand1
     dsp::ConstantOp constant_Op1_upSamplingOp = UpsamplingOperand1_Rate.getDefiningOp<dsp::ConstantOp>();
-  	// llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+  	// DEBUG_PRINT_NO_ARGS();
     DenseElementsAttr DenseValueFrmUpsampling = constant_Op1_upSamplingOp.getValue();
-  	// llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+  	// DEBUG_PRINT_NO_ARGS();
     elements = DenseValueFrmUpsampling.getValues<FloatAttr>();
     FirstValue = elements[0].getValueAsDouble();
     int64_t UpsamplingRate = (int64_t) FirstValue;
@@ -244,7 +244,7 @@ struct SimplifyFFTSquare : public mlir::OpRewritePattern<SquareOp> {
     // mlir::Value squareOperand1_Rate = op.getOperand(1);
     mlir::Value squareOperand0_input = op.getInput();
     dsp::FFT1DOp prev_FFT1DOp = squareOperand0_input.getDefiningOp<FFT1DOp>();
-    // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+    // DEBUG_PRINT_NO_ARGS();
     // Input defined by another FFT1D? If not, no match.
     if (!prev_FFT1DOp)
       return failure();
@@ -256,7 +256,7 @@ struct SimplifyFFTSquare : public mlir::OpRewritePattern<SquareOp> {
   	mlir::Value prev_FFT1DOp_Operand = prev_FFT1DOp.getInput();
   	auto fft1drealOp1 = rewriter.create<FFT1DRealOp>(op.getLoc(),
                           prev_FFT1DOp_Operand );
-    // llvm::errs() << "LINE " << __LINE__ << " file= " << __FILE__ << "\n" ;
+    // DEBUG_PRINT_NO_ARGS();
   	auto SquareOp1 = rewriter.create<SquareOp>(op.getLoc(), fft1drealOp1);
 
     rewriter.replaceOp(op, SquareOp1);
@@ -304,8 +304,60 @@ struct SimplifyGainwZero: public mlir::OpRewritePattern<GainOp>{
     }
 };
 
+// Pseudo-code
+// if operands of MulOp are coming from lowPassFIRFilter & hamming 
+// then replace the MulOp with the symmetrical operation
+struct SimplifyFilterMulHamming : public mlir::OpRewritePattern<MulOp> {
+  /// We register this pattern to match every dsp.downsampling in the IR.
+  /// The "benefit" is used by the framework to order the patterns and process
+  /// them in order of profitability.
+  SimplifyFilterMulHamming(mlir::MLIRContext *context)
+      : OpRewritePattern<MulOp>(context, /*benefit=*/1) {}
+
+  /// This method attempts to match a pattern and rewrite it. The rewriter
+  /// argument is the orchestrator of the sequence of rewrites. The pattern is
+  /// expected to interact with it to perform any changes to the IR from here.
+  mlir::LogicalResult
+  matchAndRewrite(MulOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    // Get the operands operation from MulFOp
+    // check if op0 is Low/HighPassFIRFilterOp & op1 is HammingWindowOp
+    // if this true then get the operands of op0 ie, Low/HighPassFIRFilterOp
+    // use these operands to form FIRHammingOptimizedOp
+    // mlir::Value squareOperand1_Rate = op.getOperand(1);
+    mlir::Value mulOperand0_input = op.getLhs();
+    mlir::Value mulOperand1_Rhs = op.getRhs();
+    dsp::LowPassFIRFilterOp op_LowPassFIRFilterOp = mulOperand0_input.getDefiningOp<LowPassFIRFilterOp>();
+    dsp::HammingWindowOp op_HammingWindowOp = mulOperand1_Rhs.getDefiningOp<HammingWindowOp>();
+
+    DEBUG_PRINT_NO_ARGS();
+    // Inputs are LowPassFIRFilterOp && HammingWindowOp => If not, no match.
+    if (!op_LowPassFIRFilterOp || !op_HammingWindowOp)
+      return failure();
+
+    //Replace fft1d with fft1dreal
+    DEBUG_PRINT_WITH_ARGS( mulOperand0_input) ;
+    DEBUG_PRINT_WITH_ARGS( "SimplifyFilterMulHamming - ConditionMet") ;
+    DEBUG_PRINT_NO_ARGS() ;
+    mlir::Value LowPassFIRFilterOperand_wc = op_LowPassFIRFilterOp.getWc();
+    mlir::Value LowPassFIRFilterOperand_N = op_LowPassFIRFilterOp.getN();
+
+    auto firFilterHammingOptimized = rewriter.create<FIRFilterHammingOptimizedOp>(op.getLoc(),
+                          LowPassFIRFilterOperand_wc, LowPassFIRFilterOperand_N );
+    DEBUG_PRINT_NO_ARGS();
+    
+    rewriter.replaceOp(op, firFilterHammingOptimized);
+    return mlir::success();
+  }
+};
+
 /// Register our patterns as "canonicalization" patterns on the TransposeOp so
 /// that they can be picked up by the Canonicalization framework.
+void MulOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                              MLIRContext *context){
+  results.add<SimplifyFilterMulHamming>(context);
+}
+
 void SquareOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                               MLIRContext *context){
   results.add<SimplifyFFTSquare>(context);

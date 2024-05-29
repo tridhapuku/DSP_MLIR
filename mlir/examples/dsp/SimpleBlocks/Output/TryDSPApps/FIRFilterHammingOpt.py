@@ -24,12 +24,12 @@ def main() {
   # calculation 
   var lpf = lowPassFIRFilter(wc, N); #ideal low -pass filter
   var lpf_w = lpf * hamming(N);
-  var lpf_w2 = FIRFilterHammingOptimized(wc, N);
+  # var lpf_w2 = FIRFilterHammingOptimized(wc, N);
   # var hpf = highPassFIRFilter(wc, N); #ideal high-pass filter
   # var hpf_w = hpf * hamming(N);
   # var 
   # print(hamming(5));
-  print(lpf_w2);
+  # print(lpf_w2);
   print(lpf_w);
   # print(hpf_w);
   # print(hpf);

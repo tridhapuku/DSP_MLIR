@@ -257,6 +257,8 @@ def MulOp : Dsp_Op<"mul",
   let builders = [
     OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
   ];
+
+  let hasCanonicalizer = 1;
 }
 
 
