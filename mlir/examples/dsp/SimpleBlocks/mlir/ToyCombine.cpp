@@ -325,9 +325,9 @@ struct SimplifyFilterMulHamming : public mlir::OpRewritePattern<MulOp> {
     // if this true then get the operands of op0 ie, Low/HighPassFIRFilterOp
     // use these operands to form FIRHammingOptimizedOp
     // mlir::Value squareOperand1_Rate = op.getOperand(1);
-    mlir::Value mulOperand0_input = op.getLhs();
+    mlir::Value mulOperand0_Lhs = op.getLhs();
     mlir::Value mulOperand1_Rhs = op.getRhs();
-    dsp::LowPassFIRFilterOp op_LowPassFIRFilterOp = mulOperand0_input.getDefiningOp<LowPassFIRFilterOp>();
+    dsp::LowPassFIRFilterOp op_LowPassFIRFilterOp = mulOperand0_Lhs.getDefiningOp<LowPassFIRFilterOp>();
     dsp::HammingWindowOp op_HammingWindowOp = mulOperand1_Rhs.getDefiningOp<HammingWindowOp>();
 
     DEBUG_PRINT_NO_ARGS();
@@ -336,7 +336,7 @@ struct SimplifyFilterMulHamming : public mlir::OpRewritePattern<MulOp> {
       return failure();
 
     //Replace fft1d with fft1dreal
-    DEBUG_PRINT_WITH_ARGS( mulOperand0_input) ;
+    DEBUG_PRINT_WITH_ARGS( mulOperand0_Lhs) ;
     DEBUG_PRINT_WITH_ARGS( "SimplifyFilterMulHamming - ConditionMet") ;
     DEBUG_PRINT_NO_ARGS() ;
     mlir::Value LowPassFIRFilterOperand_wc = op_LowPassFIRFilterOp.getWc();
@@ -351,11 +351,58 @@ struct SimplifyFilterMulHamming : public mlir::OpRewritePattern<MulOp> {
   }
 };
 
+// Pseudo-code
+// if operands of MulOp are coming from highPassFIRFilter & hamming 
+// then replace the MulOp with the symmetrical operation
+struct SimplifyHighPassFIRHamming : public mlir::OpRewritePattern<MulOp> {
+  /// We register this pattern to match every dsp.downsampling in the IR.
+  /// The "benefit" is used by the framework to order the patterns and process
+  /// them in order of profitability.
+  SimplifyHighPassFIRHamming(mlir::MLIRContext *context)
+      : OpRewritePattern<MulOp>(context, /*benefit=*/1) {}
+
+  /// This method attempts to match a pattern and rewrite it. The rewriter
+  /// argument is the orchestrator of the sequence of rewrites. The pattern is
+  /// expected to interact with it to perform any changes to the IR from here.
+  mlir::LogicalResult
+  matchAndRewrite(MulOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    // Get the operands operation from MulFOp
+    // check if op0 is Low/HighPassFIRFilterOp & op1 is HammingWindowOp
+    // if this true then get the operands of op0 ie, Low/HighPassFIRFilterOp
+    // use these operands to form FIRHammingOptimizedOp
+    // mlir::Value squareOperand1_Rate = op.getOperand(1);
+    mlir::Value mulOperand0_Lhs = op.getLhs();
+    mlir::Value mulOperand1_Rhs = op.getRhs();
+    dsp::HighPassFIRFilterOp op_HighPassFIRFilterOp = mulOperand0_Lhs.getDefiningOp<HighPassFIRFilterOp>();
+    dsp::HammingWindowOp op_HammingWindowOp = mulOperand1_Rhs.getDefiningOp<HammingWindowOp>();
+
+    DEBUG_PRINT_NO_ARGS();
+    // Inputs are HighPassFIRFilterOp && HammingWindowOp => If not, no match.
+    if (!op_HighPassFIRFilterOp || !op_HammingWindowOp)
+      return failure();
+
+    //Replace fft1d with fft1dreal
+    DEBUG_PRINT_WITH_ARGS( mulOperand0_Lhs) ;
+    DEBUG_PRINT_WITH_ARGS( "SimplifyHighPassFIRHamming - ConditionMet") ;
+    DEBUG_PRINT_NO_ARGS() ;
+    mlir::Value HighPassFIRFilterOperand_wc = op_HighPassFIRFilterOp.getWc();
+    mlir::Value HighPassFIRFilterOperand_N = op_HighPassFIRFilterOp.getN();
+
+    auto highPassFIRHammingOptimized = rewriter.create<HighPassFIRHammingOptimizedOp>(op.getLoc(),
+                          HighPassFIRFilterOperand_wc, HighPassFIRFilterOperand_N );
+    DEBUG_PRINT_NO_ARGS();
+    
+    rewriter.replaceOp(op, highPassFIRHammingOptimized);
+    return mlir::success();
+  }
+};
+
 /// Register our patterns as "canonicalization" patterns on the TransposeOp so
 /// that they can be picked up by the Canonicalization framework.
 void MulOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                               MLIRContext *context){
-  results.add<SimplifyFilterMulHamming>(context);
+  results.add<SimplifyFilterMulHamming ,SimplifyHighPassFIRHamming >(context);
 }
 
 void SquareOp::getCanonicalizationPatterns(RewritePatternSet &results,
