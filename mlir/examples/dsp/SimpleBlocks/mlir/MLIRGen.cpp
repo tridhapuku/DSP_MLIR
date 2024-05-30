@@ -608,6 +608,16 @@ private:
        return builder.create<FIRFilterHammingOptimizedOp>(location, operands[0], operands[1]);
     }
 
+    // HighPassFIRHammingOptimizedOp
+    if(callee == "highPassFIRHammingOptimized"){
+       if(call.getArgs().size() != 2){
+         emitError(location, "MLIR codegen encountered an error: dsp.HighPassFIRHammingOptimizedOp "
+                             "accepts only 2 arguments");
+         return nullptr;
+       }
+       return builder.create<HighPassFIRHammingOptimizedOp>(location, operands[0], operands[1]);
+    }
+
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.
     // if(callee == "delay"){

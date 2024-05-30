@@ -1125,6 +1125,162 @@ namespace {
 //Lowering code 
 
 //===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: HighPassFIRHammingOptimizedOp operations
+//===----------------------------------------------------------------------===//
+
+struct HighPassFIRHammingOptimizedOpLowering : public ConversionPattern {
+  HighPassFIRHammingOptimizedOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::HighPassFIRHammingOptimizedOp::getOperationName(), 1, ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
+    
+    //Pseudo-code:
+      // y_highFIRHamming[n] = -1 * [wc/pi * sinc(wc * (n- (N-1)/2))] * [0.54 - 0.46 cos(2 *pi * n/N-1)], 0<= n < (N-1)/2 : 
+           // = 1 - wc/pi , n = (N-1)/2
+
+           // and also, y_FIRHamming[N-1-n] = y[n] ie, store at n and also at N-1-n 
+
+      // 1 loops : first from 0 <= n < (N-1)/2 - 1
+      //     
+
+    //output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));  
+     
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+    
+    //construct affine loops for the input
+    SmallVector<int64_t, 4> lowerBounds(tensorType.getRank(), /*Value*/0);
+    SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);    
+    
+
+    //first from 0 <= i < (N-1)/2 - 1
+    int64_t lb = 0 ;
+    int64_t N = tensorType.getShape()[0];   
+    int64_t ub = (N-1) / 2 ;
+    int64_t step = 1;
+
+    DEBUG_PRINT_NO_ARGS();
+    HighPassFIRHammingOptimizedOpAdaptor highPassFIRHammingOptimizedOpAdaptor(operands);
+    //Handle middle y[mid] = wc / pi
+    int64_t midIndx = ub ;
+    Value constantIndxMid = rewriter.create<arith::ConstantIndexOp>(loc, midIndx);
+    // rewriter.create<AffineStoreOp>(loc, constant0, alloc, ValueRange{constantIndx0});
+    Value wc = rewriter.create<AffineLoadOp>(loc, highPassFIRHammingOptimizedOpAdaptor.getWc(), ValueRange{});
+    Value constant1 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(1));
+    Value constantMinus1 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(-1));
+    Value constpi = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(3.14159265359));
+    Value wcByPi = rewriter.create<arith::DivFOp>(loc, wc, constpi);
+    Value OneMinusWcByPi = rewriter.create<arith::SubFOp>(loc, constant1, wcByPi); 
+    rewriter.create<AffineStoreOp>(loc, OneMinusWcByPi, alloc, ValueRange{constantIndxMid});
+
+    //first from 0 <= i < (N-1)/2 - 1
+
+    //calculate i-(N-1)/2 
+
+    Value Nminus1By2 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr((float) ub));
+    
+    //calculate 0.54 - 0.46 cos(2 *pi * n/N-1)
+    Value constant0_54 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(0.54));
+    Value constant0_46 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(0.46));
+    Value const2pi = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(6.28318530718));
+    Value NMinus1 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr((float) N - 1));
+
+    affine::AffineForOp forOpY = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto ivY = forOpY.getInductionVar();
+    rewriter.setInsertionPointToStart(forOpY.getBody());
+    //convert index to f64
+    Value IndxY = rewriter.create<arith::IndexCastUIOp>(loc, rewriter.getIntegerType(32), ivY);
+    Value i = rewriter.create<arith::UIToFPOp>(loc, rewriter.getF64Type(), IndxY);
+
+    //get sin(wc * (i - (N-1)/ 2))
+    Value iMinusMid = rewriter.create<arith::SubFOp>(loc, i, Nminus1By2);
+    Value mulwc_iMinusMid = rewriter.create<arith::MulFOp>(loc, wc , iMinusMid);  
+
+    Value GetSin = rewriter.create<math::SinOp>(loc, mulwc_iMinusMid);
+        
+    // sin(wc*(i-(N-1)/2)) / pi * (i-(N-1)/2)
+
+    Value piMuliMinusMid = rewriter.create<arith::MulFOp>(loc, constpi , iMinusMid);   
+    Value GetDiv = rewriter.create<arith::DivFOp>(loc, GetSin ,piMuliMinusMid) ;
+
+    // [sin(wc*(i-(N-1)/2)) / pi * (i-(N-1)/2)] * [0.54-0.46 cos(2*pi*i/N-1)
+
+    //get 2*pi * k / (N -1)
+    Value mul2pi_k = rewriter.create<arith::MulFOp>(loc, const2pi , i);  
+    Value divIndxByNMinus1 = rewriter.create<arith::DivFOp>(loc, mul2pi_k, NMinus1 )  ;     
+
+    // get cos(2*pi * k/(N-1)
+    Value GetCos = rewriter.create<math::CosOp>(loc, divIndxByNMinus1);
+    Value MulCos0_46 = rewriter.create<arith::MulFOp>(loc, constant0_46 , GetCos);   
+    Value Sub0_54_Cos = rewriter.create<arith::SubFOp>(loc, constant0_54 ,MulCos0_46) ;
+
+    //Multiply Sub0_54_Cos and GetDiv -- sin(wc*(i-(N-1)/2)) / pi * (i-(N-1)/2)
+    Value MulFilterHamming = rewriter.create<arith::MulFOp>(loc, GetDiv , Sub0_54_Cos);
+    Value MulByMinus1 = rewriter.create<arith::MulFOp>(loc, constantMinus1 ,MulFilterHamming) ;
+    rewriter.create<AffineStoreOp>(loc, MulByMinus1, alloc, ValueRange{ivY}); 
+    
+    //also , store same value at N-1-i using affine-Map
+    //For affine expression: #map1 = affine_map<(%arg0)[N] : (N - 1 -%arg0)
+    AffineExpr d0, s0;
+    bindDims(rewriter.getContext(), d0);
+    bindSymbols(rewriter.getContext(), s0);
+    //calulate N - 1 - i
+    AffineExpr ExprForNMinus1minusI = s0 - d0 ;
+    AffineMap addMapForNMinus1minusI = AffineMap::get(1, 1, ExprForNMinus1minusI);
+
+    //store at N-1-i index , result
+    Value constantNMinus1Indx = rewriter.create<arith::ConstantIndexOp>(loc, N -1);
+    rewriter.create<AffineStoreOp>(loc, MulByMinus1, alloc, addMapForNMinus1minusI, 
+                  ValueRange{ivY,constantNMinus1Indx});
+    rewriter.setInsertionPointAfter(forOpY);
+
+    //debug
+    // forOpX->dump();
+    // forOpY->dump();
+
+
+    // affine.for %arg0 = 0 to 3 {
+    //   %12 = arith.index_castui %arg0 : index to i32
+    //   %13 = arith.uitofp %12 : i32 to f64
+    //   %14 = arith.subf %13, %cst_3 : f64
+    //   %15 = arith.mulf %9, %14 : f64
+    //   %16 = math.sin %15 : f64
+    //   %17 = arith.mulf %14, %cst_9 : f64
+    //   %18 = arith.divf %16, %17 : f64
+    //   %19 = arith.mulf %13, %cst_0 : f64
+    //   %20 = arith.divf %19, %cst : f64
+    //   %21 = math.cos %20 : f64
+    //   %22 = arith.mulf %21, %cst_1 : f64
+    //   %23 = arith.subf %cst_2, %22 : f64
+    //   %24 = arith.mulf %18, %23 : f64
+    //   %25 = arith.mulf %24, %cst_4 : f64
+    //   affine.store %25, %alloc[%arg0] : memref<7xf64>
+    //   affine.store %25, %alloc[-%arg0 + 6] : memref<7xf64>
+    // }
+
+
+        // }
+        // }
+    rewriter.replaceOp(op, alloc);
+      
+    return success();
+  }
+};
+
+//===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: FIRFilterHammingOptimizedOp operations
 //===----------------------------------------------------------------------===//
 
@@ -4053,7 +4209,7 @@ struct GainOpLowering: public ConversionPattern {
 
     // Value gain = gainOpOpAdaptor.getRhs();
     
-    DEBUG_PRINT_WITH_ARGS("FirstValue is" , gain);
+    DEBUG_PRINT_NO_ARGS();
 
     //first from 1 <= i < N
     int64_t lb = 0 ;
@@ -4415,7 +4571,7 @@ void ToyToAffineLoweringPass::runOnOperation() {
                SumOpLowering, SinOpLowering, CosOpLowering, SquareOpLowering,
                FFT1DRealOpLowering, FFT1DImgOpLowering, SincOpLowering, GetElemAtIndxOpLowering,
                SetElemAtIndxOpLowering ,LowPassFIRFilterOpLowering, HighPassFIRFilterOpLowering,
-               GetRangeOfVectorOpLowering, FIRFilterHammingOptimizedOpLowering >(
+               GetRangeOfVectorOpLowering, FIRFilterHammingOptimizedOpLowering, HighPassFIRHammingOptimizedOpLowering >(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the

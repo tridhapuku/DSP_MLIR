@@ -1441,4 +1441,47 @@ def FIRFilterHammingOptimizedOp : Dsp_Op<"FIRFilterHammingOptimized",
   let hasVerifier = 1;
 }
 
+
+//===----------------------------------------------------------------------===//
+// HighPassFIRHammingOptimizedOp
+//===----------------------------------------------------------------------===//
+
+
+def HighPassFIRHammingOptimizedOp : Dsp_Op<"highPassFIRHammingOptimizedOp",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "highPassFIRHammingOptimizedOp operation";
+  let description = [{
+    y_highFIRHamming[n] = -1 * [wc/pi * sinc(wc * (n- (N-1)/2))] * [0.54 - 0.46 cos(2 *pi * n/N-1)], 0<= n < (N-1)/2 : 
+             = 1 - wc/pi , n = (N-1)/2
+
+             and also, y_FIRHamming[N-1-n] = y[n]
+    
+    The "highPassFIRHammingOptimizedOp" operation is the fusion of 2 operations and symmetry behaviour
+    ex: N = odd for symmetry &  Output for wc=2*pi*1/8 , N = 7 : y= [-0.006002 -0.049338 -0.173311 0.750000 -0.173311 -0.049338 -0.00600]
+    
+  }];
+
+  let arguments = (ins F64Tensor:$wc, F64Tensor:$n);
+  // let results = (outs F64Tensor:$real, F64Tensor:$img); //(ins F64Tensor:$lhs, F64Tensor:$rhs);
+  let results = (outs F64Tensor);
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input) `)` attr-dict `to` type(results)
+  // }];
+
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input) `)` attr-dict `to` `(` type($real) `,` type($img) `)`
+  // }];
+
+  // Enable registering canonicalization patterns with this operation.
+  // let hasCanonicalizer = 1;
+
+  // Allow building a LowpassFilter with from the input operand.
+  let builders = [
+    OpBuilder<(ins "Value":$wc,"Value":$n)>
+  ];
+
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
+}
+
 #endif // TOY_OPS
