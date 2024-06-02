@@ -1321,6 +1321,40 @@ def LowPassFIRFilterOp : Dsp_Op<"lowPassFIRFilter",
 
 
 //===----------------------------------------------------------------------===//
+// LMSFilterOp
+//===----------------------------------------------------------------------===//
+
+
+def LMSFilterOp : Dsp_Op<"lmsFilter",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "LMS filter";
+  let description = [{
+    When you select LMS for the Algorithm parameter, the block calculates the filter weights by using the least mean-square (LMS) algorithm. This algorithm is defined by these equations.
+    y(n)=wT(n−1)u(n)
+    e(n)=d(n)−y(n)
+    w(n)=αw(n−1)+f(u(n),e(n),μ)
+  }];
+
+  let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs);
+   let results = (outs F64Tensor);
+  /// Indicate that the operation has a custom parser and printer method.
+   // let hasCustomAssemblyFormat = 1;
+   // let assemblyFormat = [{
+   //   `(` $input `:` type($input1 , $input2) `)` attr-dict `to` type(results)
+   // }];
+   // Allow building a MulOp with from the two input operands.
+   let builders = [
+     OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+   ];
+
+   // Indicate that the operation has a custom parser and printer method.
+   // let hasCustomAssemblyFormat = 1;
+
+   // let hasVerifier = 1;
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
 // HighPassFilter
 //===----------------------------------------------------------------------===//
 
