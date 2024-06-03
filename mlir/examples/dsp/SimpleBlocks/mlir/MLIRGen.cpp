@@ -628,6 +628,16 @@ private:
       return builder.create<LMSFilterOp>(location, operands[0] , operands[1] );
     }
 
+    if(callee == "threshold"){
+       if(call.getArgs().size() != 2){
+         emitError(location, "MLIR codegen encountered an error: dsp.ThresholdOp "
+                             "accepts only 2 arguments");
+         return nullptr;
+       }
+       return builder.create<ThresholdOp>(location, operands[0], operands[1]);
+    }
+
+
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.
     // if(callee == "delay"){

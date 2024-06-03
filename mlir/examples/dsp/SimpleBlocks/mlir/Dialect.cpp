@@ -1927,6 +1927,55 @@ mlir::LogicalResult HighPassFIRHammingOptimizedOp::verify() {
   return mlir::success();
 }
 
+
+//===----------------------------------------------------------------------===//
+// ThresholdOp
+//===----------------------------------------------------------------------===//
+
+void ThresholdOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                        mlir::Value input, mlir::Value threshld) {
+  DEBUG_PRINT_NO_ARGS();
+  state.addTypes({UnrankedTensorType::get(builder.getF64Type())});
+  state.addOperands({input, threshld} );
+  DEBUG_PRINT_NO_ARGS();
+}
+
+void ThresholdOp::inferShapes() {
+  DEBUG_PRINT_NO_ARGS();
+  auto tensorInput =  getInput().getType();
+  getResult().setType(tensorInput);
+  DEBUG_PRINT_NO_ARGS();
+}
+
+mlir::LogicalResult ThresholdOp::verify() {
+  //To extract value from the SSA value:
+    //get the Operand 
+    //convert it to ConstantOp
+    //convert it to corresponding elements attribute
+    //extract the value as float then convert to int
+  DEBUG_PRINT_NO_ARGS();
+  Value threshold = getOperand(1);
+  dsp::ConstantOp constantOp1stArg = threshold.getDefiningOp<dsp::ConstantOp>();
+  DEBUG_PRINT_NO_ARGS();
+  DenseElementsAttr constantLhsValue = constantOp1stArg.getValue();
+  auto elements = constantLhsValue.getValues<FloatAttr>();
+  float GetThresholdVal = elements[0].getValueAsDouble();
+  
+  DEBUG_PRINT_WITH_ARGS(GetThresholdVal);
+  DEBUG_PRINT_WITH_ARGS("GetThresholdVal= " , GetThresholdVal);
+  
+  //filter-order even not supported -- so making it odd
+  if(GetThresholdVal <= 0 )
+  {
+    // GetThresholdVal = GetThresholdVal + 1;
+    llvm::errs() << "threshold value must be >= 0 but got: " << GetThresholdVal << "\n";
+    // DEBUG_PRINT_WITH_ARGS("Making LowPassFilterLen Odd= " , GetThresholdVal); 
+    return mlir::failure(); 
+  }
+  return mlir::success();
+
+}
+
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//

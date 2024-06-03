@@ -1020,7 +1020,8 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
     
     //use typeRange too:
     Type floatType = rewriter.getF64Type();
-    auto ifOp = rewriter.create<affine::AffineIfOp>( loc, TypeRange{floatType}, set2 , ValueRange{iv,iv2} , true /*else*/ );
+    //  if n-k >= 0 
+    auto ifOp = rewriter.create<affine::AffineIfOp>( loc, TypeRange{floatType}, set2 , ValueRange{iv,iv2} , true /*else*/ ); 
     rewriter.setInsertionPointToStart(ifOp.getThenBlock());
     
     AffineMap addMap = AffineMap::get(2, 0, dimExpr2);
@@ -1051,7 +1052,8 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
     // ifOp->dump();
     
 
-    //FIRFilter code
+    //FIRFilter code -- x[n] , h[n]
+   
     //iterate for output
         //start with sum=0
         //iterate for filter len
@@ -1281,6 +1283,92 @@ struct LMSFilterOpLowering : public ConversionPattern {
 };
 
 //Lowering code 
+//===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: Threshold operations
+//===----------------------------------------------------------------------===//
+
+
+struct ThresholdOpLowering : public ConversionPattern {
+  ThresholdOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::ThresholdOp::getOperationName(), 1, ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
+    
+    //Pseudo-code:
+      //  y[n] = a[n] , if a[i] >= threshld or, a[i] <= -threshld
+              //    = 0 , else
+
+    DEBUG_PRINT_NO_ARGS();
+
+    //output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));  
+    
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+
+    Value constant0 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(0));
+
+
+    //y[n] = a[n] , if a[i] >= threshld or, a[i] <= -threshld
+    //loop from 0 to len
+
+    //load from X, 
+    ThresholdOpAdaptor thresholdAdaptor(operands);
+    DEBUG_PRINT_NO_ARGS();
+
+    int64_t lb = 0 ;
+    int64_t ub = tensorType.getShape()[0];   
+    int64_t step = 1;
+
+    DEBUG_PRINT_NO_ARGS();
+    
+    //for loop from 0 to len(Output)
+    affine::AffineForOp forOpY = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto ivY = forOpY.getInductionVar();
+    rewriter.setInsertionPointToStart(forOpY.getBody());
+     
+    Value inputX = rewriter.create<AffineLoadOp>(loc, thresholdAdaptor.getInput(), ivY );
+    
+    // Load the threshold value from the memref
+    auto thresholdMemRef = thresholdAdaptor.getThreshld();
+    auto threshold = rewriter.create<AffineLoadOp>(loc, thresholdMemRef, ValueRange{});
+
+    // Compare a[i] <= threshold
+    auto cmp1 = rewriter.create<arith::CmpFOp>(loc, arith::CmpFPredicate::OLE, inputX, threshold);
+    
+    // Compare a[i] >= -threshold
+    auto negThreshold = rewriter.create<arith::NegFOp>(loc, threshold);
+    auto cmp2 = rewriter.create<arith::CmpFOp>(loc, arith::CmpFPredicate::OGE, inputX, negThreshold);
+
+    // Combine the comparisons using AND
+    auto cmpAnd = rewriter.create<arith::AndIOp>(loc, cmp1, cmp2);
+
+    // Use select to choose between 0 and a[i]
+    auto selectOp = rewriter.create<arith::SelectOp>(loc, cmpAnd, constant0, inputX);
+
+    // Store the result
+    rewriter.create<AffineStoreOp>(loc, selectOp, alloc, ivY);
+
+    rewriter.setInsertionPointAfter(forOpY);
+    //debug
+    // forOpY->dump();
+      // affine.store %cst, %alloc_10[] : memref<f64>
+      // %0 = affine.load %alloc_11[4] : memref<10xf64>
+      // affine.store %0, %alloc[0] : memref<1xf64>
+    
+    rewriter.replaceOp(op, alloc);
+    
+    return success();
+  }
+};
+
+
 
 //===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: HighPassFIRHammingOptimizedOp operations
@@ -4729,7 +4817,8 @@ void ToyToAffineLoweringPass::runOnOperation() {
                SumOpLowering, SinOpLowering, CosOpLowering, SquareOpLowering,
                FFT1DRealOpLowering, FFT1DImgOpLowering, SincOpLowering, GetElemAtIndxOpLowering,
                SetElemAtIndxOpLowering ,LowPassFIRFilterOpLowering, HighPassFIRFilterOpLowering,
-               GetRangeOfVectorOpLowering, FIRFilterHammingOptimizedOpLowering, HighPassFIRHammingOptimizedOpLowering, LMSFilterOpLowering >(
+               GetRangeOfVectorOpLowering, FIRFilterHammingOptimizedOpLowering, HighPassFIRHammingOptimizedOpLowering, 
+               LMSFilterOpLowering ,ThresholdOpLowering>(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the

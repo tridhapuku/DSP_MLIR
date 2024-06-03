@@ -1518,4 +1518,38 @@ def HighPassFIRHammingOptimizedOp : Dsp_Op<"highPassFIRHammingOptimizedOp",
   let hasVerifier = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// ThresholdOp
+//===----------------------------------------------------------------------===//
+
+def ThresholdOp : Dsp_Op<"threshold",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "limit the array values";
+  let description = [{
+   y_threshold[n] = a[i]  if a[i] >= threshld or, a[i] <= -threshld
+                  = 0 , else
+    
+    The "threshold" operation returns an array with only those values retained 
+    ex: Input x= [-0.08,-5.4,-1,3.4] and threshld = 2 , then y[n] = [ 0, -5.4, 0, 3.4]  
+  }];
+
+  let arguments = (ins F64Tensor:$input, F64Tensor:$threshld);
+  let results = (outs F64Tensor);
+
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input) `)` attr-dict `to` type(results)
+  // }];
+
+  // Enable registering canonicalization patterns with this operation.
+  // let hasCanonicalizer = 1;
+
+  // Allow building a GetElemAtIndx with from the input operand.
+  let builders = [
+    OpBuilder<(ins "Value":$input, "Value":$threshld)>
+  ];
+
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
+}
+
 #endif // TOY_OPS
