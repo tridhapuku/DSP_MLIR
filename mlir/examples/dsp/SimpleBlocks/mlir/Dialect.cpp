@@ -1600,6 +1600,38 @@ mlir::LogicalResult LowPassFIRFilterOp::verify() {
   return mlir::success();
 }
 
+//===----------------------------------------------------------------------===//
+// LMSFilterOp
+//===----------------------------------------------------------------------===//
+
+void LMSFilterOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                   mlir::Value lhs, mlir::Value rhs) {
+  
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+   state.addOperands({lhs, rhs});
+}
+
+
+void LMSFilterOp::inferShapes() { getResult().setType(getLhs().getType()); }
+
+mlir::LogicalResult LMSFilterOp::verify() {
+  // llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
+  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
+  auto filterType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
+  // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+
+  auto inputRank = inputType.getRank();
+  auto filterRank = filterType.getRank();
+
+  if( inputRank != 1 || filterRank != 1)
+  {
+    return emitError()
+           << "expected rank of input & filter is 1";
+  }
+
+  return mlir::success();
+}
+
 
 //===----------------------------------------------------------------------===//
 // HighPassFIRFilterOp
