@@ -1977,6 +1977,64 @@ mlir::LogicalResult ThresholdOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
+// QuantizationOp
+//===----------------------------------------------------------------------===//
+
+void QuantizationOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                        mlir::Value input, mlir::Value nLevels, mlir::Value max, mlir::Value min) {
+  DEBUG_PRINT_NO_ARGS();
+  state.addTypes({UnrankedTensorType::get(builder.getF64Type())});
+  state.addOperands({input, nLevels, max, min} );
+  DEBUG_PRINT_NO_ARGS();
+}
+
+void QuantizationOp::inferShapes() {
+  DEBUG_PRINT_NO_ARGS();
+  auto tensorInput =  getInput().getType();
+  getResult().setType(tensorInput);
+  DEBUG_PRINT_NO_ARGS();
+}
+
+mlir::LogicalResult QuantizationOp::verify() {
+  //To extract value from the SSA value:
+    //get the Operand 
+    //convert it to ConstantOp
+    //convert it to corresponding elements attribute
+    //extract the value as float then convert to int
+  // DEBUG_PRINT_NO_ARGS();
+  // check max > min && NoOfLevels = powerOf2 
+
+  Value maxOperand = getOperand(2);
+  dsp::ConstantOp constantOp1stArg = maxOperand.getDefiningOp<dsp::ConstantOp>();
+  DEBUG_PRINT_NO_ARGS();
+  DenseElementsAttr constantLhsValue = constantOp1stArg.getValue();
+  auto elements = constantLhsValue.getValues<FloatAttr>();
+  float getMax = elements[0].getValueAsDouble();
+
+  Value minOperand = getOperand(3);
+  constantOp1stArg = minOperand.getDefiningOp<dsp::ConstantOp>();
+
+  if(!constantOp1stArg){
+    llvm::errs() << "QuantizationOp: unable to get Constant for minOp -- 4th opernad " << "\n";
+    return mlir::failure(); 
+  }
+  DEBUG_PRINT_NO_ARGS();
+  constantLhsValue = constantOp1stArg.getValue();
+  elements = constantLhsValue.getValues<FloatAttr>();
+  float getMin = elements[0].getValueAsDouble();
+
+  if(getMax < getMin){
+    llvm::errs() << "QuantizatnOp : Max < Min --" << " Max: " << getMax ;
+    llvm::errs() << " Min: " << getMin ;
+    return mlir::failure();
+  }
+  
+
+  return mlir::success();
+
+}
+
+//===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
 

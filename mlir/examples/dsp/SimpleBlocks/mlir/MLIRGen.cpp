@@ -637,6 +637,15 @@ private:
        return builder.create<ThresholdOp>(location, operands[0], operands[1]);
     }
 
+    if(callee == "quantization"){
+       if(call.getArgs().size() != 4){
+         emitError(location, "MLIR codegen encountered an error: dsp.quantization "
+                             "accepts only 4 arguments");
+         return nullptr;
+       }
+       return builder.create<QuantizationOp>(location, operands[0], operands[1],operands[2], operands[3]);
+    }
+
 
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.

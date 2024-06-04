@@ -1552,4 +1552,45 @@ def ThresholdOp : Dsp_Op<"threshold",
   let hasVerifier = 1;
 }
 
+
+//===----------------------------------------------------------------------===//
+// QuantizationOp
+//===----------------------------------------------------------------------===//
+
+
+def QuantizationOp : Dsp_Op<"quantization",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "quantization operation";
+  let description = [{
+    y_quantized[i] = Round(a[i] - min) / step) * step + min
+        where, step = (max-min)/NoOfLevels 
+    
+    The "quantization" operation steps:
+    1) calulate NoOfLevels = 2^NoOfBits -- separate
+    2) Then calculate stepSize = (Max-Min)/NoOfLevels
+    3) iterate for all the elements and calculate quantizedCoeff
+
+    GetLevelForVal =  (a[i] - min)/step
+    RoundedVal = arith.FPToSI(GetLevelForVal)
+    QuantVal = RoundedVal * step + min_val
+
+    ex: Original coefficients: [ 3.2 -1.5  0.8 -2.9  4.5] & numLevels = 16, max=5, min=-5
+        Quantized coefficients: [ 3.125 -1.25   0.625 -3.125  4.375]
+  }];
+
+  let arguments = (ins F64Tensor:$input, F64Tensor:$Nlevels, F64Tensor:$max, F64Tensor:$min);
+  let results = (outs F64Tensor);
+
+  // Enable registering canonicalization patterns with this operation.
+  // let hasCanonicalizer = 1;
+
+  // Allow building a LowpassFilter with from the input operand.
+  let builders = [
+    OpBuilder<(ins "Value":$input, "Value":$Nlevels, "Value":$max, "Value":$min)>
+  ];
+
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
+}
+
 #endif // TOY_OPS

@@ -1125,6 +1125,116 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
 namespace {
 
 //===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: Quantization operations
+//===----------------------------------------------------------------------===//
+
+
+struct QuantizationOpLowering : public ConversionPattern {
+  QuantizationOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::QuantizationOp::getOperationName(), 1, ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
+    
+    //Pseudo-code:
+      // y_quantized[i] = Round(a[i] - min) / step) * step + min
+      //   where, step = (max-min)/ NoOfLevels , NoOLevels = 2^NoOfBits 
+
+      // 	steps:
+      // 		1) given NoOfLevels 
+      // 		2) Then calculate stepSize = (Max-Min)/NoOfLevels
+      // 		3) iterate for all the elements and calculate quantizedCoeff
+
+      // 			GetLevelForVal =  (a[i] - min)/step
+      // 			RoundedVal = arith.FPToSI(GetLevelForVal)
+      // 			QuantVal = RoundedVal * step + min_val
+
+    DEBUG_PRINT_NO_ARGS();
+
+    //output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));  
+    
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+
+    //create another memory location for getting NoOfLevels
+
+    Value constant1 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(1));
+
+    
+    //1) Then calculate stepSize = (Max-Min)/NoOfLevels
+ 
+    QuantizationOpAdaptor quantizationAdaptor(operands);
+    DEBUG_PRINT_NO_ARGS();
+    Value getMaxMemref = quantizationAdaptor.getMax();
+    auto getMax = rewriter.create<AffineLoadOp>(loc, getMaxMemref, ValueRange{});
+
+    Value getMinMemref = quantizationAdaptor.getMin();
+    auto getMin = rewriter.create<AffineLoadOp>(loc, getMinMemref, ValueRange{});
+
+    Value getNLevelsMemref = quantizationAdaptor.getNlevels();
+    auto getNlevels = rewriter.create<AffineLoadOp>(loc, getNLevelsMemref, ValueRange{});
+
+    Value MaxMinusMin = rewriter.create<arith::SubFOp>(loc, getMax ,getMin );
+    Value StepSize = rewriter.create<arith::DivFOp>(loc, MaxMinusMin, getNlevels);
+
+
+    // iterate for all the elements and calculate quantizedCoeff
+
+    // 			GetLevelForVal =  (a[i] - min)/step
+    // 			RoundedVal = arith.FPToSI(GetLevelForVal)
+    // 			QuantVal = RoundedVal * step + min_val
+    int64_t lb = 0 ;
+    int64_t ub = tensorType.getShape()[0];   
+    int64_t step = 1;
+
+    DEBUG_PRINT_NO_ARGS();
+    
+    //for loop from 0 to len
+    // use iter_arg as passing value for the loop 
+    affine::AffineForOp forOpY = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto ivY = forOpY.getInductionVar();
+    rewriter.setInsertionPointToStart(forOpY.getBody());
+    //Use iter_arg for taking prev_val 
+    //Get iter_arg 
+    
+    // 			GetLevelForVal =  (a[i] - min)/step
+	
+	  // 			QuantVal = RoundedVal * step + min_val
+
+    Value inputX = rewriter.create<AffineLoadOp>(loc, quantizationAdaptor.getInput(), ivY );
+    Value inputMinusMin = rewriter.create<arith::SubFOp>(loc, inputX, getMin );
+    Value aMinusMinDivStep = rewriter.create<arith::DivFOp>(loc, inputMinusMin, StepSize );
+
+    // 	RoundedVal = arith.FPToSI(GetLevelForVal)
+    Value RoundedVal = rewriter.create<arith::FPToSIOp>(loc,rewriter.getI64Type(),  aMinusMinDivStep);
+    Value RoundValFloat = rewriter.create<arith::SIToFPOp>(loc, rewriter.getF64Type() , RoundedVal);
+
+    // 	QuantVal = RoundedVal * step + min_val
+    Value RoundedMulStep = rewriter.create<arith::MulFOp>(loc, RoundValFloat , StepSize);
+    Value QuantVal = rewriter.create<arith::AddFOp>(loc, RoundedMulStep, getMin);
+    rewriter.create<AffineStoreOp>(loc, QuantVal, alloc, ValueRange{ivY}); 
+    rewriter.setInsertionPointAfter(forOpY);
+   
+    //debug
+    // forOpY->dump();
+      // affine.store %cst, %alloc_10[] : memref<f64>
+      // %0 = affine.load %alloc_11[4] : memref<10xf64>
+      // affine.store %0, %alloc[0] : memref<1xf64>
+    
+    rewriter.replaceOp(op, alloc);
+    
+    return success();
+  }
+};
+
+
+//===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: lmsFilter operations
 //===----------------------------------------------------------------------===//
 
@@ -1282,7 +1392,6 @@ struct LMSFilterOpLowering : public ConversionPattern {
   }
 };
 
-//Lowering code 
 //===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: Threshold operations
 //===----------------------------------------------------------------------===//
@@ -4818,7 +4927,7 @@ void ToyToAffineLoweringPass::runOnOperation() {
                FFT1DRealOpLowering, FFT1DImgOpLowering, SincOpLowering, GetElemAtIndxOpLowering,
                SetElemAtIndxOpLowering ,LowPassFIRFilterOpLowering, HighPassFIRFilterOpLowering,
                GetRangeOfVectorOpLowering, FIRFilterHammingOptimizedOpLowering, HighPassFIRHammingOptimizedOpLowering, 
-               LMSFilterOpLowering ,ThresholdOpLowering>(
+               LMSFilterOpLowering ,ThresholdOpLowering, QuantizationOpLowering>(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the
