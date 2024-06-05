@@ -620,12 +620,12 @@ private:
 
     // LMS FILTER
     if(callee == "lmsFilter"){
-      if(call.getArgs().size() != 2){
+      if(call.getArgs().size() != 5){
         emitError(location, "MLIR codegen encountered an error: dsp.lmsFilter"
-                            "accepts only 2 arguments");
+                            "accepts only 5 arguments");
         return nullptr;
       }
-      return builder.create<LMSFilterOp>(location, operands[0] , operands[1] );
+      return builder.create<LMSFilterOp>(location, operands[0] , operands[1], operands[2], operands[3],operands[4] );
     }
 
     if(callee == "threshold"){

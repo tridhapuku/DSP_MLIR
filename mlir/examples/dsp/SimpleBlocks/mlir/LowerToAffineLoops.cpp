@@ -1283,18 +1283,34 @@ struct LMSFilterOpLowering : public ConversionPattern {
     //                                                      rewriter.getF64FloatAttr(1));
     Value zeroval = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
                                                          rewriter.getF64FloatAttr(0));
-    Value mu = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
-                                                         rewriter.getF64FloatAttr(0.1));
-
+     Value mu = rewriter.create<AffineLoadOp>(loc, lmsFilterAdaptor.getMu()); 
+    
     //For loop -- iterate from 0 to last
     int64_t lb = 0 ;
     int64_t numSamples = tensorType.getShape()[0];
-    int64_t FilterLength = tensorType.getShape()[0];
     int64_t step = 1;
 
+    Value GetFilterLOp = op->getOperand(3);
+    dsp::ConstantOp constantOp3rdArg = GetFilterLOp.getDefiningOp<dsp::ConstantOp>();
+    DenseElementsAttr constant3rdValue = constantOp3rdArg.getValue();;
+    auto elements1 = constant3rdValue.getValues<FloatAttr>();
+    float filterlenval = elements1[0].getValueAsDouble();
+    auto FilterLength = (uint64_t) filterlenval;
+
+    Value GetItersLOp = op->getOperand(4);
+    dsp::ConstantOp constantOp4thArg = GetItersLOp.getDefiningOp<dsp::ConstantOp>();
+    DenseElementsAttr constant4thValue = constantOp4thArg.getValue();;
+    auto elements = constant4thValue.getValues<FloatAttr>();
+    float interationsval = elements[0].getValueAsDouble();
+    auto TotalIterations = (uint64_t) interationsval;
+    
+  
+    
     auto yMemRefType = MemRefType::get({numSamples}, rewriter.getF64Type());
     auto yAlloc = rewriter.create<memref::AllocOp>(loc, yMemRefType);
 
+    affine::AffineForOp forOpiter = rewriter.create<AffineForOp>(loc, lb, TotalIterations, step);
+    rewriter.setInsertionPointToStart(forOpiter.getBody());
     affine::AffineForOp forOp1 = rewriter.create<AffineForOp>(loc, lb, numSamples, step);
     auto iv = forOp1.getInductionVar();
     
@@ -1319,12 +1335,7 @@ struct LMSFilterOpLowering : public ConversionPattern {
     affine::AffineForOp forOp2 = rewriter.create<AffineForOp>(loc, lb, FilterLength, step);
     auto iv2 = forOp2.getInductionVar();
 
-
-    // auto getIterArg =  forOp2.getBody()->getArgument(1);
-
     rewriter.setInsertionPointToStart(forOp2.getBody());
-
-  
 
     auto ifOp = rewriter.create<affine::AffineIfOp>( loc, set1 , ValueRange{iv,iv2} , false /*no else*/ );
     rewriter.setInsertionPointToStart(ifOp.getThenBlock());
@@ -1338,8 +1349,6 @@ struct LMSFilterOpLowering : public ConversionPattern {
     Value ybefore = rewriter.create<AffineLoadOp>(loc, yAlloc, ValueRange{iv});
     Value sumNext = rewriter.create<arith::AddFOp>(loc, wmulx, ybefore);
     rewriter.create<AffineStoreOp>(loc, sumNext, yAlloc, ValueRange{iv});
-    // Value sumNext = rewriter.create<arith::AddFOp>(loc, wmulx, getIterArg);
-    // rewriter.create<AffineYieldOp>(loc, ValueRange{sumNext});
     rewriter.setInsertionPointAfter(ifOp);
     rewriter.setInsertionPointAfter(forOp2);
 
@@ -1357,10 +1366,7 @@ struct LMSFilterOpLowering : public ConversionPattern {
     affine::AffineForOp forOp3 = rewriter.create<AffineForOp>(loc, lb, FilterLength, step);
         auto iv3 = forOp3.getInductionVar();
         
-
         rewriter.setInsertionPointToStart(forOp3.getBody());
-
-      
 
         auto ifOp2 = rewriter.create<affine::AffineIfOp>( loc, set1 , ValueRange{iv,iv3} , false /*no else*/ );
         rewriter.setInsertionPointToStart(ifOp2.getThenBlock());
@@ -1383,6 +1389,7 @@ struct LMSFilterOpLowering : public ConversionPattern {
         rewriter.setInsertionPointAfter(forOp3);
 
         rewriter.setInsertionPointAfter(forOp1);
+        rewriter.setInsertionPointAfter(forOpiter);
     //debug
     // forOp1->dump();
 

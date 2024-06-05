@@ -1605,29 +1605,29 @@ mlir::LogicalResult LowPassFIRFilterOp::verify() {
 //===----------------------------------------------------------------------===//
 
 void LMSFilterOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
-                   mlir::Value lhs, mlir::Value rhs) {
+                   mlir::Value lhs, mlir::Value rhs, mlir::Value mu, mlir::Value filterLen, mlir::Value iters) {
   
   state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
-   state.addOperands({lhs, rhs});
+   state.addOperands({lhs, rhs, mu, filterLen, iters});
 }
 
 
 void LMSFilterOp::inferShapes() { getResult().setType(getLhs().getType()); }
 
 mlir::LogicalResult LMSFilterOp::verify() {
-  // llvm::errs() << "Line: " << __LINE__ << " func= " << __func__ << "\n";
-  auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
-  auto filterType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
-  // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+  DEBUG_PRINT_NO_ARGS() ;
+  // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
+  // auto filterType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
+  // // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
 
-  auto inputRank = inputType.getRank();
-  auto filterRank = filterType.getRank();
+  // auto inputRank = inputType.getRank();
+  // auto filterRank = filterType.getRank();
 
-  if( inputRank != 1 || filterRank != 1)
-  {
-    return emitError()
-           << "expected rank of input & filter is 1";
-  }
+  // if( inputRank != 1 || filterRank != 1)
+  // {
+  //   return emitError()
+  //          << "expected rank of input & filter is 1";
+  // }
 
   return mlir::success();
 }

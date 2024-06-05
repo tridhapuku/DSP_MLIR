@@ -1335,16 +1335,16 @@ def LMSFilterOp : Dsp_Op<"lmsFilter",
     w(n)=αw(n−1)+f(u(n),e(n),μ)
   }];
 
-  let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs);
+  let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs, F64Tensor:$mu, F64Tensor:$filterLen, F64Tensor:$iters);
    let results = (outs F64Tensor);
   /// Indicate that the operation has a custom parser and printer method.
    // let hasCustomAssemblyFormat = 1;
    // let assemblyFormat = [{
    //   `(` $input `:` type($input1 , $input2) `)` attr-dict `to` type(results)
    // }];
-   // Allow building a MulOp with from the two input operands.
+   // Allow building a LMSFilterOp with from the two input operands.
    let builders = [
-     OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+     OpBuilder<(ins "Value":$lhs, "Value":$rhs, "Value":$mu, "Value":$filterLen, "Value":$iters)>
    ];
 
    // Indicate that the operation has a custom parser and printer method.
