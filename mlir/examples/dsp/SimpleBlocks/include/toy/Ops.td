@@ -1593,4 +1593,38 @@ def QuantizationOp : Dsp_Op<"quantization",
   let hasVerifier = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// LMSFilterReponseOp
+//===----------------------------------------------------------------------===//
+
+
+def LMSFilterResponseOp : Dsp_Op<"lmsFilterResponse",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "LMS filter Response";
+  let description = [{
+    When you select LMS for the Algorithm parameter, the block calculates the filter weights by using the least mean-square (LMS) algorithm and returns the predicted output i.e y(n). This algorithm is defined by these equations.
+    y(n)=wT(n−1)u(n)
+    e(n)=d(n)−y(n)
+    w(n)=αw(n−1)+f(u(n),e(n),μ)
+  }];
+
+  let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs, F64Tensor:$mu, F64Tensor:$filterLen);
+   let results = (outs F64Tensor);
+  /// Indicate that the operation has a custom parser and printer method.
+   // let hasCustomAssemblyFormat = 1;
+   // let assemblyFormat = [{
+   //   `(` $input `:` type($input1 , $input2) `)` attr-dict `to` type(results)
+   // }];
+   // Allow building a LMSFilterOp with from the two input operands.
+   let builders = [
+     OpBuilder<(ins "Value":$lhs, "Value":$rhs, "Value":$mu, "Value":$filterLen)>
+   ];
+
+   // Indicate that the operation has a custom parser and printer method.
+   // let hasCustomAssemblyFormat = 1;
+
+   // let hasVerifier = 1;
+  let hasVerifier = 1;
+}
+
 #endif // TOY_OPS

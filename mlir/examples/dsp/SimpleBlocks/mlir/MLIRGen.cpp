@@ -646,6 +646,14 @@ private:
        return builder.create<QuantizationOp>(location, operands[0], operands[1],operands[2], operands[3]);
     }
 
+    if(callee == "lmsFilterResponse"){
+      if(call.getArgs().size() != 4){
+        emitError(location, "MLIR codegen encountered an error: dsp.lmsFilter"
+                            "accepts only 4 arguments");
+        return nullptr;
+      }
+      return builder.create<LMSFilterResponseOp>(location, operands[0] , operands[1], operands[2], operands[3]);
+    }
 
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.

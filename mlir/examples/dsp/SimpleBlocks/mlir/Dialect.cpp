@@ -2034,6 +2034,40 @@ mlir::LogicalResult QuantizationOp::verify() {
 
 }
 
+
+//===----------------------------------------------------------------------===//
+// LMSFilterResponseOp
+//===----------------------------------------------------------------------===//
+
+void LMSFilterResponseOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                   mlir::Value lhs, mlir::Value rhs, mlir::Value mu, mlir::Value filterLen) {
+  
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+   state.addOperands({lhs, rhs, mu, filterLen});
+}
+
+
+void LMSFilterResponseOp::inferShapes() { getResult().setType(getLhs().getType()); }
+
+mlir::LogicalResult LMSFilterResponseOp::verify() {
+  DEBUG_PRINT_NO_ARGS() ;
+  // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
+  // auto filterType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
+  // // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+
+  // auto inputRank = inputType.getRank();
+  // auto filterRank = filterType.getRank();
+
+  // if( inputRank != 1 || filterRank != 1)
+  // {
+  //   return emitError()
+  //          << "expected rank of input & filter is 1";
+  // }
+
+  return mlir::success();
+}
+
+
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
