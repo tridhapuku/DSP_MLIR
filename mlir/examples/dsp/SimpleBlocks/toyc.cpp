@@ -37,6 +37,7 @@
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Transforms/Passes.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h"
@@ -401,7 +402,8 @@ int main(int argc, char **argv) {
   //Todo -- put a check for which option
   registry.insert<mlir::arith::ArithDialect, mlir::func::FuncDialect,
                     mlir::memref::MemRefDialect, mlir::affine::AffineDialect, mlir::tosa::TosaDialect, 
-                    mlir::linalg::LinalgDialect, mlir::BuiltinDialect, mlir::math::MathDialect>();
+                    mlir::linalg::LinalgDialect, mlir::BuiltinDialect, mlir::math::MathDialect, mlir::LLVM::LLVMDialect,
+                    mlir::scf::SCFDialect>();
   context.appendDialectRegistry(registry);
   mlir::OwningOpRef<mlir::ModuleOp> module;
   if (int error = loadAndProcessMLIR(context, module))

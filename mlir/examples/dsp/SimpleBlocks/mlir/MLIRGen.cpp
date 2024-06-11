@@ -655,6 +655,15 @@ private:
       return builder.create<LMSFilterResponseOp>(location, operands[0] , operands[1], operands[2], operands[3]);
     }
 
+    if(callee == "runLenEncoding"){
+       if(call.getArgs().size() != 1){
+         emitError(location, "MLIR codegen encountered an error: dsp.runLenEncoding "
+                             "accepts only 1 arguments");
+         return nullptr;
+       }
+       return builder.create<RunLenEncodingOp>(location, operands[0]);
+    }
+
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.
     // if(callee == "delay"){

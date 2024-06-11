@@ -49,6 +49,7 @@
 
 //For IntegerSet
 #include "mlir/IR/IntegerSet.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include <iostream>
 using namespace mlir;
 using namespace std;
@@ -1123,6 +1124,371 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
 }
 
 namespace {
+//===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: RunLenEncodingOp operations
+//===----------------------------------------------------------------------===//
+
+#define TryWhileLoop 0
+#define TryLoadStoreForWhile 0
+#define TryPassIterIndex 0  //Not working
+#define TryScf 0
+#define TryRLE  1 
+struct RunLenEncodingOpLowering : public ConversionPattern {
+  RunLenEncodingOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::RunLenEncodingOp::getOperationName(), 1, ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
+    
+    //Pseudo-code:
+      //  y_rle[i] =  x[i] , if x[i] != x[i-1] , 1<=i<n
+           // CountOfXi , at n<=i < 2n -1
+
+        //steps:
+        // count = 1 , y[0] = x[0] , k = 0 
+        // for i=1 to len/2 
+           // load prev = a[i-1] , current = a[i]
+           // if prev == current
+                // count = count + 1
+           // else
+                // store count at index k + N/2
+                // y[k] = current
+                // y[k + N/2] = count
+                // count = 1 and k = k+1
+          //if count > 1 ie, for last element
+            // store the count value at k + N/2
+
+    DEBUG_PRINT_NO_ARGS();
+
+    //output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));  
+    auto tensorType1 = RankedTensorType::get({1}, rewriter.getIndexType());
+
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+    auto memRefType2 = convertTensorToMemRef(tensorType1);
+
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+    auto allocK = insertAllocAndDealloc(memRefType2, loc, rewriter);
+
+    // count = 1 , y[0] = x[0] , 
+    // loop from 0 to len
+    RunLenEncodingOpAdaptor runLenEncodingAdaptor(operands);
+    DEBUG_PRINT_NO_ARGS();
+
+    
+
+    
+   
+    //  len/2,k = n ie, len/2
+    int64_t lb = 1 ;
+    int64_t N = tensorType.getShape()[0];  
+    int64_t ub = N/2 ; //output len is twice the input len
+    int64_t step = 1;
+    int64_t k = 0;
+    int64_t lb1 = 0;
+
+    Value const0 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(0));
+
+    //init all output memory with zero
+    affine::AffineForOp forOp1 = rewriter.create<AffineForOp>(loc, lb1, N, step);
+    DEBUG_PRINT_NO_ARGS();
+    auto iv1 = forOp1.getInductionVar();
+    rewriter.setInsertionPointToStart(forOp1.getBody());
+    rewriter.create<AffineStoreOp>(loc,const0, alloc, iv1 );
+    rewriter.setInsertionPointAfter(forOp1);
+
+    DEBUG_PRINT_NO_ARGS();
+    //load from X, 
+    Value constantIndx0 = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+    Value inputX0 = rewriter.create<AffineLoadOp>(loc, runLenEncodingAdaptor.getInput(), ValueRange{constantIndx0});
+    rewriter.create<AffineStoreOp>(loc, inputX0, alloc, ValueRange{constantIndx0});
+
+
+#if TryRLE 
+
+    // Initial count and k values as SSA values, count = 1 , k = 0 
+    // for i=1 to len/2 
+           // load prev = a[i-1] , current = a[i]
+           // if prev == current
+                // count = count + 1
+           // else
+                // store count at index k + N/2
+                // y[k + N/2] = count
+                // k = k +1
+                // y[k] = current 
+                // count = 1 
+          //for last element
+            // store the count value at k + N/2
+            //y[k + N/2] = count
+    Value countVal = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(1));
+    Value Indx0 = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+
+    Value IndxNBy2 = rewriter.create<arith::ConstantIndexOp>(loc, ub);
+    Value kVal = rewriter.create<arith::ConstantIndexOp>(loc, k);
+    rewriter.create<AffineStoreOp>(loc, kVal, allocK , ValueRange{Indx0});
+    
+    Type floatType = rewriter.getF64Type();
+    // Type indexType = rewriter.getIndexType();
+    //// // for i=1 to len/2 
+           // load prev = a[i-1] , current = a[i]
+    affine::AffineForOp forOpY = rewriter.create<AffineForOp>(loc, lb, ub, step, ValueRange{countVal});
+    auto ivY = forOpY.getInductionVar();
+    rewriter.setInsertionPointToStart(forOpY.getBody());
+    DEBUG_PRINT_NO_ARGS();
+
+    auto countArg = forOpY.getRegionIterArgs()[0];
+  
+    Value current = rewriter.create<AffineLoadOp>(loc, runLenEncodingAdaptor.getInput(), ivY );
+    //
+    AffineExpr d0;
+    bindDims(rewriter.getContext(), d0);
+    AffineExpr ExprIMinus1 = d0 - rewriter.getAffineConstantExpr(1);
+    AffineMap mapExprIMinus1 = AffineMap::get(1,0, ExprIMinus1);
+    Value prev = rewriter.create<AffineLoadOp>(loc, runLenEncodingAdaptor.getInput(),mapExprIMinus1, ValueRange{ivY} );
+    DEBUG_PRINT_NO_ARGS();
+    // for i=1 to len/2 
+           // load prev = a[i-1] , current = a[i]
+           // if prev == current
+                // count = count + 1
+           // else
+                // store count at index k + N/2
+                // y[k + N/2] = count
+                // k = k +1
+                // y[k] = current 
+                // count = 1 
+          //for last element
+            // store the count value at k + N/2
+            //y[k + N/2] = count
+    // TypeRange typeRange = TypeRange{rewriter.getF64Type() , rewriter.getIndexType()};
+    // TypeRange typeRange = TypeRange({rewriter.getF64Type(), rewriter.getIndexType()});
+    
+    // auto ifOp = rewriter.create<scf::IfOp>(loc, TypeRange{rewriter.getF64Type(), rewriter.getIndexType()}, rewriter.create<arith::CmpFOp>(loc, arith::CmpFPredicate::OEQ, prev, current), true, true); 
+    auto CmpPrevCurrent = rewriter.create<arith::CmpFOp>(loc, arith::CmpFPredicate::OEQ, prev, current);
+
+
+    //create if block with else condition
+    // if prev == current
+                // count = count + 1
+    // auto ifOp = rewriter.create<scf::IfOp>(loc, TypeRange{floatType , indexType}, CmpPrevCurrent , true /* else=1 */);   
+    auto ifOp = rewriter.create<scf::IfOp>(loc, TypeRange{floatType }, CmpPrevCurrent , true /* else=1 */);   
+
+    rewriter.setInsertionPointToStart(ifOp.thenBlock());
+    DEBUG_PRINT_NO_ARGS();
+    
+    auto CountPlusOne = rewriter.create<arith::AddFOp>(loc, countArg, countVal);
+    DEBUG_PRINT_NO_ARGS();
+    rewriter.create<scf::YieldOp>(loc, ValueRange{CountPlusOne} );
+     // else
+                // store count at index k + N/2
+                // y[k + N/2] = count
+                // k = k +1
+                // y[k] = current 
+                // count = 1 
+    rewriter.setInsertionPointToStart(ifOp.elseBlock());
+    // // out[k + N/2]= count   
+    Value loadKVal = rewriter.create<AffineLoadOp>(loc, allocK, ValueRange{Indx0} );
+
+    Value kPlusNBy2 = rewriter.create<arith::AddIOp>(loc,rewriter.getIndexType(), loadKVal, IndxNBy2);
+    rewriter.create<memref::StoreOp>(loc, countArg, alloc, kPlusNBy2);
+    //k = k+1
+    Value Indx1 = rewriter.create<arith::ConstantIndexOp>(loc, 1);
+    Value kPlusOne = rewriter.create<arith::AddIOp>(loc,rewriter.getIndexType(), loadKVal, Indx1);
+    rewriter.create<AffineStoreOp>(loc, kPlusOne, allocK, ValueRange{Indx0});
+
+    // y[k + 1] = current
+    rewriter.create<memref::StoreOp>(loc, current, alloc, kPlusOne);
+    
+    DEBUG_PRINT_NO_ARGS();
+    rewriter.create<scf::YieldOp>(loc, ValueRange{countVal});
+    rewriter.setInsertionPointAfter(ifOp);
+    // ifOp.dump();
+    Value countRes = ifOp.getResult(0);
+    
+     
+    rewriter.create<AffineYieldOp>(loc, ValueRange{countRes });
+    rewriter.setInsertionPointAfter(forOpY);
+    // forOpY->dump();
+
+    //check for last countArg value if countArg > 1, then store it at last 
+    Value finalCountArg = forOpY.getResult(0);
+    Value finalkArg = rewriter.create<AffineLoadOp>(loc, allocK, ValueRange{Indx0} );
+    
+    // //if count>1 ,then store count at index k + N/2
+      // auto ifOp1 = rewriter.create<scf::IfOp>(loc, CmpCountGt1 , false /* else=0 */);   
+    // rewriter.setInsertionPointToStart(ifOp1.thenBlock());
+    DEBUG_PRINT_NO_ARGS();
+    Value finalkPlusNBy2 = rewriter.create<arith::AddIOp>(loc,rewriter.getIndexType(), finalkArg, IndxNBy2);
+
+    rewriter.create<memref::StoreOp>(loc, finalCountArg, alloc, finalkPlusNBy2);
+    DEBUG_PRINT_NO_ARGS();
+    // rewriter.setInsertionPointAfter(ifOp1);       
+#endif
+
+#if TryPassIterIndex
+    //store k at its location & load and do addition to 1 and 
+    Value kVal = rewriter.create<arith::ConstantIndexOp>(loc, ub-1);
+    Value Indx0 = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+
+    auto kValStore = rewriter.create<AffineStoreOp>(loc, kVal, alloc2 , ValueRange{Indx0});
+    
+    Type floatType = rewriter.getF64Type();
+    Type indexType = rewriter.getIndexType();
+    affine::AffineForOp forOpY = rewriter.create<AffineForOp>(loc, lb, ub, step, ValueRange{inputX0, kVal});
+    // affine::AffineForOp forOpY = rewriter.create<AffineForOp>(loc, lb, ub, step, ValueRange{countVal, kVal});
+
+    auto ivY = forOpY.getInductionVar();
+    auto prev = forOpY.getRegionIterArgs()[0];
+    auto kArg = forOpY.getRegionIterArgs()[1];
+    rewriter.setInsertionPointToStart(forOpY.getBody());
+    
+    Value Indx00 = rewriter.create<arith::ConstantIndexOp>(loc, 0); 
+    Value current = rewriter.create<AffineLoadOp>(loc, runLenEncodingAdaptor.getInput(), ivY );
+    Value loadKVal = rewriter.create<AffineLoadOp>(loc, alloc2, ValueRange{Indx0} );
+    Value const1 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(1));
+    Value currentPlus1 = rewriter.create<arith::AddFOp>(loc, prev, const1);
+
+    auto CmpPrevCurrent = rewriter.create<arith::CmpFOp>(loc, arith::CmpFPredicate::OGE, current , const1 );
+
+
+    //create if block with else condition
+    // if prev == current, count++
+    auto ifOp = rewriter.create<scf::IfOp>(loc, TypeRange{floatType }, CmpPrevCurrent , true /* else=1 */);  
+    // auto ifOp = rewriter.create<scf::IfOp>(loc,  CmpPrevCurrent , true /* else=1 */);   
+ 
+    rewriter.setInsertionPointToStart(ifOp.thenBlock());
+    DEBUG_PRINT_NO_ARGS();
+
+    //store count at N+i
+    // Value countPlus1 = rewriter.create<arith::AddFOp>(loc, countArg, countVal);
+    Value Indx1 = rewriter.create<arith::ConstantIndexOp>(loc, 1);
+    Value kPlusOne = rewriter.create<arith::AddIOp>(loc, rewriter.getIndexType() , kArg , Indx1);
+
+    rewriter.create<AffineStoreOp>(loc, current, alloc, ValueRange{kArg});
+    // rewriter.create<AffineStoreOp>(loc, current, alloc, ValueRange{kPlusOne});
+    rewriter.create<memref::StoreOp>(loc, current, alloc, ValueRange{kPlusOne});
+    rewriter.create<AffineStoreOp>(loc, kPlusOne, alloc2, ValueRange{Indx0});
+    rewriter.create<scf::YieldOp>(loc, ValueRange{currentPlus1});
+
+    rewriter.setInsertionPointToStart(ifOp.elseBlock());
+    rewriter.create<AffineStoreOp>(loc, currentPlus1, alloc, ValueRange{ivY});
+    //yield the values
+    // rewriter.create<AffineYieldOp>(loc, ValueRange{kPlusOne });
+    rewriter.create<scf::YieldOp>(loc, ValueRange{currentPlus1});
+
+    rewriter.setInsertionPointAfter(ifOp);
+    Value countRes = ifOp.getResult(0);
+    // Value kRes = ifOp.getResult(1); 
+    // rewriter.create<AffineYieldOp>(loc, ValueRange{countRes,kRes });
+    rewriter.create<AffineYieldOp>(loc, ValueRange{countRes, Indx00 });
+
+    rewriter.setInsertionPointAfter(forOpY);
+
+
+#endif
+
+#if TryWhileLoop
+
+    auto kVal = rewriter.create<arith::ConstantIndexOp>(loc, k);
+    affine::AffineForOp forOpY = rewriter.create<AffineForOp>(loc, lb, ub, step, ValueRange{kVal});
+    auto ivY = forOpY.getInductionVar();
+    // auto countArg = forOpY.getRegionIterArgs()[0];
+    auto kArg = forOpY.getRegionIterArgs()[0];
+    rewriter.setInsertionPointToStart(forOpY.getBody());
+     
+    Value current = rewriter.create<AffineLoadOp>(loc, runLenEncodingAdaptor.getInput(), ivY );
+
+    //store count at N+i
+    // Value countPlus1 = rewriter.create<arith::AddFOp>(loc, countArg, countVal);
+    Value Indx1 = rewriter.create<arith::ConstantIndexOp>(loc, 1);
+    Value kPlusOne = rewriter.create<arith::AddIOp>(loc,rewriter.getIndexType(), kArg, Indx1);
+    // Value constInt1 = rewriter.create<arith::ConstantIntOp>(loc,rewriter.getI64IntegerAttr(1), rewriter.getI64Type() );
+
+    // Value kPlusOneIndex = rewriter.create<arith::IndexCastOp>(loc, rewriter.getIndexType(), kPlusOne);
+
+    // kPlusOne.dump();
+    // Value kArg1 = rewriter.create<arith::IndexCastUIOp>(loc, rewriter.getIndexType(), kArg);
+
+    // rewriter.create<AffineStoreOp>(loc, countPlus1, alloc, mapExprNPlusI, ValueRange{kPlusOne});
+    // rewriter.create<AffineStoreOp>(loc, countPlus1, alloc, ValueRange{kArg});
+    // Store the result
+    // rewriter.create<AffineStoreOp>(loc, current, alloc, ivY); //working
+    rewriter.create<AffineStoreOp>(loc, current, alloc, ValueRange{kArg});
+    //yield the values
+    rewriter.create<AffineYieldOp>(loc, ValueRange{kPlusOne });
+    // rewriter.create<AffineYieldOp>(loc, ValueRange{countPlus1 , kPlusOne});
+    rewriter.setInsertionPointAfter(forOpY);
+
+#endif
+
+#if TryLoadStoreForWhile
+    //store k at its location & load and do addition to 1 and 
+    Value kVal = rewriter.create<arith::ConstantIndexOp>(loc, ub-1);
+    Value Indx0 = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+
+    auto kValStore = rewriter.create<AffineStoreOp>(loc, kVal, alloc2 , ValueRange{Indx0});
+    affine::AffineForOp forOpY = rewriter.create<AffineForOp>(loc, lb, ub, step, ValueRange{inputX0});
+    auto ivY = forOpY.getInductionVar();
+    auto prev = forOpY.getRegionIterArgs()[0];
+    // auto kArg = forOpY.getRegionIterArgs()[0];
+    rewriter.setInsertionPointToStart(forOpY.getBody());
+    
+    Value Indx00 = rewriter.create<arith::ConstantIndexOp>(loc, 0); 
+    Value current = rewriter.create<AffineLoadOp>(loc, runLenEncodingAdaptor.getInput(), ivY );
+    Value loadKVal = rewriter.create<AffineLoadOp>(loc, alloc2, ValueRange{Indx0} );
+    Value const1 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(1));
+    Value currentPlus1 = rewriter.create<arith::AddFOp>(loc, prev, const1);
+
+    auto CmpPrevCurrent = rewriter.create<arith::CmpFOp>(loc, arith::CmpFPredicate::OGE, current , const1 );
+
+
+    //create if block with else condition
+    // if prev == current, count++
+    // auto ifOp = rewriter.create<scf::IfOp>(loc, TypeRange{floatType , indexType}, CmpPrevCurrent , true /* else=1 */);  
+    auto ifOp = rewriter.create<scf::IfOp>(loc,  CmpPrevCurrent , true /* else=1 */);   
+ 
+    rewriter.setInsertionPointToStart(ifOp.thenBlock());
+    DEBUG_PRINT_NO_ARGS();
+
+    //store count at N+i
+    // Value countPlus1 = rewriter.create<arith::AddFOp>(loc, countArg, countVal);
+    Value Indx1 = rewriter.create<arith::ConstantIndexOp>(loc, 1);
+    Value kPlusOne = rewriter.create<arith::AddIOp>(loc, rewriter.getIndexType() , loadKVal , Indx1);
+
+    rewriter.create<AffineStoreOp>(loc, current, alloc, ValueRange{ivY});
+    // rewriter.create<AffineStoreOp>(loc, current, alloc, ValueRange{kPlusOne});
+    rewriter.create<memref::StoreOp>(loc, current, alloc, ValueRange{kPlusOne});
+    rewriter.create<AffineStoreOp>(loc, kPlusOne, alloc2, ValueRange{Indx0});
+
+    rewriter.setInsertionPointToStart(ifOp.elseBlock());
+    rewriter.create<AffineStoreOp>(loc, currentPlus1, alloc, ValueRange{ivY});
+    //yield the values
+    // rewriter.create<AffineYieldOp>(loc, ValueRange{kPlusOne });
+    rewriter.setInsertionPointAfter(ifOp);
+    rewriter.create<AffineYieldOp>(loc, ValueRange{current });
+
+    rewriter.setInsertionPointAfter(forOpY);
+
+
+#endif
+
+    //debug
+    // forOpY->dump();
+      // affine.store %cst, %alloc_10[] : memref<f64>
+      // %0 = affine.load %alloc_11[4] : memref<10xf64>
+      // affine.store %0, %alloc[0] : memref<1xf64>
+    
+    rewriter.replaceOp(op, alloc);
+    
+    return success();
+  }
+};
 
 //===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: lmsFilterResponse operations
@@ -1316,8 +1682,8 @@ struct QuantizationOpLowering : public ConversionPattern {
 
     //create another memory location for getting NoOfLevels
 
-    Value constant1 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
-                                                         rewriter.getF64FloatAttr(1));
+    // Value constant1 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+    //                                                      rewriter.getF64FloatAttr(1));
 
     
     //1) Then calculate stepSize = (Max-Min)/NoOfLevels
@@ -5043,7 +5409,8 @@ struct ToyToAffineLoweringPass
 
   void getDependentDialects(DialectRegistry &registry) const override {
     registry.insert<affine::AffineDialect, func::FuncDialect,
-                    memref::MemRefDialect, math::MathDialect>();
+                    memref::MemRefDialect, math::MathDialect,
+                    scf::SCFDialect>();
   }
   void runOnOperation() final;
 };
@@ -5059,7 +5426,8 @@ void ToyToAffineLoweringPass::runOnOperation() {
   // `Affine`, `Arith`, `Func`, and `MemRef` dialects.
   target.addLegalDialect<affine::AffineDialect, BuiltinDialect,
                          arith::ArithDialect, func::FuncDialect,
-                         memref::MemRefDialect, math::MathDialect>();
+                         memref::MemRefDialect, math::MathDialect,
+                         scf::SCFDialect>();
 
   // We also define the Toy dialect as Illegal so that the conversion will fail
   // if any of these operations are *not* converted. Given that we actually want
@@ -5087,7 +5455,8 @@ void ToyToAffineLoweringPass::runOnOperation() {
                FFT1DRealOpLowering, FFT1DImgOpLowering, SincOpLowering, GetElemAtIndxOpLowering,
                SetElemAtIndxOpLowering ,LowPassFIRFilterOpLowering, HighPassFIRFilterOpLowering,
                GetRangeOfVectorOpLowering, FIRFilterHammingOptimizedOpLowering, HighPassFIRHammingOptimizedOpLowering, 
-               LMSFilterOpLowering ,ThresholdOpLowering, QuantizationOpLowering, LMSFilterResponseOpLowering>(
+               LMSFilterOpLowering ,ThresholdOpLowering, QuantizationOpLowering, LMSFilterResponseOpLowering,
+               RunLenEncodingOpLowering>(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the

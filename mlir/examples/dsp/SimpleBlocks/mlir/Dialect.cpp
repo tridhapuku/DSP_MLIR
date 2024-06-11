@@ -2067,6 +2067,52 @@ mlir::LogicalResult LMSFilterResponseOp::verify() {
   return mlir::success();
 }
 
+//===----------------------------------------------------------------------===//
+// RunLenEncodingOp
+//===----------------------------------------------------------------------===//
+
+void RunLenEncodingOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                        mlir::Value input) {
+  DEBUG_PRINT_NO_ARGS();
+  state.addTypes({UnrankedTensorType::get(builder.getF64Type())});
+  state.addOperands({input} );
+  DEBUG_PRINT_NO_ARGS();
+}
+
+void RunLenEncodingOp::inferShapes() {
+  DEBUG_PRINT_NO_ARGS();
+  auto tensorInput =  getInput().getType();
+  auto shapeOfInput = tensorInput.getShape();
+
+  // auto tensorUpsampling = getRhs().getType(); 
+  // auto shapeOfUpsampling = tensorUpsampling.getShape(); //shape is the length
+  //Assume rank is 1 , then get the shape of output
+  // shapeOfInput
+
+  std::vector<int64_t> shapeForOutput ;
+
+  int64_t LengthOfInput = shapeOfInput[0];
+  int64_t lenOfOutput = 2 * LengthOfInput;
+  shapeForOutput.push_back(lenOfOutput);
+  
+  mlir::TensorType manipulatedType = mlir::RankedTensorType::get(shapeForOutput, 
+          getInput().getType().getElementType());
+
+  getResult().setType(manipulatedType);
+  DEBUG_PRINT_NO_ARGS();
+}
+
+mlir::LogicalResult RunLenEncodingOp::verify() {
+  //To extract value from the SSA value:
+    //get the Operand 
+    //convert it to ConstantOp
+    //convert it to corresponding elements attribute
+    //extract the value as float then convert to int
+  // DEBUG_PRINT_NO_ARGS();
+  
+  return mlir::success();
+
+}
 
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions

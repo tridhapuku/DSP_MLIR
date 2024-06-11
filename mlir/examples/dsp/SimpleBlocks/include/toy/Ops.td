@@ -1627,4 +1627,35 @@ def LMSFilterResponseOp : Dsp_Op<"lmsFilterResponse",
   let hasVerifier = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// RunLenEncodingOp
+//===----------------------------------------------------------------------===//
+
+
+def RunLenEncodingOp : Dsp_Op<"runLenEncoding",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "runLenEncoding operation";
+  let description = [{
+    y_rle[i] =  x[i] , if x[i] != x[i-1] , 1<=i<n
+                CountOfXi , at n<=i < 2n -1
+
+     ex: if input is [4,4,2,-1,-1,2,2,2] inputLen = 8
+    then output is [4,2,-1,2, 0,0,0,0 , 2,1,2,3,0,0,0,0]
+    }];
+
+  let arguments = (ins F64Tensor:$input);
+  let results = (outs F64Tensor);
+
+  // Enable registering canonicalization patterns with this operation.
+  // let hasCanonicalizer = 1;
+
+  // Allow building a LowpassFilter with from the input operand.
+  let builders = [
+    OpBuilder<(ins "Value":$input)>
+  ];
+
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
+}
+
 #endif // TOY_OPS
