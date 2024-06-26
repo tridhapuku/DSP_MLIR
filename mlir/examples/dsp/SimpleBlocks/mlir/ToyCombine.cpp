@@ -26,6 +26,9 @@ namespace {
 #include "ToyCombine.inc"
 } // namespace
 
+// Declare the function to get the option value
+extern bool getEnableCanonicalOpt();
+
 /// This is an example of a c++ rewrite pattern for the TransposeOp. It
 /// optimizes the following scenario: transpose(transpose(x)) -> x
 struct SimplifyRedundantTranspose : public mlir::OpRewritePattern<TransposeOp> {
@@ -398,16 +401,30 @@ struct SimplifyHighPassFIRHamming : public mlir::OpRewritePattern<MulOp> {
   }
 };
 
+// ===================================
+// ===================================
+// ===================================
+// ===================================
+// =====Registration of Patterns =====
+// ===================================
+// ===================================
+// ===================================
+// ===================================
+// ===================================
 /// Register our patterns as "canonicalization" patterns on the TransposeOp so
 /// that they can be picked up by the Canonicalization framework.
 void MulOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                              MLIRContext *context){
-  results.add<SimplifyFilterMulHamming ,SimplifyHighPassFIRHamming >(context);
+                                        MLIRContext *context) {
+  if (getEnableCanonicalOpt()) {
+    results.add<SimplifyFilterMulHamming, SimplifyHighPassFIRHamming>(context);
+  }
 }
 
 void SquareOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                              MLIRContext *context){
-  results.add<SimplifyFFTSquare>(context);
+                                           MLIRContext *context) {
+  if (getEnableCanonicalOpt()) {
+    results.add<SimplifyFFTSquare>(context);
+  }
 }
 
 
@@ -415,31 +432,43 @@ void SquareOp::getCanonicalizationPatterns(RewritePatternSet &results,
 /// that they can be picked up by the Canonicalization framework.
 
 void DownsamplingOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                              MLIRContext *context){
-  // results.add<SimplifyUpsamplingDownsampling>(context);
+                                                 MLIRContext *context) {
+  if (getEnableCanonicalOpt()) {
+    results.add<SimplifyUpsamplingDownsampling>(context);
+  }
 }
 
 void TransposeOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                               MLIRContext *context) {
-  results.add<SimplifyRedundantTranspose>(context);
+  if (getEnableCanonicalOpt()) {
+    results.add<SimplifyRedundantTranspose>(context);
+  }
 }
 
 void DelayOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                              MLIRContext *context) {
-    // llvm::errs() << "Enabling Delay Optimization\n";
-    results.add<SimplifyBack2BackDelay>(context);  
+                                          MLIRContext *context) {
+  // llvm::errs() << "Enabling Delay Optimization\n";
+
+  if (getEnableCanonicalOpt()) {
+    DEBUG_PRINT_WITH_ARGS("Enabling Delay Optimization\n");
+    results.add<SimplifyBack2BackDelay>(context);
+  }
 }
 
 void GainOp::getCanonicalizationPatterns(RewritePatternSet &results, 
                                               MLIRContext *context) {
   // results.add<SimplifyBack2BackGain, SimplifyGainwZero>(context);
-  results.add<SimplifyBack2BackGain>(context);
+  if (getEnableCanonicalOpt()) {
+    results.add<SimplifyBack2BackGain>(context);
+  }
 }
 
 /// Register our patterns as "canonicalization" patterns on the ReshapeOp so
 /// that they can be picked up by the Canonicalization framework.
 void ReshapeOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                             MLIRContext *context) {
-  results.add<ReshapeReshapeOptPattern, RedundantReshapeOptPattern,
-              FoldConstantReshapeOptPattern>(context);
+  if (getEnableCanonicalOpt()) {
+    results.add<ReshapeReshapeOptPattern, RedundantReshapeOptPattern,
+                FoldConstantReshapeOptPattern>(context);
+  }
 }

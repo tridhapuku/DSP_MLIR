@@ -108,6 +108,13 @@ static cl::opt<enum Action> emitAction(
 
 static cl::opt<bool> enableOpt("opt", cl::desc("Enable optimizations"));
 static cl::opt<bool> affineIn("affineIn", cl::desc("Input is affine file"));
+static cl::opt<bool> enableAffineOpt("affineOpt", cl::desc("Enable optimizations"));
+static cl::opt<bool> enableCanonicalOpt("canonOpt", cl::desc("Enable optimizations"));
+
+// Add this line to expose the variable to other files
+bool getEnableCanonicalOpt() {
+    return enableCanonicalOpt;
+}
 
 /// Returns a Toy AST resulting from parsing the file or a nullptr on error.
 std::unique_ptr<dsp::ModuleAST> parseInputFile(llvm::StringRef filename) {
@@ -183,25 +190,8 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
     DEBUG_PRINT_WITH_ARGS("Going for shape inference pass \n");
 
     optPM.addPass(mlir::dsp::createShapeInferencePass());
-    optPM.addPass(mlir::createCanonicalizerPass());
-    optPM.addPass(mlir::createCSEPass());
-  }
-
-  if(affineIn)
-  {
-    //we don't require shape inference here
-    mlir::OpPassManager &optPM1 = pm.nest<mlir::dsp::FuncOp>();
-    optPM1.addPass(mlir::createCanonicalizerPass());
-    optPM1.addPass(mlir::createCSEPass());
-
-    // Add optimizations if enabled.
-    if (enableOpt) {
-      optPM1.addPass(mlir::affine::createLoopFusionPass());
-      optPM1.addPass(mlir::affine::createAffineScalarReplacementPass());
-    }
-
-    //disable isLoweringToAffine 
-    isLoweringToAffine = false;
+    // optPM.addPass(mlir::createCanonicalizerPass());
+    // optPM.addPass(mlir::createCSEPass());
   }
 
   if (isLoweringToAffine) {
@@ -210,13 +200,16 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
 
     // Add a few cleanups post lowering.
     mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
-    optPM.addPass(mlir::createCanonicalizerPass());
-    optPM.addPass(mlir::createCSEPass());
+    // optPM.addPass(mlir::createCanonicalizerPass());
+    // optPM.addPass(mlir::createCSEPass());
 
     // Add optimizations if enabled.
     if (enableOpt) {
+    // if (0) {
       DEBUG_PRINT_WITH_ARGS("Opt enabled --loop fusion &  \n");
       DEBUG_PRINT_WITH_ARGS("Opt enabled --createAffineScalarReplacementPass \n");
+      optPM.addPass(mlir::createCanonicalizerPass());
+      optPM.addPass(mlir::createCSEPass());
       optPM.addPass(mlir::affine::createLoopFusionPass());
       optPM.addPass(mlir::affine::createAffineScalarReplacementPass());
 
@@ -240,14 +233,42 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
       //All mlir-optimizations
       optPM.addPass(mlir::createCSEPass());
     }
+
   }
+    mlir::OpPassManager &optPM2 = pm.nest<mlir::func::FuncOp>();
+    // Add optimizations if enabled.
+    if(enableCanonicalOpt) {
+      DEBUG_PRINT_WITH_ARGS("Canonical Pass Enabled \n");
+      optPM2.addPass(mlir::createCanonicalizerPass());
+      optPM2.addPass(mlir::createCSEPass());
+      // optPM2.addPass(mlir::affine::createLoopFusionPass());
+      // optPM2.addPass(mlir::affine::createAffineScalarReplacementPass());
+      // optPM2.addPass(mlir::createCSEPass());
+    }
+
+    if (enableAffineOpt) {
+      DEBUG_PRINT_WITH_ARGS("Opt enabled --loop fusion &  \n");
+      DEBUG_PRINT_WITH_ARGS("Opt enabled --createAffineScalarReplacementPass \n");
+      optPM2.addPass(mlir::affine::createLoopFusionPass());
+      optPM2.addPass(mlir::affine::createAffineScalarReplacementPass());
+      optPM2.addPass(mlir::createCSEPass());
+    }
+
+    if(enableCanonicalOpt) {
+      DEBUG_PRINT_WITH_ARGS("Canonical Pass Enabled \n");
+      optPM2.addPass(mlir::createCanonicalizerPass());
+      optPM2.addPass(mlir::createCSEPass());
+      // optPM2.addPass(mlir::affine::createLoopFusionPass());
+      // optPM2.addPass(mlir::affine::createAffineScalarReplacementPass());
+      // optPM2.addPass(mlir::createCSEPass());
+    }
 
   if (isLoweringTosaToLinalg) {
     // Partially lower the dsp dialect.
     // pm.addPass(mlir::dsp::createLowerTosaToLinalgPass());
 
     // Add a few cleanups post lowering.
-    mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
+    // mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
     pm.addNestedPass<mlir::func::FuncOp>(mlir::tosa::createTosaOptionalDecompositions());
     pm.addNestedPass<mlir::func::FuncOp>(mlir::createCanonicalizerPass());
 
@@ -265,11 +286,6 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
     pm.addPass(mlir::createCanonicalizerPass());
     pm.addPass(mlir::createCSEPass());
 
-    // Add optimizations if enabled.
-    if (enableOpt) {
-      optPM.addPass(mlir::affine::createLoopFusionPass());
-      optPM.addPass(mlir::affine::createAffineScalarReplacementPass());
-    }
   }
 
   if (isLoweringToLLVM) {
@@ -331,6 +347,7 @@ int dumpLLVMIR(mlir::ModuleOp module) {
   }
   mlir::ExecutionEngine::setupTargetTripleAndDataLayout(llvmModule.get(),
                                                         tmOrError.get().get());
+  // enableOpt = false;
 
   /// Optionally run an optimization pipeline over the llvm module.
   auto optPipeline = mlir::makeOptimizingTransformer(
