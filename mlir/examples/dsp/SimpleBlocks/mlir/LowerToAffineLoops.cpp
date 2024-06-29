@@ -220,7 +220,8 @@ static void lowerOpToLoops3(Operation *op, ValueRange operands,
     SecondValueInt = (int64_t) (Val1 + Val2);
   }
   else{
-    llvm::errs() << "delay operation with this sequence not supported !!\n";
+    DEBUG_PRINT_WITH_ARGS("delay operation with this sequence not supported !!\n");
+    // llvm::errs() << "delay operation with this sequence not supported !!\n";
     return;
   }
 
