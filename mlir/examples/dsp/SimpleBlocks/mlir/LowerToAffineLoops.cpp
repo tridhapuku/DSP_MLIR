@@ -157,147 +157,6 @@ static void lowerOpToLoops(Operation *op, ValueRange operands,
 }
 
 
-
-static void lowerOpToLoops3(Operation *op, ValueRange operands,
-                           PatternRewriter &rewriter,
-                           LoopIterationFn processIteration) {
-  auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));
-  // llvm::errs() << "tensorType= " << tensorType.getTypeID() << "\n";
-  auto loc = op->getLoc();
-
-  // Insert an allocation and deallocation for the result of this operation.
-  auto memRefType = convertTensorToMemRef(tensorType);
-  auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
-  //get the 2nd operand of delayOp & convert it into int
-  Value delaySecondArg = op->getOperand(1);
-
-  // Get the defining operation of the second operand
-  // Operation *definingOp = delaySecondArg.getDefiningOp();
-
-  //Pseudo-Code  
-  //Get 2nd argument -- check if it is coming from constantOp -- 
-  // if yes, get int attr
-  //else
-  //get definingOp & also, get the constant values from definingOp->operands
-  // add those constant values 
-  // use this sum for the de
-  // auto constantOp = dyn_cast_or_null<dsp::ConstantOp>(definingOp);
-  dsp::ConstantOp constantOp2ndArg = delaySecondArg.getDefiningOp<dsp::ConstantOp>();
-  dsp::AddOp addOp2ndArg = delaySecondArg.getDefiningOp<dsp::AddOp>();
-  
-  int64_t SecondValueInt = 0;
-  if(constantOp2ndArg)
-  {
-    // llvm::errs() << "Defining Opp is not constant so no lowering for now";
-
-    DenseElementsAttr constantValue = constantOp2ndArg.getValue();
-    auto elements = constantValue.getValues<FloatAttr>();
-    float SecondValue = elements[0].getValueAsDouble();
-    SecondValueInt = (int64_t) SecondValue;
-  }
-  else if(addOp2ndArg)
-  {
-    Value lhs = addOp2ndArg.getLhs();
-    Value rhs = addOp2ndArg.getRhs();
-
-    dsp::ConstantOp constantAdd1arg = lhs.getDefiningOp<dsp::ConstantOp>();
-    dsp::ConstantOp constantAdd2arg = rhs.getDefiningOp<dsp::ConstantOp>();
-
-    if(!constantAdd1arg || !constantAdd2arg)
-    {
-      llvm::errs() << "No support when add operation is not coming from constants\n";
-      return;
-    }
-    DenseElementsAttr constant1 = constantAdd1arg.getValue();
-    DenseElementsAttr constant2 = constantAdd2arg.getValue();
-
-    auto elements1 = constant1.getValues<FloatAttr>();
-    float Val1 = elements1[0].getValueAsDouble();
-
-    auto elements2 = constant2.getValues<FloatAttr>();
-    float Val2 = elements2[0].getValueAsDouble();
-
-    SecondValueInt = (int64_t) (Val1 + Val2);
-  }
-  else{
-    DEBUG_PRINT_WITH_ARGS("delay operation with this sequence not supported !!\n");
-    // llvm::errs() << "delay operation with this sequence not supported !!\n";
-    return;
-  }
-
-  //   llvm::errs() << "\n*****SecondValueInt = " << SecondValueInt << " ***\n"; 
-  // Create a nest of affine loops, with one loop per dimension of the shape.
-  // The buildAffineLoopNest function takes a callback that is used to construct
-  // the body of the innermost loop given a builder, a location and a range of
-  // loop induction variables.
-  //   llvm::errs() << "tensorType->getRank = " << tensorType.getRank() << "\n";
-  //   llvm::errs() << "tensorType->getNumElements = " << tensorType.getNumElements() << "\n";
-  SmallVector<int64_t, 4> lowerBounds(tensorType.getRank(), /*Value=*/0);
-  SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);
-  std::vector<int64_t> upperBounds = tensorType.getShape();
-
-
-  for(auto& shape: upperBounds)
-  {
-    shape = SecondValueInt;
-  }
-
-  //working
-  affine::buildAffineLoopNest(
-      rewriter, loc, lowerBounds, upperBounds, steps,
-      [&](OpBuilder &nestedBuilder, Location loc, ValueRange ivs) {
-        // Call the processing function with the rewriter, the memref operands,
-        // and the loop induction variables. This function will return the value
-        // to store at the current index.
-        auto zeroValue = nestedBuilder.create<arith::ConstantOp>(loc, nestedBuilder.getF64Type(),
-                        nestedBuilder.getFloatAttr(nestedBuilder.getF64Type(), 0.0) );
-        Value valueToStore = zeroValue;
-        nestedBuilder.create<affine::AffineStoreOp>(loc, valueToStore, alloc,
-                                                    ivs);
-      });
-
-
-           //change lower bounds and also change upper bounds 
-      upperBounds = tensorType.getShape();
-      for(auto& shape: upperBounds)
-      {
-        shape = shape - SecondValueInt; //replace 4 by 2ndOperand
-      } 
-
-      
-    //  auto intDelaySSAValue = rewriter.create<arith::ConstantOp>(loc, 
-    //                       IntegerAttr::get(rewriter.getIntegerType(64), SecondValueInt));
-
-    // Define an affine map: #map2 = affine_map<(d0) -> (d0 + 2)>
-    
-
-    affine::buildAffineLoopNest(
-      rewriter, loc, lowerBounds, upperBounds, steps,
-      [&](OpBuilder &nestedBuilder, Location loc, ValueRange ivs) {
-        // Call the processing function with the rewriter, the memref operands,
-        // and the loop induction variables. This function will return the value
-        // to store at the current index.
-
-        //Get the input allocated space for the load
-        dsp::DelayOpAdaptor delayAdaptor(operands);
-        auto loadFromIP = nestedBuilder.create<affine::AffineLoadOp>(loc, delayAdaptor.getLhs(),ivs);
-
-        // Define an affine map: #map2 = affine_map<(d0) -> (d0 + 2)>
-        AffineExpr indx = nestedBuilder.getAffineDimExpr(0);
-        AffineExpr constantExpr = rewriter.getAffineConstantExpr(SecondValueInt );
-        AffineMap addMap = AffineMap::get(1, 0, indx + constantExpr);
-        auto outputIndex = nestedBuilder.create<affine::AffineApplyOp>(loc, addMap , ivs);
-        nestedBuilder.create<affine::AffineStoreOp>(loc, loadFromIP, alloc,
-                    ValueRange{outputIndex});
-     
-                                       
-      });
-
-
-  // Replace this operation with the generated alloc.
-  rewriter.replaceOp(op, alloc);
-}
-
 #define TryJustAffineLoop 0  //working
 #define TryAffineForAndAffineIf 0  // working 
 #define TryAffineIf2 0
@@ -4949,32 +4808,8 @@ struct DelayOpLowering: public ConversionPattern {
 
       //Get the location of delayop
       auto loc = op->getLoc();
-      
-      //create arith.const operation with value 0 & type=f64 --
-      // auto zeroValue = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
-      //                   rewriter.getFloatAttr(rewriter.getF64Type(), 0.0));
-      
-      // llvm::errs() << "zeroValue() " << zeroValue.getType() << "\n";
-      //get second operand of the DelayOp f64 & convert it to int
-      //delay_2ndArg 
-      // Value delay_2ndArg = operands[1];
-      // Value delay_firstArg = operands[0];
 
-
-      // auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));
-     
-      // if(tensorType.getRank() > 1){
-      //   llvm::errs() << "Only Vectors are supported -- not higher ranks\n";
-      //   return mlir::failure();
-      // }
-      //Add check for delay_2ndArg shouldn't exceed lengthOfOperand0 
-     
-      // Insert an allocation and deallocation for the result of this operation.
-      // auto memRefType = convertTensorToMemRef(tensorType);
-
-      // auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
-
-      //Create a nest of affine loops --
+      //Pseudo-code
       //2 affine loops -- 
       //first from 0 to delay_2ndArg
       //          here, inside AffineNest
@@ -4986,67 +4821,111 @@ struct DelayOpLowering: public ConversionPattern {
       //          create affine:load from input memref & indx = indx - delay_2ndArg 
       //          create affine:store at result_op indx
 
-      //replace this operation with generate alloc
+    //output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));    
+    
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
 
-      // lowerOpToLoops2(op, operands, rewriter, 
-      //       [loc ] (OpBuilder &builder, ValueRange memRefOperands,
-      //             ValueRange loopIvs) {
-      //               //
-      //               dsp::DelayOpAdaptor delayAdaptor(memRefOperands);
-      //               Value input0 = delayAdaptor.getLhs();
+    //construct affine loops for the input
+    SmallVector<int64_t, 4> lowerBounds(tensorType.getRank(), /*Value*/0);
+    SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);
 
-      //               auto zeroValue = builder.create<arith::ConstantOp>(loc, builder.getF64Type(),
-      //                   builder.getFloatAttr(builder.getF64Type(), 0.0) );
+    //For loop
+    int64_t ub = tensorType.getShape()[0];
 
-      //               return zeroValue;
+    //Get 2nd Arg
+    DelayOpAdaptor delayOpAdaptor(operands);
 
-      //   });
+    Value constant0 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(0));
+    DEBUG_PRINT_NO_ARGS();
+    // Creating SSA values for the lower bound and upper bound
+    Value lowerBound = rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexType(), rewriter.getIntegerAttr(rewriter.getIndexType(), 0));
+    // Cast the f64 value directly to the index type
+    Value inputUnit = rewriter.create<AffineLoadOp>(loc, delayOpAdaptor.getRhs(), ValueRange{} );
+    Value i64UpperBound = rewriter.create<arith::FPToSIOp>(loc, rewriter.getI64Type(), inputUnit);
+    // Cast the i64 value to index type
+    Value delay2ndArg = rewriter.create<arith::IndexCastOp>(loc, rewriter.getIndexType(), i64UpperBound);
+    // Value inputLen = rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexType(), rewriter.getIntegerAttr(rewriter.getIndexType(), ub));
+    DEBUG_PRINT_WITH_ARGS("print delay2ndArg.dump() for debugging");
+    
+    DEBUG_PRINT_NO_ARGS();
+    // Create an empty affine map list
+    // SmallVector<AffineMap, 4> lbMaps, ubMaps;
+    // Create identity affine maps for bounds
+    // AffineMap lbMap = AffineMap::get(/*dimCount=*/0, /*symbolCount=*/0, rewriter.getContext());
+    // AffineMap ubMap = AffineMap::get(/*dimCount=*/0, /*symbolCount=*/0, rewriter.getContext());
 
-        lowerOpToLoops3(op, operands, rewriter, 
-            [loc ] (OpBuilder &builder, ValueRange memRefOperands,
-                  ValueRange loopIvs) {
-                    //
-                    dsp::DelayOpAdaptor delayAdaptor(memRefOperands);
-                    // Value input0 = delayAdaptor.getLhs();
+    // Create an AffineForOp with SSA values for the bounds
+    Value step1 = rewriter.create<arith::ConstantIndexOp>(loc, 1);
 
-                    auto zeroValue = builder.create<arith::ConstantOp>(loc, builder.getF64Type(),
-                        builder.getFloatAttr(builder.getF64Type(), 0.0) );
+    scf::ForOp forOp1 = rewriter.create<scf::ForOp>(loc, lowerBound, delay2ndArg, step1);
+    //Affine loop with non-int loop indices
+    // affine::AffineForOp forOp1 = rewriter.create<affine::AffineForOp>(loc, lowerBound, lbMap, inputLen, ubMap, 1);
+    DEBUG_PRINT_NO_ARGS();
+    
+    auto iv = forOp1.getInductionVar();
 
-                    return zeroValue;
+    rewriter.setInsertionPointToStart(forOp1.getBody());
+    //store the result
+    // rewriter.create<AffineStoreOp>(loc, constant0, alloc, iv);
+    rewriter.create<memref::StoreOp>(loc, constant0, alloc, iv);
 
-        });
+    rewriter.setInsertionPointAfter(forOp1);
 
-      // auto processIteration = [loc](OpBuilder &builder, ValueRange memRefOperands,
-      //                    ValueRange loopIvs) {
-      //                // Generate an adaptor for the remapped operands of the
-      //                // BinaryOp. This allows for using the nice named accessors
-      //                // that are generated by the ODS.
-      //                typename BinaryOp::Adaptor binaryAdaptor(memRefOperands);
+    // Create the constants for lb2, step1, and calculate ub2
+    Value lb2 = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+    Value lenOfInput = rewriter.create<arith::ConstantIndexOp>(loc, /*length of input*/ub); // Replace with the actual length
+    Value ub2 = rewriter.create<arith::SubIOp>(loc, lenOfInput, delay2ndArg);
+    Value step2 = rewriter.create<arith::ConstantIndexOp>(loc, 1);
 
-      //                // Generate loads for the element of 'lhs' and 'rhs' at the
-      //                // inner loop.
-      //                auto loadedLhs = builder.create<affine::AffineLoadOp>(
-      //                    loc, binaryAdaptor.getLhs(), loopIvs);
-      //                auto loadedRhs = builder.create<affine::AffineLoadOp>(
-      //                    loc, binaryAdaptor.getRhs(), loopIvs);
+    // Create the second scf.for loop
+    scf::ForOp forOp2 = rewriter.create<scf::ForOp>(loc, lb2, ub2, step2);
+    Value iv2 = forOp2.getInductionVar();
 
-      //                // Create the binary operation performed on the loaded
-      //                // values.
-      //                return builder.create<LoweredBinaryOp>(loc, loadedLhs,
-      //                                                       loadedRhs);
-      //              }
-      // affine::buildAffineLoopNest(
-      //     rewriter, loc, lowerBounds, tensorType.getShape(), steps,
-      //   [&](OpBuilder &nestedBuilder, Location loc, ValueRange ivs) {
-      //     // Call the processing function with the rewriter, the memref operands,
-      //     // and the loop induction variables. This function will return the value
-      //     // to store at the current index.
-      //     Value valueToStore = processIteration(nestedBuilder, operands, ivs);
-      //     nestedBuilder.create<affine::AffineStoreOp>(loc, valueToStore, alloc,
-      //                                                 ivs);
-      //   });
-      // rewriter.replaceOp(op, alloc);
-      return success();
+    // Set insertion point to the start of the loop body
+    rewriter.setInsertionPointToStart(forOp2.getBody());
+
+    // Load value from allocIP[iv2]
+    Value loadedVal = rewriter.create<memref::LoadOp>(loc, delayOpAdaptor.getLhs(), iv2);
+
+    // Calculate the index iv2 + delaySecondArg
+    Value newIndex = rewriter.create<arith::AddIOp>(loc, iv2, delay2ndArg);
+
+    // Store the loaded value at alloc[newIndex]
+    rewriter.create<memref::StoreOp>(loc, loadedVal, alloc, newIndex);
+    rewriter.setInsertionPointAfter(forOp2);
+    DEBUG_PRINT_NO_ARGS();
+    //For 2nd loop -- 
+    //loop from 0 to lenOfInput - 2ndArg
+    // load from index 
+    // store at index + 2ndArg
+
+    // forOp1.dump();
+    //Expected MLIR-Affine
+      // %0 = affine.load %alloc_0[] : memref<f64>
+      // %1 = arith.fptosi %0 : f64 to i64
+      // %2 = arith.index_cast %1 : i64 to index
+      // %c1_15 = arith.constant 1 : index
+      // scf.for %arg0 = %c0_14 to %2 step %c1_15 {
+      //   memref.store %cst_13, %alloc[%arg0] : memref<10xf64>
+      // }
+      // %c0_16 = arith.constant 0 : index
+      // %c10 = arith.constant 10 : index
+      // %3 = arith.subi %c10, %2 : index
+      // %c1_17 = arith.constant 1 : index
+      // scf.for %arg0 = %c0_16 to %3 step %c1_17 {
+      //   %4 = memref.load %alloc_1[%arg0] : memref<10xf64>
+      //   %5 = arith.addi %arg0, %2 : index
+      //   memref.store %4, %alloc[%5] : memref<10xf64>
+      // }
+
+ 
+
+    rewriter.replaceOp(op, alloc);
+    DEBUG_PRINT_NO_ARGS();
+    return success();
     }
 
 
