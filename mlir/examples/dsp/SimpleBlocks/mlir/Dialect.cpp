@@ -2115,6 +2115,61 @@ mlir::LogicalResult RunLenEncodingOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
+// FIRFilterResSymmOptimizedOp
+//===----------------------------------------------------------------------===//
+
+void FIRFilterResSymmOptimizedOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                  mlir::Value lhs, mlir::Value rhs) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands({lhs, rhs});
+}
+
+
+
+/// Infer the output shape of the FIRFilterResSymmOptimizedOp, this is required by the shape inference
+/// interface.
+//ToDo -- shape should be the length of Lhs + Rhs - 1
+void FIRFilterResSymmOptimizedOp::inferShapes() { 
+  //get the shape of Lhs & rhs 
+  //add the shape for each dimension
+  // auto tensorInput =  llvm::cast<RankedTensorType>(getLhs().getType());
+  auto tensorInput =  getLhs().getType();
+  auto shapeOfInput = tensorInput.getShape();
+
+  auto tensorFilter = getRhs().getType();
+  auto shapeOfFilter = tensorFilter.getShape();
+  std::vector<int64_t> shapeForOutput ;
+
+  for(size_t i=0; i < shapeOfInput.size() ; i++){
+    shapeForOutput.push_back(shapeOfInput[i] + shapeOfFilter[i] - 1);
+  }
+  
+  mlir::TensorType manipulatedType = mlir::RankedTensorType::get(shapeForOutput, 
+          getLhs().getType().getElementType());
+
+  // getResult().setType(getLhs().getType()); 
+  getResult().setType(manipulatedType);
+}
+
+//get rank of Input & Filter -- make sure it is of rank 1 
+mlir::LogicalResult FIRFilterResSymmOptimizedOp::verify() {
+  // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
+  // auto filterType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
+  // // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+
+  // auto inputRank = inputType.getRank();
+  // auto filterRank = filterType.getRank();
+
+  // if( inputRank != 1 || filterRank != 1)
+  // {
+  //   return emitError()
+  //          << "expected rank of input & filter is 1";
+  // }
+
+  return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
 
