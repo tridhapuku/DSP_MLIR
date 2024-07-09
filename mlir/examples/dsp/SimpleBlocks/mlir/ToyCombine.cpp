@@ -401,6 +401,51 @@ struct SimplifyHighPassFIRHamming : public mlir::OpRewritePattern<MulOp> {
   }
 };
 
+//Pseudo-Code
+//Find FIRFilterResponse & FIRFilterHammingOptimized &  operation
+    // result1 = dsp.FIRFilterHammingOptimized(input1, rate1) //filter and hamming
+    // result2 = dsp.FIRFilterResponse(result1, rate2) //FilterResponse
+// For above pattern , replace dsp.FIRFilterResponse with FIRFilterResSymmOptimized
+  // result1 = dsp.FIRFilterHammingOptimized(input1, rate1)
+  // result2 = dsp.FIRFilterResSymmOptimized(result1, rate2) 
+struct SimplifyFIRFilterRespnseWithSymmFilter : public mlir::OpRewritePattern<FIRFilterResponseOp> {
+  /// We register this pattern to match every dsp.downsampling in the IR.
+  /// The "benefit" is used by the framework to order the patterns and process
+  /// them in order of profitability.
+  SimplifyFIRFilterRespnseWithSymmFilter(mlir::MLIRContext *context)
+      : OpRewritePattern<FIRFilterResponseOp>(context, /*benefit=*/1) {}
+
+  /// This method attempts to match a pattern and rewrite it. The rewriter
+  /// argument is the orchestrator of the sequence of rewrites. The pattern is
+  /// expected to interact with it to perform any changes to the IR from here.
+  mlir::LogicalResult
+  matchAndRewrite(FIRFilterResponseOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    // Look through the input of the current downsampling.
+    //if 1 of the operands is FIRFilterHammingOptimized then go for rewrite
+    //ie, if 
+    mlir::Value Operand1_forFIRFilterResp = op.getOperand(1);
+    mlir::Value Operand0_forFIRFilterResp = op.getOperand(0);
+    dsp::FIRFilterHammingOptimizedOp prev_FIRFilterSymmOp = Operand1_forFIRFilterResp.getDefiningOp<FIRFilterHammingOptimizedOp>();
+
+    // Input defined by another downsampling? If not, no match.
+    if (!prev_FIRFilterSymmOp){
+      return failure();
+    }
+
+    // create FIRFilterHammingOptimizedOp with current operands
+    DEBUG_PRINT_WITH_ARGS("Going for FIRFilterresponse Opt when the operand1 is a symmetric filter");
+    
+    auto firFilterResSymmOptimizedOp = rewriter.create<FIRFilterResSymmOptimizedOp>(op.getLoc(),
+                          Operand0_forFIRFilterResp , Operand1_forFIRFilterResp);
+
+    DEBUG_PRINT_NO_ARGS() ;
+    rewriter.replaceOp(op, firFilterResSymmOptimizedOp);
+
+    return mlir::success();
+  }
+};
+
 // ===================================
 // ===================================
 // ===================================
@@ -413,6 +458,13 @@ struct SimplifyHighPassFIRHamming : public mlir::OpRewritePattern<MulOp> {
 // ===================================
 /// Register our patterns as "canonicalization" patterns on the TransposeOp so
 /// that they can be picked up by the Canonicalization framework.
+void FIRFilterResponseOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                        MLIRContext *context) {
+  if (getEnableCanonicalOpt()) {
+    results.add<SimplifyFIRFilterRespnseWithSymmFilter>(context);
+  }
+}
+
 void MulOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                         MLIRContext *context) {
   if (getEnableCanonicalOpt()) {
