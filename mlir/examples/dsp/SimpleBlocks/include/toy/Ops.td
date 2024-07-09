@@ -557,14 +557,13 @@ def zeroCrossCountOp : Dsp_Op<"zeroCrossCount" ,
 
 
 //===----------------------------------------------------------------------===//
-// FIRFilterOp
+// FIRFilterResponseOp
 //===----------------------------------------------------------------------===//
-// def FIRFilterOp : Dsp_Op<"zeroCrossCount" , [Pure]>{
-def FIRFilterOp : Dsp_Op<"FIRFilter" ,
+def FIRFilterResponseOp : Dsp_Op<"FIRFilterResponse" ,
     [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "shifting tensor by given number";
   let description = [{
-    The "FIRFilterOp" operation is basically the convolution of input 1-D and filter vector 
+    The "FIRFilterResponseOp" operation is basically the convolution of input 1-D and filter vector 
     ex: x[n] = [2,1,3,2,4], h[0]=1,h[1]=−1, and h[2]=2 then
       y[n] = sum(h(k) . x(n-k)) k=0 to N-1 
   }];
@@ -578,7 +577,7 @@ def FIRFilterOp : Dsp_Op<"FIRFilter" ,
   // let assemblyFormat = [{
   //   `(` $input `:` type($input1 , $input2) `)` attr-dict `to` type(results)
   // }];
-  // Allow building a FIRFilterOp with from the two input operands.
+  // Allow building a FIRFilterResponseOp with from the two input operands.
   let builders = [
     OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
   ];

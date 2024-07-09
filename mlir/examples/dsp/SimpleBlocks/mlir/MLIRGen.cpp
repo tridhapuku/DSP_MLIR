@@ -377,13 +377,13 @@ private:
       return builder.create<zeroCrossCountOp>(location, operands[0]);
     }
 
-    if(callee == "FIRFilter"){
+    if(callee == "FIRFilterResponse"){
       if(call.getArgs().size() != 2){
-        emitError(location, "MLIR codegen encountered an error: dsp.FIRFilter "
+        emitError(location, "MLIR codegen encountered an error: dsp.FIRFilterResponse "
                             "accepts only 2 arguments");
         return nullptr;
       }
-      return builder.create<FIRFilterOp>(location, operands[0] , operands[1]);
+      return builder.create<FIRFilterResponseOp>(location, operands[0] , operands[1]);
     }
 
     if(callee == "slidingWindowAvg"){
@@ -666,7 +666,7 @@ private:
 
     if(callee == "FIRFilterResSymmOptimized"){
       if(call.getArgs().size() != 2){
-        emitError(location, "MLIR codegen encountered an error: dsp.FIRFilter "
+        emitError(location, "MLIR codegen encountered an error: dsp.FIRFilterResSymmOptimized "
                             "accepts only 2 arguments");
         return nullptr;
       }

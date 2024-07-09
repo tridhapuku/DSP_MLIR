@@ -582,10 +582,10 @@ void zeroCrossCountOp::build(mlir::OpBuilder &builder, mlir::OperationState &sta
 
 
 //===----------------------------------------------------------------------===//
-// FIRFilterOp
+// FIRFilterResponseOp
 //===----------------------------------------------------------------------===//
 
-void FIRFilterOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+void FIRFilterResponseOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                   mlir::Value lhs, mlir::Value rhs) {
   state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
   state.addOperands({lhs, rhs});
@@ -593,10 +593,10 @@ void FIRFilterOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
 
 
 
-/// Infer the output shape of the FIRFilterOp, this is required by the shape inference
+/// Infer the output shape of the FIRFilterResponseOp, this is required by the shape inference
 /// interface.
 //ToDo -- shape should be the length of Lhs + Rhs - 1
-void FIRFilterOp::inferShapes() { 
+void FIRFilterResponseOp::inferShapes() { 
   //get the shape of Lhs & rhs 
   //add the shape for each dimension
   // auto tensorInput =  llvm::cast<RankedTensorType>(getLhs().getType());
@@ -619,7 +619,7 @@ void FIRFilterOp::inferShapes() {
   }
 
 //get rank of Input & Filter -- make sure it is of rank 1 
-mlir::LogicalResult FIRFilterOp::verify() {
+mlir::LogicalResult FIRFilterResponseOp::verify() {
   // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
   // auto filterType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
   // // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());

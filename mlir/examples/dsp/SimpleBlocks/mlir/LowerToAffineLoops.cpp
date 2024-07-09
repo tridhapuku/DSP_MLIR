@@ -286,7 +286,7 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
 
     rewriter.setInsertionPointToStart(ifOp.getThenBlock());
     
-    FIRFilterOpAdaptor firFilterOperands(operands);
+    FIRFilterResponseAdaptor firFilterOperands(operands);
 
     //load from the input
     Value loadInput = rewriter.create<AffineLoadOp>(loc, firFilterOperands.getLhs(), iv);
@@ -459,7 +459,7 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
     
     
     //try replace constant15 ie, with input & filter
-    FIRFilterOpAdaptor firOpAdaptor(operands);
+    FIRFilterResponseOpAdaptor firOpAdaptor(operands);
 
     Value inputForFilter = rewriter.create<affine::AffineLoadOp>(loc, firOpAdaptor.getLhs() , iv);
     // Value inputForFilterMapped = rewriter.create<affine::AffineLoadOp>(loc,  firOpAdaptor.getLhs() , addMap, iv);
@@ -508,7 +508,7 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
       // Inside the loop body:
 
     //try replace constant15 ie, with input & filter
-    FIRFilterOpAdaptor firOpAdaptor(operands);
+    FIRFilterResponseOpAdaptor firOpAdaptor(operands);
 
     Value inputForFilter = rewriter.create<affine::AffineLoadOp>(loc, firOpAdaptor.getLhs() , iv);
 
@@ -543,7 +543,7 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
     auto iv = forOp1.getInductionVar();
 
     //create loadOp
-    FIRFilterOpAdaptor firOpAdaptor(operands);
+    FIRFilterResponseOpAdaptor firOpAdaptor(operands);
 
     Value loadInput = rewriter.create<affine::AffineLoadOp>(loc, firOpAdaptor.getLhs() , iv);
 
@@ -700,7 +700,7 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
     auto iv = forOp1.getInductionVar();
 
     //create loadOp
-    FIRFilterOpAdaptor firOpAdaptor(operands);
+    FIRFilterResponseOpAdaptor firOpAdaptor(operands);
 
     Value loadInput = rewriter.create<affine::AffineLoadOp>(loc, firOpAdaptor.getLhs() , iv);
 
@@ -774,7 +774,7 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
     auto iv = forOp1.getInductionVar();
 
     //create loadOp
-    FIRFilterOpAdaptor firOpAdaptor(operands);
+    FIRFilterResponseOpAdaptor firOpAdaptor(operands);
 
     Value loadInput = rewriter.create<affine::AffineLoadOp>(loc, firOpAdaptor.getLhs() , iv);
 
@@ -888,7 +888,7 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
     AffineMap addMap = AffineMap::get(2, 0, dimExpr2);
     // auto inputIndex = rewriter.create<affine::AffineApplyOp>(loc, addMap , ValueRange{iv,iv2});
 
-    FIRFilterOpAdaptor firOpAdaptor(operands);
+    FIRFilterResponseOpAdaptor firOpAdaptor(operands);
     Value loadInput = rewriter.create<AffineLoadOp>(loc, firOpAdaptor.getLhs(), addMap , ValueRange{iv,iv2});
 
     rewriter.create<AffineYieldOp>(loc, ValueRange{loadInput});
@@ -913,7 +913,7 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
     // ifOp->dump();
     
 
-    //FIRFilter code -- x[n] , h[n]
+    //FIRFilterResponse code -- x[n] , h[n]
    
     //iterate for output
         //start with sum=0
@@ -3544,7 +3544,7 @@ struct SumOpLowering : public ConversionPattern {
 
 
 //===----------------------------------------------------------------------===//
-// ToyToAffine RewritePatterns: FIRFilter operations
+// ToyToAffine RewritePatterns: FIRFilterResponse operations
 //===----------------------------------------------------------------------===//
 struct filterOpLowering: public ConversionPattern {
       filterOpLowering(MLIRContext *ctx)
@@ -4951,18 +4951,18 @@ struct SlidingWindowAvgOpLowering : public ConversionPattern {
 };
 
 //===----------------------------------------------------------------------===//
-// ToyToAffine RewritePatterns: FIRFilter operations
+// ToyToAffine RewritePatterns: FIRFilterResponse operations
 //===----------------------------------------------------------------------===//
-struct FIRFilterOpLowering: public ConversionPattern {
-      FIRFilterOpLowering(MLIRContext *ctx)
-        : ConversionPattern(dsp::FIRFilterOp::getOperationName(), 1 , ctx) {}
+struct FIRFilterResponseOpLowering: public ConversionPattern {
+      FIRFilterResponseOpLowering(MLIRContext *ctx)
+        : ConversionPattern(dsp::FIRFilterResponseOp::getOperationName(), 1 , ctx) {}
 
     LogicalResult 
     matchAndRewrite(Operation *op, ArrayRef<Value> operands,
               ConversionPatternRewriter &rewriter) const final {
-      //dsp.FIRFilterOp has 2 operands -- both of type tensor f64 
+      //dsp.FIRFilterResponseOp has 2 operands -- both of type tensor f64 
 
-      //Get the location of FIRFilterOp
+      //Get the location of FIRFilterResponseOp
       auto loc = op->getLoc();
       
       //Pseudo-Code
@@ -4985,7 +4985,7 @@ struct FIRFilterOpLowering: public ConversionPattern {
                     // Generate an adaptor for the remapped operands of the
                      // BinaryOp. This allows for using the nice named accessors
                      // that are generated by the ODS.
-                    dsp::FIRFilterOpAdaptor firFilterAdaptor(memRefOperands);
+                    dsp::FIRFilterResponseOpAdaptor firFilterAdaptor(memRefOperands);
 
                     // Generate loads for the element of 'lhs' and 'rhs' at the
                     // inner loop.
@@ -5542,7 +5542,7 @@ void ToyToAffineLoweringPass::runOnOperation() {
   RewritePatternSet patterns(&getContext());
   patterns.add<AddOpLowering, ConstantOpLowering, FuncOpLowering, MulOpLowering, 
                PrintOpLowering, ReturnOpLowering, TransposeOpLowering ,
-               DelayOpLowering, GainOpLowering, SubOpLowering, FIRFilterOpLowering, 
+               DelayOpLowering, GainOpLowering, SubOpLowering, FIRFilterResponseOpLowering, 
                SlidingWindowAvgOpLowering, DownSamplingOpLowering, 
                UpSamplingOpLowering, LowPassFilter1stOrderOpLowering, 
                HighPassFilterOpLowering, FFT1DOpLowering, IFFT1DOpLowering,

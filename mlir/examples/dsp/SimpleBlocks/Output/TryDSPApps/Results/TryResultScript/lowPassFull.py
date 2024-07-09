@@ -66,12 +66,12 @@ def main() {
   # var a51 = [1,  0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0  ];
 
   # var filterRes = filter(lpf_w , a51, noisy_sig);
-  # var FIRfilterResponse = FIRFilter(noisy_sig, lpf_w);
-  var FIRfilterResponse = FIRFilterResSymmOptimized(noisy_sig, lpf_w);
+  var FIRfilterResponse = FIRFilterResponse(noisy_sig, lpf_w);
+  # var FIRfilterResponse = FIRFilterResSymmOptimized(noisy_sig, lpf_w);
   var final1 = getElemAtIndx(FIRfilterResponse , [6]); 
   print(final1);
   
-  # var FIRfilterResponse2 = FIRFilter(noisy_sig, lpf_w2);
+  # var FIRfilterResponse2 = FIRFilterResponse(noisy_sig, lpf_w2);
   # var final2 = getElemAtIndx(FIRfilterResponse2 , [7]); 
   # print(final2);
   

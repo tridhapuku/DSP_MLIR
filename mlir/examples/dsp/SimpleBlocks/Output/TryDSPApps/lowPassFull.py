@@ -33,10 +33,12 @@ def main() {
   var getNoiseSinDuration = gain(t, 2 * pi * f_noise);
   var noise = sin(getNoiseSinDuration);
   var noise1 = gain(noise, 0.5);
+
+
   # print(noise1);
 
   #noisy_sig = clean + noise
-  var noisy_sig = clean_sig + noise1;
+  var noisy_sig = clean_sig + noise1 ;
   # print(noisy_sig);
 
   #design a low-pass filter : filterOrder = 51(odd) , cut-off freq=1000
@@ -49,6 +51,14 @@ def main() {
   # var hid = sinc(wc, N);
   var lpf = lowPassFIRFilter(wc, N); #ideal low -pass filter
   var lpf_w = lpf * hamming(N);
+
+  # var fc2 = 1000;
+  # # var Fs = 8000;
+  # var wc2 = 2 * pi * fc2 / fs; #wc should vary from 0 to pi
+  # # var N = 51;
+  # # var hid = sinc(wc, N);
+  # var lpf2 = lowPassFIRFilter(wc2, N); #ideal low -pass filter
+  # var lpf_w2 = lpf2 * hamming(N);
   # print(lpf_w);
 
   # filter response
@@ -56,7 +66,7 @@ def main() {
   # var a51 = [1,  0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0  ];
 
   # var filterRes = filter(lpf_w , a51, noisy_sig);
-  var FIRfilterResponse = FIRFilter(noisy_sig, lpf_w);
+  var FIRfilterResponse = FIRFilterResponse(noisy_sig, lpf_w);
   # print(filterRes);
   print(FIRfilterResponse);
   # var a10 = getRangeOfVector(0, 400, 0.000125);
