@@ -986,6 +986,58 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
 namespace {
 
 //===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: LengthOp operations
+//===----------------------------------------------------------------------===//
+struct LengthOpLowering : public ConversionPattern {
+  LengthOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::LengthOp::getOperationName(), 1, ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
+    
+    //Pseudo-code:
+      //  output = len(input)
+
+    DEBUG_PRINT_NO_ARGS();
+
+    //output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));  
+    //iterate to result1 --not needed for now but for future reference  
+   
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+
+    auto inputType = llvm::dyn_cast<RankedTensorType>(op->getOperand(0).getType()); //op->getOperand(
+
+    int64_t ub = inputType.getShape()[0];
+    Value constantUb = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(ub));
+
+
+    DEBUG_PRINT_WITH_ARGS("\nCheck for index --here");
+    //load from X, using 2nd operand as index
+    // DEBUG_PRINT_WITH_ARGS("Indx is" , SecondValueInt);
+    Value constantIndx0 = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+    rewriter.create<AffineStoreOp>(loc, constantUb, alloc, ValueRange{constantIndx0});
+
+
+    //debug
+    // forOpX->dump();
+    // forOpY->dump();
+      // affine.store %cst, %alloc_10[] : memref<f64>
+      // %0 = affine.load %alloc_11[4] : memref<10xf64>
+      // affine.store %0, %alloc[0] : memref<1xf64>
+    
+    rewriter.replaceOp(op, alloc);
+    
+    return success();
+  }
+};
+
+//===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: FIRFilterResSymmOptimizedOp operations
 //===----------------------------------------------------------------------===//
 struct FIRFilterResSymmOptimizedOpLowering: public ConversionPattern {
@@ -5552,7 +5604,8 @@ void ToyToAffineLoweringPass::runOnOperation() {
                SetElemAtIndxOpLowering ,LowPassFIRFilterOpLowering, HighPassFIRFilterOpLowering,
                GetRangeOfVectorOpLowering, FIRFilterHammingOptimizedOpLowering, HighPassFIRHammingOptimizedOpLowering, 
                LMSFilterOpLowering ,ThresholdOpLowering, QuantizationOpLowering, LMSFilterResponseOpLowering,
-               RunLenEncodingOpLowering, FIRFilterResSymmOptimizedOpLowering>(
+               RunLenEncodingOpLowering, FIRFilterResSymmOptimizedOpLowering,
+               LengthOpLowering >(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the

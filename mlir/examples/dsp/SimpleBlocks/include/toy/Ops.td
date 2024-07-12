@@ -407,7 +407,6 @@ def TransposeOp : Dsp_Op<"transpose",
 
 def DelayOp : Dsp_Op<"delay" , 
           [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
-// def DelayOp : Dsp_Op<"delay" > {
   let summary = "shifting tensor by given number";
   let description = [{
     The "delay" operation performs shift in array/tensor by given arg -- 
@@ -450,9 +449,6 @@ def DelayOp : Dsp_Op<"delay" ,
 //===----------------------------------------------------------------------===//
 // GainOp
 //===----------------------------------------------------------------------===//
-
-// def GainOp : Dsp_Op<"gain" , 
-          // [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
 def GainOp : Dsp_Op<"gain" ,
     [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "shifting tensor by given number";
@@ -523,7 +519,6 @@ def SubOp : Dsp_Op<"sub", [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInte
 //===----------------------------------------------------------------------===//
 // zeroCrossCountOp
 //===----------------------------------------------------------------------===//
-// def zeroCrossCountOp : Dsp_Op<"zeroCrossCount" , [Pure]>{
 def zeroCrossCountOp : Dsp_Op<"zeroCrossCount" ,
     [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "shifting tensor by given number";
@@ -586,7 +581,7 @@ def FIRFilterResponseOp : Dsp_Op<"FIRFilterResponse" ,
   // let hasCustomAssemblyFormat = 1;
   
   // Enable registering canonicalization patterns with this operation.
-  //let hasCanonicalizer = 1;
+  let hasCanonicalizer = 1;
 
   let hasVerifier = 1;
 }
@@ -622,9 +617,6 @@ def SlidingWindowAvgOp : Dsp_Op<"slidingWindowAvg",
 //===----------------------------------------------------------------------===//
 // DownsamplingOp
 //===----------------------------------------------------------------------===//
-
-// def DownsamplingOp : Dsp_Op<"downsampling" , 
-          // [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
 def DownsamplingOp : Dsp_Op<"downsampling" ,
     [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "downsampling a input tensor by given rate";
@@ -664,8 +656,6 @@ def DownsamplingOp : Dsp_Op<"downsampling" ,
 // UpsamplingOp
 //===----------------------------------------------------------------------===//
 
-// def UpsamplingOp : Dsp_Op<"upsampling" , 
-          // [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
 def UpsamplingOp : Dsp_Op<"upsampling" ,
     [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "upsampling a input tensor by given rate";
@@ -705,8 +695,6 @@ def UpsamplingOp : Dsp_Op<"upsampling" ,
 // LowPassFilter1stOrderOp
 //===----------------------------------------------------------------------===//
 
-// def LowPassFilter1stOrderOp : Dsp_Op<"lowPassFilter" , 
-          // [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
 def LowPassFilter1stOrderOp : Dsp_Op<"lowPassFilter" ,
     [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "lowPassFilter a input tensor by given rate";
@@ -1142,6 +1130,8 @@ def FFT1DRealOp : Dsp_Op<"fft1dreal",
 
   // Indicate that additional verification for this operation is necessary.
   let hasVerifier = 1;
+
+  let hasCanonicalizer = 1;
 }
 
 
@@ -1685,6 +1675,39 @@ def FIRFilterResSymmOptimizedOp : Dsp_Op<"FIRFilterResSymmOptimized" ,
   // Allow building a FIRFilterOp with from the two input operands.
   let builders = [
     OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+  
+  // Enable registering canonicalization patterns with this operation.
+  //let hasCanonicalizer = 1;
+
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// LengthOp
+//===----------------------------------------------------------------------===//
+def LengthOp : Dsp_Op<"len" ,
+    [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "LengthOp";
+  let description = [{
+    The "LengthOp" operation gives the length of vector
+    ex: x[n] = [2,1,3,2,4], len(x) will be 5
+    }];
+
+  let arguments = (ins F64Tensor:$input); //working -- F64
+  let results =  (outs F64Tensor);
+
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input1 , $input2) `)` attr-dict `to` type(results)
+  // }];
+  // Allow building a FIRFilterOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$input)>
   ];
 
   // Indicate that the operation has a custom parser and printer method.
