@@ -682,6 +682,16 @@ private:
       return builder.create<LengthOp>(location, operands[0] );
     }
 
+
+    if(callee == "reverseInput"){
+      if(call.getArgs().size() != 1){
+        emitError(location, "MLIR codegen encountered an error: dsp.reverseInput "
+                            "accepts only 1 arguments");
+        return nullptr;
+      }
+      return builder.create<ReverseInputOp>(location, operands[0] );
+    }
+
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.
     // if(callee == "delay"){

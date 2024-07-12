@@ -1719,4 +1719,38 @@ def LengthOp : Dsp_Op<"len" ,
   let hasVerifier = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// ReverseInputOp
+//===----------------------------------------------------------------------===//
+def ReverseInputOp : Dsp_Op<"reverseInput" ,
+    [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "ReverseInputOp";
+  let description = [{
+    The "ReverseInputOp" operation gives the reverse of vector
+    y[n] = x[N-1-n] ie, where N is length of input
+    ex: x[n] = [1,2,3,4], y[n] = [4,3,2,1]
+    }];
+
+  let arguments = (ins F64Tensor:$input); //working -- F64
+  let results =  (outs F64Tensor);
+
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input1 , $input2) `)` attr-dict `to` type(results)
+  // }];
+  // Allow building a ReverseInputOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$input)>
+  ];
+
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+  
+  // Enable registering canonicalization patterns with this operation.
+  //let hasCanonicalizer = 1;
+
+  let hasVerifier = 1;
+}
+
 #endif // TOY_OPS

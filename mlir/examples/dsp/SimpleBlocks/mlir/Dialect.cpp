@@ -2211,6 +2211,38 @@ mlir::LogicalResult LengthOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
+// ReverseInputOp
+//===----------------------------------------------------------------------===//
+
+void ReverseInputOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                        mlir::Value input) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands(input);
+}
+
+void ReverseInputOp::inferShapes() {
+  auto tensorInput =  getInput().getType();
+  // mlir::TensorType manipulatedType = mlir::RankedTensorType::get(shapeForOutput, 
+          // getInput().getType().getElementType());
+  getResult().setType(tensorInput);
+}
+
+mlir::LogicalResult ReverseInputOp::verify() {
+  // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand().getType());
+  // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+  // if (!inputType || !resultType)
+  //   return mlir::success();
+
+  // auto inputShape = inputType.getShape();
+  // if (!std::equal(inputShape.begin(), inputShape.end(),
+  //                 resultType.getShape().rbegin())) {
+  //   return emitError()
+  //          << "expected result shape to be a transpose of the input";
+  // }
+  return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
 

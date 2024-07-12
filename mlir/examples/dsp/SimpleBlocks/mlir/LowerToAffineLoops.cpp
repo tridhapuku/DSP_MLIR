@@ -986,6 +986,82 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
 namespace {
 
 //===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: ReverseInputOp operations
+//===----------------------------------------------------------------------===//
+
+struct ReverseInputOpLowering : public ConversionPattern {
+  ReverseInputOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::ReverseInputOp::getOperationName(), 1, ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
+    
+    //Pseudo-code:
+      //output = 0
+      //iterate for len = 0 to N
+      //  output[i] = a[N-1-i]
+
+
+    DEBUG_PRINT_NO_ARGS() ;
+
+    //output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));    
+    
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+
+    //construct affine loops for the input
+    SmallVector<int64_t, 4> lowerBounds(tensorType.getRank(), /*Value*/0);
+    SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);
+
+    
+    //For loop
+    ReverseInputOpAdaptor reverseInputOpAdaptor(operands);
+    // DEBUG_PRINT_NO_ARGS() ;
+    
+    int64_t lb = 0 ;
+    int64_t ub = tensorType.getShape()[0];
+    int64_t step = 1;
+
+    //for loop
+    affine::AffineForOp forOp1 = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto iv = forOp1.getInductionVar();
+
+    rewriter.setInsertionPointToStart(forOp1.getBody());
+    
+    // DEBUG_PRINT_NO_ARGS() ;
+    //: N-1 - i
+    AffineExpr reverseIndxExpr = rewriter.getAffineConstantExpr(ub - 1) - rewriter.getAffineDimExpr(0);
+
+    AffineMap addMap2 = AffineMap::get(1, 0, reverseIndxExpr);
+    //load x[N-1-i]
+    DEBUG_PRINT_NO_ARGS();
+    Value loadInputFrmReverseIndx = rewriter.create<AffineLoadOp>(loc, reverseInputOpAdaptor.getInput(), addMap2 , ValueRange{iv});
+
+
+     
+    //store the result at indx i
+    rewriter.create<AffineStoreOp>(loc, loadInputFrmReverseIndx, alloc, iv);
+
+    rewriter.setInsertionPointAfter(forOp1);
+    //debug
+    // forOp1->dump();
+    //   affine.for %arg0 = 0 to 5 {
+    //   %0 = affine.load %alloc_6[%arg0] : memref<5xf64>
+    //   %1 = arith.mulf %0, %0 : f64
+    //   affine.store %1, %alloc_5[%arg0] : memref<5xf64>
+    // }
+    rewriter.replaceOp(op, alloc);
+    
+    return success();
+  }
+};
+
+
+//===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: LengthOp operations
 //===----------------------------------------------------------------------===//
 struct LengthOpLowering : public ConversionPattern {
@@ -5605,7 +5681,7 @@ void ToyToAffineLoweringPass::runOnOperation() {
                GetRangeOfVectorOpLowering, FIRFilterHammingOptimizedOpLowering, HighPassFIRHammingOptimizedOpLowering, 
                LMSFilterOpLowering ,ThresholdOpLowering, QuantizationOpLowering, LMSFilterResponseOpLowering,
                RunLenEncodingOpLowering, FIRFilterResSymmOptimizedOpLowering,
-               LengthOpLowering >(
+               LengthOpLowering, ReverseInputOpLowering >(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the
