@@ -1096,8 +1096,6 @@ def SquareOp : Dsp_Op<"square",
 //===----------------------------------------------------------------------===//
 // FFT1DRealOp
 //===----------------------------------------------------------------------===//
-
-
 def FFT1DRealOp : Dsp_Op<"fft1dreal",
     [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "fft1dreal operation";
@@ -1827,6 +1825,49 @@ def FIRFilterYSymmOptimizedOp : Dsp_Op<"FIRFilterYSymmOptimized" ,
   //let hasCanonicalizer = 1;
 
   let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// FFT1DRealSymmOp
+//===----------------------------------------------------------------------===//
+def FFT1DRealSymmOp : Dsp_Op<"fft1DRealSymm",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "fft1DRealSymm operation";
+  let description = [{
+    Actual Def: y[k] = y_real[k] & y_real = sumOver_n(x[n]*cos[2*pi * k *n/N ] 
+    Here: y[k] = sumOver_n(x[n]*cos[2*pi * k *n/N ] , 0<=k < (N+1)/2
+            & y[N-k] = y[k]  (N+1)/2<= k< N
+            ie,  y[1] = y[N-1] , y[2] = y[N-2] , 
+    The "fft1DRealSymm" operation gives symmetric output when input is symmetric & real 
+    ie: when x = [1,2,3,2,1] then y_real will be symm: except the first elem
+    ie, y = [9, -2.11 , 0.118, 0.118 , -2.11] 
+
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins F64Tensor:$input);
+  let results = (outs F64Tensor:$real); //(ins F64Tensor:$lhs, F64Tensor:$rhs);
+  // let results = (outs F64Tensor:$real);
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input) `)` attr-dict `to` type(results)
+  // }];
+
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input) `)` attr-dict `to` `(` type($real) `,` type($img) `)`
+  // }];
+
+  // Enable registering canonicalization patterns with this operation.
+  // let hasCanonicalizer = 1;
+
+  // Allow building a fft1DRealSymm with from the input operand.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs)>
+  ];
+
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
+
+  // let hasCanonicalizer = 1;
 }
 
 #endif // TOY_OPS

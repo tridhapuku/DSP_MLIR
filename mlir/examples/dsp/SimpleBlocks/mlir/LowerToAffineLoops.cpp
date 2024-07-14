@@ -986,6 +986,181 @@ static void lowerOpToLoopsFIR(Operation *op, ValueRange operands,
 namespace {
 
 //===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: FFT1DRealSymmOp operations
+//===----------------------------------------------------------------------===//
+
+
+struct FFT1DRealSymmOpLowering : public ConversionPattern {
+  FFT1DRealSymmOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::FFT1DRealSymmOp::getOperationName(), 1, ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
+    
+    //Pseudo-code:
+     // y[k] = sumOver_n(x[n]*cos[2*pi * k *n/N ] , 0<=k < (N+1)/2
+     //        & y[N-k] = y[k]  (N+1)/2<= k< N
+      // For k=0: 
+        //sum=0
+        // for n= 0 to N
+            //sum = sum + x[n]
+        //y[0] = sum
+
+      // for k=1 to (N+1)/2
+          // sum = 0
+          // for n=0 to N
+              // sum = sum + x[n] * cos(2*pi*k*n/N)
+          //y[k] = sum
+          //y[N-k] = sum
+
+      //Actual definition
+        //  y[k] = y_real[k] + j *y_img[k] 
+        // y_real = sumOver_n(x[n]*cos[2*pi * k *n/N ] 
+        // y_img = sumOver_n(x[n]*sin[2*pi * k *n/N ] * -1
+        //init  output mem for y_real & y_img as 0 
+        // replace this upsampling op with the output_mem_allocation op
+
+
+
+    // DEBUG_PRINT_NO_ARGS() ;
+
+    //output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));  
+    //iterate to result1 --not needed for now but for future reference  
+    // auto tensorType1 =  llvm::cast<RankedTensorType>(*std::next(op->result_type_begin(), 1));
+
+    // DEBUG_PRINT_NO_ARGS() ; 
+    //tensorType.getShape()[0]
+    // llvm::errs() << "tensorType1.getShape()[0] " << tensorType1.getShape()[0] << " func= " << __func__ << "\n"; 
+    
+    //allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+    // auto memRefType2 = convertTensorToMemRef(tensorType1);
+    auto alloc_real = insertAllocAndDealloc(memRefType, loc, rewriter);
+    
+    //construct affine loops for the input
+    SmallVector<int64_t, 4> lowerBounds(tensorType.getRank(), /*Value*/0);
+    SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);    
+
+    // affine.for %y = 0 to 4 {
+        //     affine.store %cst_3, %alloc_real[%y] : memref<4xf64>
+        //     affine.store %cst_3, %alloc_img[%y] : memref<4xf64>
+        // }
+    Value constant0 = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(0));
+
+
+    //For loop -- iterate from 1 to last
+    int64_t lb = 0 ;
+    int64_t ub = tensorType.getShape()[0];
+    int64_t ubBy2 = (ub+1)/2;
+    int64_t step = 1;
+
+    //load from X, & y1 & y2
+    FFT1DRealSymmOpAdaptor fft1DRealSymmAdaptor(operands);
+
+    affine::AffineForOp forOp1 = rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto iv = forOp1.getInductionVar();
+    rewriter.setInsertionPointToStart(forOp1.getBody());
+    rewriter.create<AffineStoreOp>(loc, constant0, alloc_real, ValueRange{iv});
+    rewriter.setInsertionPointAfter(forOp1);
+
+    //k=0
+    //sum=0
+    // for n= 0 to N
+        //sum = sum + x[n]
+    //y[0] = sum
+    affine::AffineForOp forOp2 = rewriter.create<affine::AffineForOp>(loc, 
+                lb, ub, step , ValueRange{constant0});
+    auto iv2 = forOp2.getInductionVar();
+    rewriter.setInsertionPointToStart(forOp2.getBody());
+    //get previous sum
+    auto getIterArg1 =  forOp2.getBody()->getArgument(1);
+    Value loadX = rewriter.create<AffineLoadOp>(loc, fft1DRealSymmAdaptor.getInput(), ValueRange{iv2});
+    Value sumNext1 = rewriter.create<arith::AddFOp>(loc, loadX, getIterArg1);
+    rewriter.create<AffineYieldOp>(loc, ValueRange{sumNext1});
+    rewriter.setInsertionPointAfter(forOp2);
+
+    //store result for k=0
+    Value Indx0 = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+    rewriter.create<AffineStoreOp>(loc, forOp2.getResult(0), alloc_real, ValueRange{Indx0});
+
+    // for k=1 to (N+1)/2
+          // sum = 0
+          // for n=0 to N
+              // sum = sum + x[n] * cos(2*pi*k*n/N)
+          //y[k] = sum
+          //y[N-k] = sum
+    //loop for Y ie, k
+    affine::AffineForOp forOpY = rewriter.create<AffineForOp>(loc, lb+1, ubBy2, step);
+    auto ivY = forOpY.getInductionVar();
+    rewriter.setInsertionPointToStart(forOpY.getBody());
+
+    //loop for X
+    affine::AffineForOp forOpX = rewriter.create<AffineForOp>(loc, lb, ub, step, ValueRange{constant0});
+    auto ivX = forOpX.getInductionVar();
+    //get sum
+    auto getIterArg =  forOpX.getBody()->getArgument(1);
+    rewriter.setInsertionPointToStart(forOpX.getBody());
+
+    //load from X, & y1 & y2
+    Value inputX = rewriter.create<AffineLoadOp>(loc, fft1DRealSymmAdaptor.getInput(), ValueRange{ivX});
+    Value loadYReal = rewriter.create<AffineLoadOp>(loc, alloc_real, ValueRange{ivY});
+    
+    //convert index to f64
+    Value IndxY = rewriter.create<arith::IndexCastUIOp>(loc, rewriter.getIntegerType(32), ivY);
+    Value k = rewriter.create<arith::UIToFPOp>(loc, rewriter.getF64Type(), IndxY);
+
+    Value IndxX = rewriter.create<arith::IndexCastUIOp>(loc, rewriter.getIntegerType(32), ivX);
+    Value i = rewriter.create<arith::UIToFPOp>(loc, rewriter.getF64Type(), IndxX);
+
+    //get 2*pi * k * i / N
+    Value muli_k =  rewriter.create<arith::MulFOp>(loc, k , i);
+    
+    Value const2pi = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(6.28318530718));
+    Value mul2piKI = rewriter.create<arith::MulFOp>(loc, const2pi , muli_k);  
+
+    float LengthOfInput = (float) ub;
+    Value N = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                         rewriter.getF64FloatAttr(LengthOfInput));
+    // Value N = inputTensorType.getShape()[0];
+
+    Value divIndxByN = rewriter.create<arith::DivFOp>(loc, mul2piKI, N )  ;     
+
+    // Real part = Sum(x[i] * cos(div) )
+    Value GetCos = rewriter.create<math::CosOp>(loc, divIndxByN);
+    Value xMulCos = rewriter.create<arith::MulFOp>(loc, inputX , GetCos);  
+
+    //realSu 
+    Value sumNext = rewriter.create<arith::AddFOp>(loc, getIterArg ,xMulCos) ;
+    // rewriter.create<AffineStoreOp>(loc, sumNext, alloc_real, ValueRange{ivX}); 
+    
+    // DEBUG_PRINT_NO_ARGS() ;
+    rewriter.create<AffineYieldOp>(loc, ValueRange{sumNext});
+    rewriter.setInsertionPointAfter(forOpX);
+    // forOpX->dump();
+    //store realSum at y[k] 
+    rewriter.create<AffineStoreOp>(loc, forOpX.getResult(0) , alloc_real, ValueRange{ivY});
+
+    //store realSum at y[N-k]
+    AffineExpr ExprNminusK = rewriter.getAffineConstantExpr(ub) - rewriter.getAffineDimExpr(0);
+    AffineMap mapNminusK = AffineMap::get(1, 0 , ExprNminusK);
+    rewriter.create<AffineStoreOp>(loc, forOpX.getResult(0), alloc_real, mapNminusK, ValueRange{ivY});
+
+    rewriter.setInsertionPointAfter(forOpY);
+    //debug
+    // forOpX->dump();
+    // forOpY->dump();
+    rewriter.replaceOp(op, alloc_real);
+    
+    return success();
+  }
+};
+
+//===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: FIRFilterYSymmOptimizedOp operations
 //===----------------------------------------------------------------------===//
 struct FIRFilterYSymmOptimizedOpLowering: public ConversionPattern {
@@ -1101,7 +1276,7 @@ struct FIRFilterYSymmOptimizedOpLowering: public ConversionPattern {
     
     DEBUG_PRINT_NO_ARGS();
     rewriter.setInsertionPointAfter(forOp2);
-    forOp2->dump();
+    // forOp2->dump();
     DEBUG_PRINT_NO_ARGS();
 
     //y[n] = sum ie, y[n] = sumNext 
@@ -5920,7 +6095,7 @@ void ToyToAffineLoweringPass::runOnOperation() {
                LMSFilterOpLowering ,ThresholdOpLowering, QuantizationOpLowering, LMSFilterResponseOpLowering,
                RunLenEncodingOpLowering, FIRFilterResSymmOptimizedOpLowering,
                LengthOpLowering, ReverseInputOpLowering, PaddingOpLowering,
-               FIRFilterYSymmOptimizedOpLowering >(
+               FIRFilterYSymmOptimizedOpLowering , FFT1DRealSymmOpLowering >(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the

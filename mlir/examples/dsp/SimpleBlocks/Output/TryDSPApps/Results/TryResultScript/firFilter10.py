@@ -12,17 +12,19 @@ def main() {
   var reverse1 = reverseInput(input);
 
   # var filter = [4,3,2,1];
-  # var output = FIRFilterResponse(input , reverse1);
-  var output = FIRFilterYSymmOptimized(input , reverse1);
-  print(output);
+  var output = FIRFilterResponse(input , reverse1);
+  # var output = FIRFilterYSymmOptimized(input , reverse1);
+  # var fft_real = fft1dreal(output);
+  var fft_real = fft1DRealSymm(output);
+  print(fft_real);
 
   # var lenOut = len(output);
   # var reverse1 = reverseInput(input);
   # var lenIn = len(input);
   # var padlen = lenOut - lenIn;
 
-  var pad1 = padding(input , 0 , 3);
-  print(pad1);
+  # var pad1 = padding(input , 0 , 3);
+  # print(pad1);
   # var output = FIRFilterResSymmOptimized(input , filter);
   # print(output);
   # print(len1);
