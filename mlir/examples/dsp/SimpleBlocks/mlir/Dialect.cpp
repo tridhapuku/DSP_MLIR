@@ -2242,6 +2242,143 @@ mlir::LogicalResult ReverseInputOp::verify() {
   return mlir::success();
 }
 
+
+//===----------------------------------------------------------------------===//
+// PaddingOp
+//===----------------------------------------------------------------------===//
+
+void PaddingOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                  mlir::Value input, mlir::Value PadValue, mlir::Value PadLen) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands({input, PadValue, PadLen});
+}
+
+
+
+/// Infer the output shape of the PaddingOp, this is required by the shape inference
+/// interface.
+//ToDo -- shape should be the length of input * UpsamplingRate ie, Rhs
+void PaddingOp::inferShapes() { 
+  //get the shape of Lhs & rhs 
+  //add the shape for each dimension
+  // auto tensorInput =  llvm::cast<RankedTensorType>(getLhs().getType());
+  auto tensorInput =  getInput().getType();
+  auto shapeOfInput = tensorInput.getShape();
+
+  // auto tensorUpsampling = getRhs().getType(); 
+  // auto shapeOfUpsampling = tensorUpsampling.getShape(); //shape is the length
+  
+
+  std::vector<int64_t> shapeForOutput ;
+
+  int64_t SecondValueInt = 1;
+
+  //To extract value from the SSA value:
+    //get the Operand 
+    //convert it to ConstantOp
+    //convert it to corresponding elements attribute
+    //extract the value as float then convert to int
+  DEBUG_PRINT_NO_ARGS();
+  Value padding3rdArg = getOperand(2);
+  dsp::ConstantOp constantOp2ndArg = padding3rdArg.getDefiningOp<dsp::ConstantOp>();
+  DEBUG_PRINT_NO_ARGS();
+  DenseElementsAttr constantRhsValue = constantOp2ndArg.getValue();;
+  auto elements = constantRhsValue.getValues<FloatAttr>();
+  float SecondValue = elements[0].getValueAsDouble();
+  SecondValueInt = (int64_t) SecondValue;
+  // llvm::errs() << "Upsampling: SamplingRate: " << SecondValueInt << " \n"; //downsamplingRate
+    
+  DEBUG_PRINT_NO_ARGS();
+  for(size_t i=0; i < shapeOfInput.size() ; i++){
+    double GetLenForOutput  = static_cast<double>(shapeOfInput[i] ) + SecondValueInt ;
+    int64_t OutlenInt = static_cast<int64_t> (GetLenForOutput);
+    DEBUG_PRINT_WITH_ARGS("PaddingLen= " , OutlenInt);
+    shapeForOutput.push_back(OutlenInt);
+  }
+  
+  mlir::TensorType manipulatedType = mlir::RankedTensorType::get(shapeForOutput, 
+          getInput().getType().getElementType());
+
+  // getResult().setType(getLhs().getType()); 
+  getResult().setType(manipulatedType);
+  }
+
+//get rank of Input & Upsampling -- make sure it is of rank 1 
+mlir::LogicalResult PaddingOp::verify() {
+  // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
+  // auto samplingRateType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
+  // // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+
+  // auto inputRank = inputType.getRank();
+  // auto samplingRateRank = samplingRateType.getRank();
+
+  // // llvm::errs() << "inputRank: " << inputRank << " samplingRateRank: " << samplingRateRank << "\n";
+  // //once ensured only 1 rank from above -- also make sure there is just 1 elem  
+  // if( inputRank != 1 || samplingRateRank != 0 )
+  // {
+  //   llvm::errs() << "inputRank: " << inputRank << " samplingRateRank: " << samplingRateRank << "\n";
+  //   return emitError()
+  //          << "expected rank of input is 1 & Upsampling is 0";
+  // }
+  return mlir::success();
+} 
+
+
+//===----------------------------------------------------------------------===//
+// FIRFilterYSymmOptimizedOp
+//===----------------------------------------------------------------------===//
+
+void FIRFilterYSymmOptimizedOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                  mlir::Value lhs, mlir::Value rhs) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands({lhs, rhs});
+}
+
+
+
+/// Infer the output shape of the FIRFilterYSymmOptimizedOp, this is required by the shape inference
+/// interface.
+//ToDo -- shape should be the length of Lhs + Rhs - 1
+void FIRFilterYSymmOptimizedOp::inferShapes() { 
+  //get the shape of Lhs & rhs 
+  //add the shape for each dimension
+  // auto tensorInput =  llvm::cast<RankedTensorType>(getLhs().getType());
+  auto tensorInput =  getLhs().getType();
+  auto shapeOfInput = tensorInput.getShape();
+
+  auto tensorFilter = getRhs().getType();
+  auto shapeOfFilter = tensorFilter.getShape();
+  std::vector<int64_t> shapeForOutput ;
+
+  for(size_t i=0; i < shapeOfInput.size() ; i++){
+    shapeForOutput.push_back(shapeOfInput[i] + shapeOfFilter[i] - 1);
+  }
+  
+  mlir::TensorType manipulatedType = mlir::RankedTensorType::get(shapeForOutput, 
+          getLhs().getType().getElementType());
+
+  // getResult().setType(getLhs().getType()); 
+  getResult().setType(manipulatedType);
+}
+
+//get rank of Input & Filter -- make sure it is of rank 1 
+mlir::LogicalResult FIRFilterYSymmOptimizedOp::verify() {
+  // auto inputType = llvm::dyn_cast<RankedTensorType>(getOperand(0).getType());
+  // auto filterType = llvm::dyn_cast<RankedTensorType>(getOperand(1).getType());
+  // // auto resultType = llvm::dyn_cast<RankedTensorType>(getType());
+
+  // auto inputRank = inputType.getRank();
+  // auto filterRank = filterType.getRank();
+
+  // if( inputRank != 1 || filterRank != 1)
+  // {
+  //   return emitError()
+  //          << "expected rank of input & filter is 1";
+  // }
+
+  return mlir::success();
+}
+
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//

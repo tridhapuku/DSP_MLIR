@@ -1753,4 +1753,80 @@ def ReverseInputOp : Dsp_Op<"reverseInput" ,
   let hasVerifier = 1;
 }
 
+
+//===----------------------------------------------------------------------===//
+// PaddingOp
+//===----------------------------------------------------------------------===//
+
+
+def PaddingOp : Dsp_Op<"padding",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "PaddingOp(input , ValueToBePadded , PadLen) ";
+  let description = [{ 
+    PaddingOp : y[n] = x[n] for 0<=n< N
+                y[n] = val  for N<=n< N+PadLen 
+    ex: x[n] = [1,2,3,4] & padding(x, value=0, len=3) then 
+        y[n] = [1,2,3,4,0,0,0]
+  }];
+
+  let arguments = (ins F64Tensor:$input, F64Tensor:$PadValue, F64Tensor:$PadLen);
+   let results = (outs F64Tensor);
+  /// Indicate that the operation has a custom parser and printer method.
+   // let hasCustomAssemblyFormat = 1;
+   // let assemblyFormat = [{
+   //   `(` $input `:` type($input1 , $input2) `)` attr-dict `to` type(results)
+   // }];
+   // Allow building a LMSFilterOp with from the two input operands.
+   let builders = [
+     OpBuilder<(ins "Value":$input, "Value":$PadValue, "Value":$PadLen)>
+   ];
+
+   // Indicate that the operation has a custom parser and printer method.
+   // let hasCustomAssemblyFormat = 1;
+
+   // let hasVerifier = 1;
+  let hasVerifier = 1;
+}
+
+
+//===----------------------------------------------------------------------===//
+// FIRFilterYSymmOptimizedOp
+//===----------------------------------------------------------------------===//
+def FIRFilterYSymmOptimizedOp : Dsp_Op<"FIRFilterYSymmOptimized" ,
+    [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "FIRFilterYSymmOptimizedOp";
+  let description = [{
+    The "FIRFilterYSymmOptimizedOp" operation is basically the convolution of input 1-D and filter vector when filter is reverse of input then output is symmetrical ie,
+    say, x[n] convolution x[-n] ie, x[-n] = x[N-1-n]
+    ex: x[n] = [1,2], x[-n] = x[N-1-n] = [2,1]  then
+        y[n] is always of odd length & is symmetrical about middle
+        ie, y[n] = y[N-1-n] : we will reduce half the computations
+      y[n] = sum(h(k) . x(n-k)) k=0 to N-1 can be rewritten as 
+      
+      So, we are reducing the number of outer loops -- 
+  }];
+
+  let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs); //working -- F64
+  let results =  (outs F64Tensor);
+  // let results = (outs I64);
+
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input1 , $input2) `)` attr-dict `to` type(results)
+  // }];
+  // Allow building a FIRFilterYSymmOptimizedOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+
+  // Indicate that the operation has a custom parser and printer method.
+  // let hasCustomAssemblyFormat = 1;
+  
+  // Enable registering canonicalization patterns with this operation.
+  //let hasCanonicalizer = 1;
+
+  let hasVerifier = 1;
+}
+
 #endif // TOY_OPS
