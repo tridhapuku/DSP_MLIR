@@ -15,8 +15,11 @@ def main() {
   var output = FIRFilterResponse(input , reverse1);
   # var output = FIRFilterYSymmOptimized(input , reverse1);
   # var fft_real = fft1dreal(output);
-  var fft_real = fft1DRealSymm(output);
-  print(fft_real);
+  # var fft_real = fft1DRealSymm(output);
+  var fft_img = fft1DimgConjSymm(output);
+  # var fft_img = fft1dimg(output);
+  # print(fft_real);
+  print(fft_img);
 
   # var lenOut = len(output);
   # var reverse1 = reverseInput(input);

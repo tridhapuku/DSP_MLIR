@@ -718,6 +718,14 @@ private:
         return nullptr;
       }
       return builder.create<FFT1DRealSymmOp>(location, operands[0] );
+    } //FFT1DImgConjSymmOpLowering
+   if(callee == "fft1DimgConjSymm"){
+      if(call.getArgs().size() != 1){
+        emitError(location, "MLIR codegen encountered an error: dsp.FFT1DImgConjSymmOp "
+                            "accepts only 1 arguments");
+        return nullptr;
+      }
+      return builder.create<FFT1DImgConjSymmOp>(location, operands[0] );
     }
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.

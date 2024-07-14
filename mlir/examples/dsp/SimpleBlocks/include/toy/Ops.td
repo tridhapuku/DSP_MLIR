@@ -1136,8 +1136,6 @@ def FFT1DRealOp : Dsp_Op<"fft1dreal",
 //===----------------------------------------------------------------------===//
 // FFT1DImgOp
 //===----------------------------------------------------------------------===//
-
-
 def FFT1DImgOp : Dsp_Op<"fft1dimg",
     [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "fft1dimg operation";
@@ -1161,7 +1159,7 @@ def FFT1DImgOp : Dsp_Op<"fft1dimg",
   // }];
 
   // Enable registering canonicalization patterns with this operation.
-  // let hasCanonicalizer = 1;
+  let hasCanonicalizer = 1;
 
   // Allow building a FFT1DImg with from the input operand.
   let builders = [
@@ -1868,6 +1866,47 @@ def FFT1DRealSymmOp : Dsp_Op<"fft1DRealSymm",
   let hasVerifier = 1;
 
   // let hasCanonicalizer = 1;
+}
+
+
+//===----------------------------------------------------------------------===//
+// FFT1DImgConjSymmOp
+//===----------------------------------------------------------------------===//
+def FFT1DImgConjSymmOp : Dsp_Op<"fft1DimgConjSymm",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "fft1DimgConjSymm operation";
+  let description = [{
+    y[k] = y_img[k]
+    y_img = sumOver_n(x[n]*sin[2*pi * k *n/N ] * -1
+    & when the input is real & symmetric then output is symmetric ie,
+    y[k] = sumOver_n(x[n]*sin[2*pi * k *n/N ] * -1 0<=k<(N+1)/2
+        & y[N-k] = -y[k] , (N+1)/2 <=k < N
+    The "fft1DimgConjSymm" operation gives output in freq domain  -- 
+    ex: x=[1,2,3,2,1] &  Output : [0,-1.53,0.36,-0.36,1.53] , 
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins F64Tensor:$input);
+  let results = (outs F64Tensor:$real); //(ins F64Tensor:$lhs, F64Tensor:$rhs);
+  // let results = (outs F64Tensor:$real);
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input) `)` attr-dict `to` type(results)
+  // }];
+
+  // let assemblyFormat = [{
+  //   `(` $input `:` type($input) `)` attr-dict `to` `(` type($real) `,` type($img) `)`
+  // }];
+
+  // Enable registering canonicalization patterns with this operation.
+  // let hasCanonicalizer = 1;
+
+  // Allow building a fft1DimgConjSymm with from the input operand.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs)>
+  ];
+
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
 }
 
 #endif // TOY_OPS
