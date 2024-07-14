@@ -446,6 +446,144 @@ struct SimplifyFIRFilterRespnseWithSymmFilter : public mlir::OpRewritePattern<FI
   }
 };
 
+//Pseudo code: 
+// if the FFT1DRealOp & FFT1DImgOp has same input then replace them with single 
+// %4 = "dsp.fft1dreal"(%3) : (tensor<10xf64>) -> tensor<10xf64>
+// %5 = "dsp.fft1dimg"(%3) : (tensor<10xf64>) -> tensor<10xf64>
+// replace with %4, %5 = "dsp.fft1d"(%3) : (tensor<10xf64>) -> (tensor<10xf64 , tensor<10xf64)>
+//
+// Define the canonicalization pattern.
+struct SimplifyFFTRealAndImg : public OpRewritePattern<FFT1DRealOp> {
+  SimplifyFFTRealAndImg(MLIRContext *context)
+      : OpRewritePattern<FFT1DRealOp>(context, /*benefit=*/1) {}
+
+  LogicalResult matchAndRewrite(FFT1DRealOp realOp,
+                                PatternRewriter &rewriter) const override {
+    // Check if there is a corresponding FFT1DImgOp with the same input.
+    Operation *nextOp = realOp->getNextNode();
+    if (!nextOp || !isa<FFT1DImgOp>(nextOp))
+      return failure();
+
+    DEBUG_PRINT_NO_ARGS() ;
+    auto imgOp = cast<FFT1DImgOp>(nextOp);
+    if (realOp.getInput() != imgOp.getInput())
+      return failure();
+
+    // Replace the two operations with the combined FFT1D operation.
+    DEBUG_PRINT_NO_ARGS() ;
+    auto combinedOp = rewriter.create<FFT1DOp>(realOp.getLoc(), realOp.getInput());
+    rewriter.replaceOp(realOp, combinedOp.getResult(0));
+    rewriter.replaceOp(imgOp, combinedOp.getResult(1));
+
+    return success();
+  }
+};
+
+
+//Pseudo-Code
+//Find FIRFilterResponse & reverseInput
+   // %1 = "dsp.reverseInput"(%0) : (tensor<4xf64>) -> tensor<*xf64>
+   // %2 = "dsp.FIRFilterResponse"(%0, %1) : (tensor<4xf64>, tensor<*xf64>) -> tensor<*xf64>
+// For above pattern , replace dsp.FIRFilterResponse with FIRFilterYSymmOptimized
+  // %1 = "dsp.reverseInput"(%0)
+  // result2 = dsp.FIRFilterYSymmOptimized(result1, rate2) 
+struct SimplifyFilterRespX_ReverseXYSymmFilter : public mlir::OpRewritePattern<FIRFilterResponseOp> {
+  /// We register this pattern to match every dsp.downsampling in the IR.
+  /// The "benefit" is used by the framework to order the patterns and process
+  /// them in order of profitability.
+  SimplifyFilterRespX_ReverseXYSymmFilter(mlir::MLIRContext *context)
+      : OpRewritePattern<FIRFilterResponseOp>(context, /*benefit=*/1) {}
+
+  /// This method attempts to match a pattern and rewrite it. The rewriter
+  /// argument is the orchestrator of the sequence of rewrites. The pattern is
+  /// expected to interact with it to perform any changes to the IR from here.
+  mlir::LogicalResult
+  matchAndRewrite(FIRFilterResponseOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    // Look through the input of the current downsampling.
+    //if 1 of the operands is FIRFilterHammingOptimized then go for rewrite
+    //ie, if 
+    mlir::Value Operand1_forFIRFilterResp = op.getOperand(1);
+    mlir::Value Operand0_forFIRFilterResp = op.getOperand(0);
+    dsp::ReverseInputOp prev_ReverseOp = Operand1_forFIRFilterResp.getDefiningOp<ReverseInputOp>();
+
+    // Operand1 defined by another ReverseOp? If not, no match.
+    if (!prev_ReverseOp){
+      return failure();
+    }
+
+    // create FIRFilterYSymmOptimizedOp with current operands
+    DEBUG_PRINT_WITH_ARGS("Going for FIRFilterResponse Opt when the operand1 is a ReverseInputOp");
+    
+    auto firFilterResYSymmOptimizedOp = rewriter.create<FIRFilterYSymmOptimizedOp>(op.getLoc(),
+                          Operand0_forFIRFilterResp , Operand1_forFIRFilterResp);
+
+    DEBUG_PRINT_NO_ARGS() ;
+    rewriter.replaceOp(op, firFilterResYSymmOptimizedOp);
+
+    return mlir::success();
+  }
+};
+
+//Pseudo code: 
+// if the  input of FFT1DRealOp = FIRFilterYSymmOptimizedOp then replace it with FFT1DRealSymmOp 
+// Define the canonicalization pattern.
+struct SimplifyFFTRealAtInputRealSymm : public OpRewritePattern<FFT1DRealOp> {
+  SimplifyFFTRealAtInputRealSymm(MLIRContext *context)
+      : OpRewritePattern<FFT1DRealOp>(context, /*benefit=*/1) {}
+
+  LogicalResult matchAndRewrite(FFT1DRealOp Op,
+                                PatternRewriter &rewriter) const override {
+    // Check if there is a corresponding FFT1DImgOp with the same input.
+    mlir::Value fftOperand_input = Op.getInput();
+    dsp::FIRFilterYSymmOptimizedOp op_FIRFilterYSymmOptimizedOp = fftOperand_input.getDefiningOp<FIRFilterYSymmOptimizedOp>();
+    
+    if (!op_FIRFilterYSymmOptimizedOp)
+      return failure();
+
+    DEBUG_PRINT_NO_ARGS() ;
+
+
+    // Replace the two operations with the combined FFT1D operation.
+    auto fft1dRealSymmOp = rewriter.create<FFT1DRealSymmOp>(Op.getLoc(), Op.getInput());
+    DEBUG_PRINT_NO_ARGS() ;
+    rewriter.replaceOp(Op, fft1dRealSymmOp.getResult());
+    // rewriter.replaceOp(Op, fft1dRealSymmOp);
+    DEBUG_PRINT_NO_ARGS() ;
+    return success();
+  }
+};
+
+//Pseudo code: 
+// if the  input of FFT1DImgOp = FIRFilterYSymmOptimizedOp then replace it with FFT1DImgConjSymmOp 
+// Define the canonicalization pattern.
+struct SimplifyFFTImgAtInputRealSymm : public OpRewritePattern<FFT1DImgOp> {
+  SimplifyFFTImgAtInputRealSymm(MLIRContext *context)
+      : OpRewritePattern<FFT1DImgOp>(context, /*benefit=*/1) {}
+
+  LogicalResult matchAndRewrite(FFT1DImgOp Op,
+                                PatternRewriter &rewriter) const override {
+    // Check if there is a corresponding FFT1DImgOp with the same input.
+    mlir::Value fftOperand_input = Op.getInput();
+    dsp::FIRFilterYSymmOptimizedOp op_FIRFilterYSymmOptimizedOp = fftOperand_input.getDefiningOp<FIRFilterYSymmOptimizedOp>();
+    
+    if (!op_FIRFilterYSymmOptimizedOp)
+      return failure();
+
+    DEBUG_PRINT_NO_ARGS() ;
+
+
+    // Replace the two operations with the combined FFT1D operation.
+    
+    auto fft1dImgConjSymmOp = rewriter.create<FFT1DImgConjSymmOp>(Op.getLoc(), Op.getInput());
+    DEBUG_PRINT_NO_ARGS() ;
+    // rewriter.replaceOp(Op, fft1dImgConjSymmOp.getResult());
+    rewriter.replaceOp(Op, fft1dImgConjSymmOp);
+    DEBUG_PRINT_NO_ARGS() ;
+    return success();
+  }
+};
+
 // ===================================
 // ===================================
 // ===================================
@@ -458,10 +596,27 @@ struct SimplifyFIRFilterRespnseWithSymmFilter : public mlir::OpRewritePattern<FI
 // ===================================
 /// Register our patterns as "canonicalization" patterns on the TransposeOp so
 /// that they can be picked up by the Canonicalization framework.
+void FFT1DImgOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                        MLIRContext *context) {
+  if (getEnableCanonicalOpt()) {
+    results.add<//SimplifyFFTRealAndImg, 
+                SimplifyFFTImgAtInputRealSymm>(context);
+  }
+}
+
+void FFT1DRealOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                        MLIRContext *context) {
+  if (getEnableCanonicalOpt()) {
+    results.add<//SimplifyFFTRealAndImg, 
+                SimplifyFFTRealAtInputRealSymm>(context);
+  }
+}
+
 void FIRFilterResponseOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                         MLIRContext *context) {
   if (getEnableCanonicalOpt()) {
-    results.add<SimplifyFIRFilterRespnseWithSymmFilter>(context);
+    results.add<SimplifyFIRFilterRespnseWithSymmFilter , 
+    SimplifyFilterRespX_ReverseXYSymmFilter>(context);
   }
 }
 
