@@ -584,6 +584,45 @@ struct SimplifyFFTImgAtInputRealSymm : public OpRewritePattern<FFT1DImgOp> {
   }
 };
 
+
+//Pseudo-Code
+//Find lmsFIlter with gain operation
+    // result1 = lmsFilterResponse(noisy_sig, clean_sig, mu, filterSize);
+    // result2 = gain(result1, G1)
+  // result2 will be now lmsFilterResponse(noisy_sig, clean_sig, mu*g1, filterSize);
+  // replaceOp 
+struct SimplifyLMSFilterResponsewithGain: public mlir::OpRewritePattern<GainOp>{
+  SimplifyLMSFilterResponsewithGain(mlir::MLIRContext *context) 
+    : OpRewritePattern<GainOp>(context, 1) {}
+
+    mlir::LogicalResult matchAndRewrite(GainOp op, 
+                        mlir::PatternRewriter &rewriter) const override {
+     
+     mlir::Value gainOp_operand0 = op.getOperand(0);
+     
+     LMSFilterResponseOp prev_LMSFilterResponseOp = gainOp_operand0.getDefiningOp<LMSFilterResponseOp>();
+
+     if(!prev_LMSFilterResponseOp)
+        return failure();
+
+     mlir::Value gainOp_operand1 = op.getOperand(1);
+     mlir::Value prev_LMSFilterResponseOp_0 = prev_LMSFilterResponseOp.getOperand(0);
+     mlir::Value prev_LMSFilterResponseOp_1 = prev_LMSFilterResponseOp.getOperand(1);
+     mlir::Value prev_LMSFilterResponseOp_mu = prev_LMSFilterResponseOp.getOperand(2);
+     mlir::Value prev_LMSFilterResponseOp_3 = prev_LMSFilterResponseOp.getOperand(3);
+
+     //create mul op 
+     auto mulOp = rewriter.create<MulOp>(op.getLoc(), prev_LMSFilterResponseOp_mu, gainOp_operand1);
+     auto newLMSFilterResponseOp = rewriter.create<LMSFilterResponseOp>(op.getLoc(),
+                          prev_LMSFilterResponseOp_0, prev_LMSFilterResponseOp_1, mulOp.getResult(), prev_LMSFilterResponseOp_3);
+    
+    //Repalce the use of original gain operation with this newGainOp
+    rewriter.replaceOp(op, newLMSFilterResponseOp.getResult());
+    return mlir::success();
+
+    }
+};
+
 // ===================================
 // ===================================
 // ===================================
@@ -666,7 +705,7 @@ void GainOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                               MLIRContext *context) {
   // results.add<SimplifyBack2BackGain, SimplifyGainwZero>(context);
   if (getEnableCanonicalOpt()) {
-    results.add<SimplifyBack2BackGain>(context);
+    results.add<SimplifyBack2BackGain, SimplifyLMSFilterResponsewithGain>(context);
   }
 }
 
