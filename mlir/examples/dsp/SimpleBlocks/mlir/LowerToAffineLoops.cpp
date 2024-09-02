@@ -6046,6 +6046,7 @@ struct BinaryOpLowering : public ConversionPattern {
  };
 
 using AddOpLowering = BinaryOpLowering<dsp::AddOp, arith::AddFOp>;
+using ModuloOpLowering = BinaryOpLowering<dsp::ModuloOp, arith::RemFOp>;
 using SubOpLowering = BinaryOpLowering<dsp::SubOp, arith::SubFOp>;
 using MulOpLowering = BinaryOpLowering<dsp::MulOp, arith::MulFOp>;
 using DivOpLowering = BinaryOpLowering<dsp::DivOp, arith::DivFOp>;
@@ -6271,7 +6272,7 @@ void ToyToAffineLoweringPass::runOnOperation() {
   // Now that the conversion target has been defined, we just need to provide
   // the set of patterns that will lower the Toy operations.
   RewritePatternSet patterns(&getContext());
-  patterns.add<AddOpLowering, ConstantOpLowering, FuncOpLowering, MulOpLowering, 
+  patterns.add<AddOpLowering, ModuloOpLowering, ConstantOpLowering, FuncOpLowering, MulOpLowering, 
                PrintOpLowering, ReturnOpLowering, TransposeOpLowering ,
                DelayOpLowering, GainOpLowering, SubOpLowering, FIRFilterResponseOpLowering, 
                SlidingWindowAvgOpLowering, DownSamplingOpLowering, 

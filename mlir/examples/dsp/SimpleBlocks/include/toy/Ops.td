@@ -93,6 +93,26 @@ def ConstantOp : Dsp_Op<"constant", [Pure]> {
 }
 
 //===----------------------------------------------------------------------===//
+// ModuloOp
+//===----------------------------------------------------------------------===//
+
+def ModuloOp : Dsp_Op<"modulo",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "element-wise modulo operation";
+  let description = [{
+    The "modulo" operation performs element-wise modulo op between two tensors.
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs);
+  let results = (outs F64Tensor);
+  
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+}
+
+//===----------------------------------------------------------------------===//
 // AddOp
 //===----------------------------------------------------------------------===//
 
