@@ -577,6 +577,30 @@ void GainOp::inferShapes() { getResult().setType(getLhs().getType()) ;}
  void SubOp::inferShapes() { getResult().setType(getLhs().getType()); }
 
 //===----------------------------------------------------------------------===//
+// FFTRealOp
+//===----------------------------------------------------------------------===//
+
+void FFTRealOp::build(mlir::OpBuilder &builder, mlir::OperationState &state, 
+                  mlir::Value lhs) {
+  state.addTypes(lhs.getType());
+  state.addOperands({lhs});
+}
+
+void FFTRealOp::inferShapes(){ getResult().setType(getLhs().getType()); }
+
+//===----------------------------------------------------------------------===//
+// FFTImagOp
+//===----------------------------------------------------------------------===//
+
+void FFTImagOp::build(mlir::OpBuilder &builder, mlir::OperationState &state, 
+                  mlir::Value lhs) {
+  state.addTypes(lhs.getType());
+  state.addOperands({lhs});
+}
+
+void FFTImagOp::inferShapes(){ getResult().setType(getLhs().getType()); }
+
+//===----------------------------------------------------------------------===//
 // zeroCrossCountOp
 //===----------------------------------------------------------------------===//
 
