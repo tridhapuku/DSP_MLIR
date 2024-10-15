@@ -537,6 +537,42 @@ def SubOp : Dsp_Op<"sub", [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInte
  }
 
 //===----------------------------------------------------------------------===//
+// FFTRealOp
+//===----------------------------------------------------------------------===//
+
+def FFTRealOp : Dsp_Op<"fftReal", [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "Performs FFT Operation on the input";
+  let description = [{
+      Takes the input array and returns the real part of the fourier transform, an array of the same size.
+  }];
+
+  let arguments = (ins F64Tensor:$lhs);
+  let results = (outs F64Tensor);
+
+  let builders = [
+    OpBuilder<(ins "Value":$lhs)>
+  ]; 
+}
+
+//===----------------------------------------------------------------------===//
+// FFTImagOp
+//===----------------------------------------------------------------------===//
+
+def FFTImagOp : Dsp_Op<"fftImag", [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "Performs FFT Operation on the input";
+  let description = [{
+      Takes the input array and returns the imaginary part of the fourier transform, an array of the same size.
+  }];
+
+  let arguments = (ins F64Tensor:$lhs);
+  let results = (outs F64Tensor);
+
+  let builders = [
+    OpBuilder<(ins "Value":$lhs)>
+  ]; 
+}
+
+//===----------------------------------------------------------------------===//
 // zeroCrossCountOp
 //===----------------------------------------------------------------------===//
 def zeroCrossCountOp : Dsp_Op<"zeroCrossCount" ,
