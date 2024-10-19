@@ -2080,6 +2080,28 @@ def Conv2DOp : Dsp_Op<"conv2d",
     let hasVerifier = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// BinaryConversionOp
+//===----------------------------------------------------------------------===//
+
+def BinaryConversionOp : Dsp_Op<"convertbinary", 
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+    let summary = "Converts all the values above threhold to 1 else 0";
+    let description = [{
+        COnverts all the values above threhold to 1 aand rest all as zero.
+    }];
+
+    let arguments = (ins F64Tensor:$input, F64Tensor:$threshold);
+
+    let results = (outs F64Tensor:$output);
+
+    let builders = [
+        OpBuilder<(ins "Value":$input, "Value":$threshold)>
+    ];
+
+}
+
+
 #endif // TOY_OPS
 
 

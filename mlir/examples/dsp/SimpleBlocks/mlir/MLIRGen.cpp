@@ -830,6 +830,14 @@ private:
        }
        return builder.create<Conv2DOp>(location, operands[0], operands[1], operands[2]);
    }
+   if(callee == "convertbinary") {
+       if(call.getArgs().size() != 2) {
+           emitError(location, "MLIR codegen encountered an error: dsp.convertbinary "
+                   "accepts 2 arguments");
+           return nullptr;
+       }
+       return builder.create<BinaryConversionOp>(location, operands[0], operands[1]);
+   }
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.
     // if(callee == "delay"){

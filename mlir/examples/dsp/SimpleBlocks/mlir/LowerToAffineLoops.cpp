@@ -7378,6 +7378,86 @@ struct Conv2DOpLowering : public ConversionPattern {
         }
 }; // conv2d
 
+//===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: BinaryConversion operations
+//===----------------------------------------------------------------------===//
+
+struct BinaryConversionOpLowering : public ConversionPattern {
+  BinaryConversionOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::BinaryConversionOp::getOperationName(), 1, ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
+
+    // Pseudo-code:
+    //   y[n] = 1 , if a[i] >= threshld
+    //     = 0 , else
+
+    // output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));
+
+    // allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+
+    Value constant0 = rewriter.create<arith::ConstantOp>(
+        loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(0));
+    
+    Value constant1 = rewriter.create<arith::ConstantOp>(
+        loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(1));
+
+    // y[n] = a[n] , if a[i] >= threshld or, a[i] <= -threshld
+    // loop from 0 to len
+
+    // load from X,
+    BinaryConversionOpAdaptor binaryConversionAdaptor(operands);
+ 
+    int64_t lb = 0;
+    int64_t ub = tensorType.getShape()[0];
+    int64_t step = 1;
+
+    // for loop from 0 to len(Output)
+    affine::AffineForOp forOpY =
+        rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto ivY = forOpY.getInductionVar();
+    rewriter.setInsertionPointToStart(forOpY.getBody());
+
+    Value inputX =
+        rewriter.create<AffineLoadOp>(loc, binaryConversionAdaptor.getInput(), ivY);
+
+    // Load the threshold value from the memref
+    auto thresholdMemRef = binaryConversionAdaptor.getThreshold();
+    auto threshold =
+        rewriter.create<AffineLoadOp>(loc, thresholdMemRef, ValueRange{});
+
+    // Compare a[i] >= threshold
+    auto cmp1 = rewriter.create<arith::CmpFOp>(loc, arith::CmpFPredicate::OGE,
+                                               inputX, threshold);
+
+    
+    // Use select to choose between 0 and 1
+    auto selectOp =
+        rewriter.create<arith::SelectOp>(loc, cmp1, constant1, constant0);
+
+    // Store the result
+    rewriter.create<AffineStoreOp>(loc, selectOp, alloc, ivY);
+
+    rewriter.setInsertionPointAfter(forOpY);
+    // debug
+    //  forOpY->dump();
+    //  affine.store %cst, %alloc_10[] : memref<f64>
+    //  %0 = affine.load %alloc_11[4] : memref<10xf64>
+    //  affine.store %0, %alloc[0] : memref<1xf64>
+
+    rewriter.replaceOp(op, alloc);
+
+    return success();
+  }
+};
+
 } // namespace
 
 //===----------------------------------------------------------------------===//
@@ -7447,7 +7527,7 @@ void ToyToAffineLoweringPass::runOnOperation() {
       RunLenEncodingOpLowering, FIRFilterResSymmOptimizedOpLowering,
       LengthOpLowering, ReverseInputOpLowering, PaddingOpLowering,
       FIRFilterYSymmOptimizedOpLowering, FFT1DRealSymmOpLowering,
-      FFT1DImgConjSymmOpLowering, FFTRealOpLowering, FFTImagOpLowering, Conv2DOpLowering, ShiftRightOpLowering, MatmulOpLowering>(&getContext());
+      FFT1DImgConjSymmOpLowering, FFTRealOpLowering, FFTImagOpLowering, Conv2DOpLowering, ShiftRightOpLowering, MatmulOpLowering, BinaryConversionOpLowering>(&getContext());
 
     // With the target and rewrite patterns defined, we can now attempt the
     // conversion. The conversion will signal failure if any of our `illegal`
