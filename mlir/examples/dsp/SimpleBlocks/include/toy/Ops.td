@@ -93,6 +93,26 @@ def ConstantOp : Dsp_Op<"constant", [Pure]> {
 }
 
 //===----------------------------------------------------------------------===//
+// ModuloOp
+//===----------------------------------------------------------------------===//
+
+def ModuloOp : Dsp_Op<"modulo",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "element-wise modulo operation";
+  let description = [{
+    The "modulo" operation performs element-wise modulo op between two tensors.
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs);
+  let results = (outs F64Tensor);
+  
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+}
+
+//===----------------------------------------------------------------------===//
 // AddOp
 //===----------------------------------------------------------------------===//
 
@@ -281,6 +301,30 @@ def DivOp : Dsp_Op<"div",
   let hasCustomAssemblyFormat = 1;
 
   // Allow building a DivOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+}
+
+//===----------------------------------------------------------------------===//
+// BitwiseAndOp
+//===----------------------------------------------------------------------===//
+
+def BitwiseAndOp : Dsp_Op<"bitwiseand",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "bit-wise and operation";
+  let description = [{
+    The "bitwiseand" operation performs bit-wise and between two
+    tensors. The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs);
+  let results = (outs F64Tensor);
+
+  // Indicate that the operation has a custom parser and printer method.
+  let hasCustomAssemblyFormat = 1;
+
+  // Allow building a BitwiseAndOp with from the two input operands.
   let builders = [
     OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
   ];
@@ -517,13 +561,49 @@ def SubOp : Dsp_Op<"sub", [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInte
  }
 
 //===----------------------------------------------------------------------===//
+// FFTRealOp
+//===----------------------------------------------------------------------===//
+
+def FFTRealOp : Dsp_Op<"fftReal", [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "Performs FFT Operation on the input";
+  let description = [{
+      Takes the input array and returns the real part of the fourier transform, an array of the same size.
+  }];
+
+  let arguments = (ins F64Tensor:$lhs);
+  let results = (outs F64Tensor);
+
+  let builders = [
+    OpBuilder<(ins "Value":$lhs)>
+  ]; 
+}
+
+//===----------------------------------------------------------------------===//
+// FFTImagOp
+//===----------------------------------------------------------------------===//
+
+def FFTImagOp : Dsp_Op<"fftImag", [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "Performs FFT Operation on the input";
+  let description = [{
+      Takes the input array and returns the imaginary part of the fourier transform, an array of the same size.
+  }];
+
+  let arguments = (ins F64Tensor:$lhs);
+  let results = (outs F64Tensor);
+
+  let builders = [
+    OpBuilder<(ins "Value":$lhs)>
+  ]; 
+}
+
+//===----------------------------------------------------------------------===//
 // zeroCrossCountOp
 //===----------------------------------------------------------------------===//
 def zeroCrossCountOp : Dsp_Op<"zeroCrossCount" ,
     [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
-  let summary = "shifting tensor by given number";
+  let summary = "count the crosses through zero";
   let description = [{
-    The "zeroCrossCountOp" operation detects no of zero crosses in a given array -- 
+    The "zeroCrossCount" operation detects no of zero crosses in a given array -- 
     ex: [-1 , -2 , 3, 0 , 0, -2] has 2 zero-crosses 
   }];
 
@@ -1909,4 +1989,98 @@ def FFT1DImgConjSymmOp : Dsp_Op<"fft1DimgConjSymm",
   let hasVerifier = 1;
 }
 
+
+
+//===----------------------------------------------------------------------===//
+// ShiftRightOp
+//===----------------------------------------------------------------------===//
+
+def ShiftRightOp : Dsp_Op<"shiftRight", [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+   let summary = "Bit-wise shift right a by b";
+   let description = [{
+     The shift right block shifts each element of a vector by right-hand side integer. 
+   }]; 
+
+   let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs); //Problem: how can we do logical shift with floating point tensor?
+   let results = (outs F64Tensor);
+
+   // Indicate that the operation has a custom parser and printer method.
+   // let hasCustomAssemblyFormat = 1;
+   // let assemblyFormat = [{
+   //   `(` $input `:` type($input1 , $input2) `)` attr-dict `to` type(results)
+   // }];
+   // Allow building a MulOp with from the two input operands.
+   let builders = [
+     OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+   ];
+
+   // Indicate that the operation has a custom parser and printer method.
+   // let hasCustomAssemblyFormat = 1;
+
+   // let hasVerifier = 1;
+ }
+
+
+//===----------------------------------------------------------------------===//
+// MatmulOp
+//===----------------------------------------------------------------------===//
+
+def MatmulOp : Dsp_Op<"matmul", [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+   let summary = "Matrix multiplication a * b";
+   let description = [{
+     Matrix multiplication between the left-hand side and right-hand side.
+   }]; 
+
+   let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs); //Problem: how can we do logical shift with floating point tensor?
+   let results = (outs F64Tensor);
+
+   // Indicate that the operation has a custom parser and printer method.
+   // let hasCustomAssemblyFormat = 1;
+   // let assemblyFormat = [{
+   //   `(` $input `:` type($input1 , $input2) `)` attr-dict `to` type(results)
+   // }];
+   // Allow building a MulOp with from the two input operands.
+   let builders = [
+     OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+   ];
+
+   // Indicate that the operation has a custom parser and printer method.
+   // let hasCustomAssemblyFormat = 1;
+
+   let hasVerifier = 1;
+ }
+
+
+
+
+//===----------------------------------------------------------------------===//
+// Conv2DOp
+//===----------------------------------------------------------------------===//
+
+def Conv2DOp : Dsp_Op<"conv2d", 
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+    let summary = "Dsp dialect convolution 2d operation";
+    let description = [{
+        Performs a 2D convolution on the input tensor using specified kernel.
+    }];
+
+    let arguments = (ins F64Tensor:$input, F64Tensor:$kernel, F64Tensor:$bias);
+
+    let results = (outs F64Tensor:$output);
+
+    let builders = [
+        OpBuilder<(ins "Value":$input, "Value":$kernel, "Value":$bias)>
+    ];
+
+    let extraClassDeclaration = [{
+        static StringRef getStrideName() { return "stride"; }
+        static StringRef getPaddingName() { return "padding"; }
+    }];
+
+    let hasVerifier = 1;
+}
+
 #endif // TOY_OPS
+
+
+
