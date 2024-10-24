@@ -2080,6 +2080,49 @@ def Conv2DOp : Dsp_Op<"conv2d",
     let hasVerifier = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// ThresholdUpOp
+//===----------------------------------------------------------------------===//
+
+def ThresholdUpOp : Dsp_Op<"thresholdUp", 
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+    let summary = "Converts all the values above threhold to 1 else 0";
+    let description = [{
+        Converts all the values above threhold to 1 if returnoriginal is false, returns original value if returnoriginal is true else 0
+    }];
+
+    let arguments = (ins F64Tensor:$input, F64Tensor:$threshold, F64Tensor:$returnoriginal);
+
+    let results = (outs F64Tensor:$output);
+
+    let builders = [
+        OpBuilder<(ins "Value":$input, "Value":$threshold, "Value":$returnoriginal)>
+    ];
+    let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// GenerateDTMFOp
+//===----------------------------------------------------------------------===//
+
+def GenerateDTMFOp : Dsp_Op<"generateDtmf", 
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+    let summary = "Generates signal for the character input";
+    let description = [{
+        Converts the characterr into signal
+    }];
+
+    let arguments = (ins F64Tensor:$input, F64Tensor:$duration, F64Tensor:$freq);
+
+    let results = (outs F64Tensor:$output);
+
+    let builders = [
+        OpBuilder<(ins "Value":$input, "Value":$duration, "Value":$freq)>
+    ];
+    let hasVerifier = 1;
+}
+
+
 #endif // TOY_OPS
 
 
