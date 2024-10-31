@@ -867,7 +867,25 @@ private:
       return builder.create<GenerateDTMFOp>(location, operands[0], operands[1],
                                             operands[2]);
     }
+    // beam form
+    if (callee == "beam_form") {
+      if (call.getArgs().size() != 4) {
+        emitError(location,
+                  "MLIR codegen encountered an error: dsp.GenerateDTMFOp "
+                  "accepts 4 argument");
+        return nullptr;
+      }
+      auto antennaConst = operands[0].getDefiningOp<mlir::dsp::ConstantOp>();
+      auto freqConst = operands[1].getDefiningOp<mlir::dsp::ConstantOp>();
+      auto antennaVal = antennaConst.getValue().getValues<mlir::FloatAttr>();
+      auto freqVal = freqConst.getValue().getValues<mlir::FloatAttr>();
 
+      double antenna = antennaVal[0].getValueAsDouble();
+      double freq = freqVal[0].getValueAsDouble();
+
+      return builder.create<BeamFormOp>(location, antenna, freq,
+                                            operands[2], operands[3]);
+    }
    // qam modulate op
    if(callee == "qam_modulate_real") {
        if(call.getArgs().size() != 1) {

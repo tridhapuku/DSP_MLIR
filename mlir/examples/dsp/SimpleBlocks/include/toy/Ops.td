@@ -2240,6 +2240,28 @@ def FindPeaksOp : Dsp_Op<"find_peaks", [Pure , DeclareOpInterfaceMethods<ShapeIn
  }
 
 
+//===----------------------------------------------------------------------===//
+// BeamFormOp
+//===----------------------------------------------------------------------===//
+
+def BeamFormOp : Dsp_Op<"beam_form", 
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+    let summary = "Dsp dialect Beam forming operation";
+    let description = [{
+        Performs a beam forming signal encoding on the input tensor using specified weights.
+    }];
+
+    let arguments = (ins I64Attr:$antennas, I64Attr:$freq, F64Tensor:$time, F64Tensor:$weights);
+
+    let results = (outs F64Tensor:$output);
+
+    let builders = [
+        OpBuilder<(ins "int64_t":$antennas, "int64_t":$freq, "Value":$time, "Value":$weights)>
+    ];
+
+    let hasVerifier = 1;
+}
+
 #endif // TOY_OPS
 
 

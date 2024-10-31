@@ -2907,6 +2907,58 @@ mlir::LogicalResult QamModulateImgOp::verify() {
     
   return mlir::success();
 }
+
+//===----------------------------------------------------------------------===//
+// BeamFormOp
+//===----------------------------------------------------------------------===//
+
+void BeamFormOp::build(mlir::OpBuilder &builder, mlir::OperationState &state, int64_t antennas, int64_t freq, mlir::Value time, mlir::Value weights) {
+   state.addTypes({UnrankedTensorType::get(builder.getF64Type())});
+   state.addAttribute("antennas", builder.getI64IntegerAttr(antennas));
+   state.addAttribute("freq", builder.getI64IntegerAttr(freq));
+   state.addOperands({time, weights});
+}
+
+void BeamFormOp::inferShapes() { getResult().setType(getTime().getType()); }
+
+mlir::LogicalResult BeamFormOp::verify() {
+    auto timeType = llvm::dyn_cast<RankedTensorType>(getTime().getType());     
+    auto weightType = llvm::dyn_cast<RankedTensorType>(getWeights().getType());     
+
+    if(!timeType) {
+        llvm::errs() << "expect a ranked tensor for time input array.";
+        return mlir::failure();
+    }
+    if(!weightType){
+        llvm::errs() << "expect a ranked tensor for weight input array.";
+        return mlir::failure();
+    }
+
+    auto timeShape = timeType.getShape();
+    auto timeRank = timeType.getRank();
+    auto weightShape = weightType.getShape();
+    auto weightRank = weightType.getRank();
+
+    if(timeRank != 1) {
+        llvm::errs() << "expect input time array to be 1 dim.\n";
+        return mlir::failure();
+    }
+    if(weightRank != 1) {
+        llvm::errs() << "expect input weight array to be 2 dim.\n";
+        return mlir::failure();
+    }
+
+    auto antennas = getAntennas();
+    llvm::errs() << "mk type check, antenna value: " << antennas << "\n";
+
+    auto shape = weightShape[0];
+    if(shape != antennas) {
+        llvm::errs() << "expect weight to have shape: [" << antennas << "]\n";
+        return mlir::failure();
+    }
+    return mlir::success();
+}
+
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
