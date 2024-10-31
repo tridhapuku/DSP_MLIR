@@ -858,6 +858,26 @@ private:
                                             operands[2]);
     }
 
+   // qam modulate op
+   if(callee == "qam_modulate_real") {
+       if(call.getArgs().size() != 1) {
+           emitError(location, "MLIR codegen encountered an error: dsp.QamModulateRealOp "
+                   "accepts 1 arguments");
+           return nullptr;
+       }
+
+       return builder.create<QamModulateRealOp>(location, operands[0]);
+   }
+
+   if(callee == "qam_modulate_imagine"){
+       if(call.getArgs().size() != 1) {
+           emitError(location, "MLIR codegen encountered an error: dsp.QamModualteImgOp "
+                   "accepts 1 arguments");
+           return nullptr;
+       }
+
+       return builder.create<QamModulateImgOp>(location, operands[0]);
+   }
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.
     // if(callee == "delay"){
@@ -924,21 +944,22 @@ private:
       return nullptr;
     }
 
-    mlir::Value value = mlirGen(*init);
-    if (!value)
-      return nullptr;
 
-    // We have the initializer value, but in case the variable was declared
-    // with specific shape, we emit a "reshape" operation. It will get
-    // optimized out later as needed.
-    if (!vardecl.getType().shape.empty()) {
-      value = builder.create<ReshapeOp>(loc(vardecl.loc()),
-                                        getType(vardecl.getType()), value);
-    }
-
+    mlir::Value value;
     // Register the value in the symbol table.
+    value = mlirGen(*init);
+    if (!value)
+        return nullptr;
+
+        // We have the initializer value, but in case the variable was declared
+        // with specific shape, we emit a "reshape" operation. It will get
+        // optimized out later as needed.
+    if (!vardecl.getType().shape.empty()) {
+        value = builder.create<ReshapeOp>(loc(vardecl.loc()),
+                getType(vardecl.getType()), value);
+    }
     if (failed(declare(vardecl.getName(), value)))
-      return nullptr;
+        return nullptr;
     return value;
   }
 

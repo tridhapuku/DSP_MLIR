@@ -36,6 +36,7 @@ enum Token : int {
   tok_bracket_close = '}',
   tok_sbracket_open = '[',
   tok_sbracket_close = ']',
+  tok_comma = ',',
 
   tok_eof = -1,
 
@@ -145,6 +146,8 @@ private:
         return tok_def;
       if (identifierStr == "var")
         return tok_var;
+      if(identifierStr == ",")
+          return tok_comma;
       return tok_identifier;
     }
 

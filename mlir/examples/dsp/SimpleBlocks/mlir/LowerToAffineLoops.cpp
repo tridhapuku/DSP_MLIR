@@ -7639,6 +7639,112 @@ struct GenerateDTMFOpLowering : public ConversionPattern {
   }
 };
 
+struct QamModulateRealOpLowering : public ConversionPattern {
+    QamModulateRealOpLowering(MLIRContext *ctx) :
+        ConversionPattern(dsp::QamModulateRealOp::getOperationName(), 1, ctx) {}
+
+    LogicalResult matchAndRewrite(Operation *op, ArrayRef<Value> operands, ConversionPatternRewriter &rewriter) const final {
+        auto loc = op->getLoc();
+
+        auto output = llvm::dyn_cast<RankedTensorType>((*op->result_type_begin()));
+        auto outputMem = convertTensorToMemRef(output);
+        auto alloc = insertAllocAndDealloc(outputMem, loc, rewriter);
+
+        QamModulateRealOpAdaptor adaptor(operands);
+        Value signal = adaptor.getSignal();
+
+
+        llvm::ArrayRef<int64_t> outputShape = output.getShape();
+
+        // constant vals;
+        Value negOneVal = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(-1));
+        Value zeroVal = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(0));
+        Value oneVal = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(1));
+
+        AffineExpr d0; // declare one dimension affine expr
+        bindDims(rewriter.getContext(), d0); // bind affine expr d0 to current input (real array) dimension
+
+        // real affine map
+        AffineMap signalMap = AffineMap::get(1, 0, ArrayRef<AffineExpr>{d0*2}, rewriter.getContext());
+        // output affine map
+        AffineMap outputRealMap = AffineMap::get(1, 0, ArrayRef<AffineExpr>{d0}, rewriter.getContext());
+
+        // loops
+        int64_t lb=0, step=1, ub=outputShape[0];
+        /* looping i*/
+        AffineForOp forOpI = rewriter.create<AffineForOp>(loc, lb, ub, step);
+        rewriter.setInsertionPointToStart(forOpI.getBody());
+        auto ivI = forOpI.getInductionVar();
+
+
+        // input bound check
+        Value signalNum = rewriter.create<AffineLoadOp>(loc, signal, signalMap, ValueRange{ivI});
+
+        Value zeroReal = rewriter.create<arith::CmpFOp>(loc, arith::CmpFPredicate::OEQ, signalNum, zeroVal); 
+
+        Value out = rewriter.create<arith::SelectOp>(loc, zeroReal, negOneVal, oneVal);
+
+        rewriter.create<AffineStoreOp>(loc, out, alloc, outputRealMap, ValueRange{ivI});
+        rewriter.replaceOp(op, alloc);
+
+        return success();
+    }
+};
+
+struct QamModulateImgOpLowering : public ConversionPattern {
+    QamModulateImgOpLowering(MLIRContext *ctx) :
+        ConversionPattern(dsp::QamModulateImgOp::getOperationName(), 1, ctx) {}
+
+    LogicalResult matchAndRewrite(Operation *op, ArrayRef<Value> operands, ConversionPatternRewriter &rewriter) const final {
+        auto loc = op->getLoc();
+
+        auto output = llvm::dyn_cast<RankedTensorType>((*op->result_type_begin()));
+        auto outputMem = convertTensorToMemRef(output);
+        auto alloc = insertAllocAndDealloc(outputMem, loc, rewriter);
+
+        QamModulateRealOpAdaptor adaptor(operands);
+        Value signal = adaptor.getSignal();
+
+
+        llvm::ArrayRef<int64_t> outputShape = output.getShape();
+
+        // constant vals;
+        Value negOneVal = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(-1));
+        Value zeroVal = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(0));
+        Value oneVal = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(1));
+
+        AffineExpr d0; // declare one dimension affine expr
+        bindDims(rewriter.getContext(), d0); // bind affine expr d0 to current input (real array) dimension
+
+        // real affine map
+        AffineMap signalMap = AffineMap::get(1, 0, ArrayRef<AffineExpr>{d0*2+1}, rewriter.getContext());
+        // output affine map
+        AffineMap outputImgMap = AffineMap::get(1, 0, ArrayRef<AffineExpr>{d0}, rewriter.getContext());
+
+        // loops
+        int64_t lb=0, step=1, ub=outputShape[0];
+        /* looping i*/
+        AffineForOp forOpI = rewriter.create<AffineForOp>(loc, lb, ub, step);
+        rewriter.setInsertionPointToStart(forOpI.getBody());
+        auto ivI = forOpI.getInductionVar();
+        
+
+        // input bound check
+        Value signalNum = rewriter.create<AffineLoadOp>(loc, signal, signalMap, ValueRange{ivI});
+
+        Value zeroReal = rewriter.create<arith::CmpFOp>(loc, arith::CmpFPredicate::OEQ, signalNum, zeroVal); 
+
+        Value out = rewriter.create<arith::SelectOp>(loc, zeroReal, negOneVal, oneVal);
+
+        rewriter.create<AffineStoreOp>(loc, out, alloc, outputImgMap, ValueRange{ivI});
+
+        rewriter.replaceOp(op, alloc);
+
+        return success();
+
+    }
+};
+
 } // namespace
 
 //===----------------------------------------------------------------------===//
@@ -7711,7 +7817,7 @@ void ToyToAffineLoweringPass::runOnOperation() {
       FIRFilterYSymmOptimizedOpLowering, FFT1DRealSymmOpLowering,
       FFT1DImgConjSymmOpLowering, FFTRealOpLowering, FFTImagOpLowering,
       Conv2DOpLowering, ShiftRightOpLowering, MatmulOpLowering,
-      ThresholdUpOpLowering>(&getContext());
+      ThresholdUpOpLowering, QamModulateRealOpLowering, QamModulateImgOpLowering>(&getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the
   // conversion. The conversion will signal failure if any of our `illegal`
