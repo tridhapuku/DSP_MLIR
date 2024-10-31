@@ -878,6 +878,15 @@ private:
 
        return builder.create<QamModulateImgOp>(location, operands[0]);
    }
+   // qam_demodulate
+   if(callee == "qam_demodulate") {
+       if(call.getArgs().size() != 2) {
+           emitError(location, "MLIR codegen encountered an error: dsp.QamDemodulateOp"
+                   "accepts 2 arguments");
+           return nullptr;
+       }
+       return builder.create<QamDemodulateOp>(location, operands[0], operands[1]);
+   }
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.
     // if(callee == "delay"){

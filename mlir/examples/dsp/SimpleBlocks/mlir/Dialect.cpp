@@ -2758,6 +2758,51 @@ auto finalShape = freq * duration;
 }
 
 //===----------------------------------------------------------------------===//
+// QamDemodulateOp
+//===----------------------------------------------------------------------===//
+
+void QamDemodulateOp::build(mlir::OpBuilder &builder, mlir::OperationState &state, 
+        mlir::Value real, mlir::Value imagine) {
+    state.addTypes({UnrankedTensorType::get(builder.getF64Type())});
+    state.addOperands({real, imagine});
+}
+
+void QamDemodulateOp::inferShapes() {
+    auto realType = llvm::dyn_cast<RankedTensorType>(getReal().getType());
+    auto realShape = realType.getShape();
+    SmallVector<long int, 2> outputShape(realShape);
+
+    for(size_t i=0; i<realShape.size(); ++i) {
+        outputShape[i] = realShape[i]*2;
+    }
+    getResult().setType(RankedTensorType::get(outputShape, realType.getElementType()));
+}
+
+mlir::LogicalResult QamDemodulateOp::verify() {
+    auto realType = llvm::dyn_cast<RankedTensorType>(getReal().getType());
+    auto imagineType = llvm::dyn_cast<RankedTensorType>(getImagine().getType());
+
+    if(!realType) {
+        llvm::errs() << "expect a ranked tensor for real part array, get " << getReal() << " instead\n";
+        return mlir::failure();
+    }
+    if(!imagineType) {
+        llvm::errs() << "expect a ranked tensor for imagine part array, get " << getImagine() << " instead\n";
+        return mlir::failure();
+    }
+
+    auto realShape = realType.getShape();
+    auto imagineShape = imagineType.getShape();
+
+    if(realShape.size() != imagineShape.size()) {
+        llvm::errs() << "expect real array and imagine array to have same tensor shape.\n";
+        return mlir::failure();
+    }
+
+    return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
 // QamModulateRealOp
 //===----------------------------------------------------------------------===//
 

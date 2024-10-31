@@ -2169,6 +2169,29 @@ def QamModulateImgOp : Dsp_Op<"qam_modulate_imagine",
 }
 
 
+//===----------------------------------------------------------------------===//
+// QamDemodulateOp
+//===----------------------------------------------------------------------===//
+
+def QamDemodulateOp : Dsp_Op<"qam_demodulate", 
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+    let summary = "Dsp dialect qam demodulation operation";
+    let description = [{
+        Takes in 2 arrays, one is the real part of a signal the other is the imaginary part of a signal.
+        Returns the decoded binary output.
+    }];
+
+    let arguments = (ins F64Tensor:$real, F64Tensor:$imagine);
+
+    let results = (outs F64Tensor:$output);
+
+    let builders = [
+        OpBuilder<(ins "Value":$real, "Value":$imagine)>
+    ];
+
+
+    let hasVerifier = 1;
+}
 #endif // TOY_OPS
 
 

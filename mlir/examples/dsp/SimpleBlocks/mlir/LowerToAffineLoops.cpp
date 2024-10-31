@@ -7744,6 +7744,76 @@ struct QamModulateImgOpLowering : public ConversionPattern {
 
     }
 };
+//===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: QAM demodulate operations
+//===----------------------------------------------------------------------===//
+
+struct QamDemodulateOpLowering : public ConversionPattern {
+    QamDemodulateOpLowering(MLIRContext *ctx)
+        : ConversionPattern(dsp::QamDemodulateOp::getOperationName(), 1, ctx) {}
+
+    LogicalResult
+        matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                ConversionPatternRewriter &rewriter) const final {
+
+            auto loc = op->getLoc();
+            // output mem alloc and dealloc
+            auto output = llvm::dyn_cast<RankedTensorType>((*op->result_type_begin()));
+            auto outputMem = convertTensorToMemRef(output);
+            auto alloc = insertAllocAndDealloc(outputMem, loc, rewriter);
+
+            QamDemodulateOpAdaptor qamDemodualteAdaptor(operands);
+            Value realVal = qamDemodualteAdaptor.getReal();
+            Value imgVal = qamDemodualteAdaptor.getImagine();
+            
+            // ranked tensor type
+            auto realType = llvm::dyn_cast<RankedTensorType>(op->getOperand(0).getType());
+
+            llvm::ArrayRef<int64_t> realShape = realType.getShape();
+            llvm::ArrayRef<int64_t> outputShape = output.getShape();
+            
+            // constant vals;
+            Value negOneVal = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(-1));
+            Value zeroVal = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(0));
+            Value oneVal = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(1));
+            
+            AffineExpr d0; // declare one dimension affine expr
+            bindDims(rewriter.getContext(), d0); // bind affine expr d0 to current input (real array) dimension
+            
+            // real affine map
+            AffineMap realMap = AffineMap::get(1, 0, ArrayRef<AffineExpr>{d0}, rewriter.getContext());
+            // imagine affine map
+            AffineMap imgMap = AffineMap::get(1, 0, ArrayRef<AffineExpr>{d0}, rewriter.getContext());
+            // output affine map
+            AffineMap outputMapReal = AffineMap::get(1, 0, ArrayRef<AffineExpr>{d0*2}, rewriter.getContext());
+            AffineMap outputMapImagine = AffineMap::get(1, 0, ArrayRef<AffineExpr>{d0*2+1}, rewriter.getContext());
+
+            // loops
+            int64_t lb=0, step=1, ub=realShape[0];
+            /* looping i*/
+            AffineForOp forOpI = rewriter.create<AffineForOp>(loc, lb, ub, step);
+            rewriter.setInsertionPointToStart(forOpI.getBody());
+            auto ivI = forOpI.getInductionVar();
+
+            
+            // input bound check
+            Value realNum = rewriter.create<AffineLoadOp>(loc, realVal, realMap, ValueRange{ivI});
+            Value imgNum = rewriter.create<AffineLoadOp>(loc, imgVal, imgMap, ValueRange{ivI});
+
+            Value negReal = rewriter.create<arith::CmpFOp>(loc, arith::CmpFPredicate::OEQ, realNum, negOneVal); 
+            Value negImagine = rewriter.create<arith::CmpFOp>(loc, arith::CmpFPredicate::OEQ, imgNum, negOneVal);
+
+            Value out1 = rewriter.create<arith::SelectOp>(loc, negReal, zeroVal, oneVal);
+            Value out2 = rewriter.create<arith::SelectOp>(loc, negImagine, zeroVal, oneVal);
+
+            rewriter.create<AffineStoreOp>(loc, out1, alloc, outputMapReal, ValueRange{ivI});
+            rewriter.create<AffineStoreOp>(loc, out2, alloc, outputMapImagine, ValueRange{ivI});
+
+            rewriter.replaceOp(op, alloc);
+
+            return success();
+        }
+}; // qam_demodulate op
 
 } // namespace
 
@@ -7817,7 +7887,7 @@ void ToyToAffineLoweringPass::runOnOperation() {
       FIRFilterYSymmOptimizedOpLowering, FFT1DRealSymmOpLowering,
       FFT1DImgConjSymmOpLowering, FFTRealOpLowering, FFTImagOpLowering,
       Conv2DOpLowering, ShiftRightOpLowering, MatmulOpLowering,
-      ThresholdUpOpLowering, QamModulateRealOpLowering, QamModulateImgOpLowering>(&getContext());
+      ThresholdUpOpLowering, QamModulateRealOpLowering, QamModulateImgOpLowering,QamDemodulateOpLowering>(&getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the
   // conversion. The conversion will signal failure if any of our `illegal`
