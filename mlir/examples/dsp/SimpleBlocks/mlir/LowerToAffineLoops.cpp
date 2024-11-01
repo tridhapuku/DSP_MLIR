@@ -7893,6 +7893,7 @@ struct QamModulateRealOpLowering : public ConversionPattern {
         Value out = rewriter.create<arith::SelectOp>(loc, zeroReal, negOneVal, oneVal);
 
         rewriter.create<AffineStoreOp>(loc, out, alloc, outputRealMap, ValueRange{ivI});
+        rewriter.setInsertionPointAfter(forOpI);
         rewriter.replaceOp(op, alloc);
 
         return success();
@@ -7946,6 +7947,7 @@ struct QamModulateImgOpLowering : public ConversionPattern {
 
         rewriter.create<AffineStoreOp>(loc, out, alloc, outputImgMap, ValueRange{ivI});
 
+        rewriter.setInsertionPointAfter(forOpI);
         rewriter.replaceOp(op, alloc);
 
         return success();
@@ -8023,7 +8025,7 @@ struct QamDemodulateOpLowering : public ConversionPattern {
         }
 }; // qam_demodulate op
 
-/===----------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: BeamForm operations
 //===----------------------------------------------------------------------===//
 
