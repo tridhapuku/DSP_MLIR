@@ -8215,7 +8215,6 @@ struct BeamFormOpLowering : public ConversionPattern {
 
     auto signalMemRefType = convertTensorToMemRef(signalType);
     auto allocSignal = insertAllocAndDealloc(signalMemRefType, loc, rewriter);
-    llvm::errs() << "signal alloc\n";
 
     AffineExpr d0, d1; // i, j for generated signal dimension
     bindDims(rewriter.getContext(), d0, d1);
@@ -8235,6 +8234,8 @@ struct BeamFormOpLowering : public ConversionPattern {
 
     auto pi = rewriter.create<arith::ConstantOp>(
         loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(3.1415926));
+    auto zero = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
+                                                   rewriter.getF64FloatAttr(0));
     auto two = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
                                                   rewriter.getF64FloatAttr(2));
     auto four = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(),
@@ -8242,8 +8243,8 @@ struct BeamFormOpLowering : public ConversionPattern {
     auto two_pi = rewriter.create<arith::MulFOp>(loc, pi, two); // 2 * pi
     auto freq_val = rewriter.create<arith::ConstantOp>(
         loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(frequency));
-    auto phase_var = rewriter.create<arith::MulFOp>(loc, two_pi, freq_val);
-    llvm::errs() << "const alloc\n";
+    auto phase_var =
+        rewriter.create<arith::MulFOp>(loc, two_pi, freq_val); // 2*pi*freq
 
     // for loop from 0 to phase
     int64_t lb = 0, ub = antennas, step = 1;
@@ -8251,7 +8252,6 @@ struct BeamFormOpLowering : public ConversionPattern {
         rewriter.create<AffineForOp>(loc, lb, ub, step);
     auto ivI = forOpI.getInductionVar(); // i : phase
     rewriter.setInsertionPointToStart(forOpI.getBody());
-    llvm::errs() << "first loop\n";
 
     // get the induction var to phase variable
     auto intType = rewriter.getI64Type();
@@ -8260,27 +8260,29 @@ struct BeamFormOpLowering : public ConversionPattern {
     auto floatI = rewriter.create<arith::SIToFPOp>(loc, floatType, intI);
 
     auto iter_tmp = rewriter.create<arith::MulFOp>(loc, floatI, pi); // i * pi
-    auto iter_args = rewriter.create<arith::DivFOp>(loc, iter_tmp, four);
+    auto iter_args =
+        rewriter.create<arith::DivFOp>(loc, iter_tmp, four); // i*pi/4
 
     // for loop from 0 to timeDim
     ub = timeDim;
     affine::AffineForOp forOpJ =
         rewriter.create<AffineForOp>(loc, lb, ub, step);
-    auto ivJ = forOpJ.getInductionVar(); // i : phase
+    auto ivJ = forOpJ.getInductionVar();
     rewriter.setInsertionPointToStart(forOpJ.getBody());
-    llvm::errs() << "second loop\n";
+
+    rewriter.create<AffineStoreOp>(loc, zero, alloc, ValueRange{ivJ});
 
     // loop body
-    auto time_var =
-        rewriter.create<AffineLoadOp>(loc, time, timeMap, ValueRange{ivI, ivJ});
-    auto mul_var = rewriter.create<arith::MulFOp>(loc, time_var, phase_var);
-    auto sin_body = rewriter.create<arith::AddFOp>(loc, mul_var, iter_args);
+    auto time_var = rewriter.create<AffineLoadOp>(
+        loc, time, timeMap, ValueRange{ivI, ivJ}); // load from time[j]
+    auto mul_var = rewriter.create<arith::MulFOp>(
+        loc, time_var, phase_var); // time[j] * (2*pi*freq)
+    auto sin_body = rewriter.create<arith::AddFOp>(
+        loc, mul_var, iter_args); // time[j] * (2*pi*freq) + i*pi/4
     auto result = rewriter.create<math::SinOp>(loc, sin_body);
-    llvm::errs() << "body loop\n";
     rewriter.create<AffineStoreOp>(loc, result, allocSignal,
                                    ValueRange{ivI, ivJ});
 
-    forOpJ.dump();
     rewriter.setInsertionPointAfter(forOpJ);
     rewriter.setInsertionPointAfter(forOpI);
 
@@ -8289,14 +8291,12 @@ struct BeamFormOpLowering : public ConversionPattern {
         rewriter.create<AffineForOp>(loc, lb, ub, step);
     auto ivIoutput = forOpIOut.getInductionVar();
     rewriter.setInsertionPointToStart(forOpIOut.getBody());
-    llvm::errs() << "beam 1 loop\n";
 
     ub = timeDim;
     affine::AffineForOp forOpJOut =
         rewriter.create<AffineForOp>(loc, lb, ub, step);
     auto ivJoutput = forOpJOut.getInductionVar();
     rewriter.setInsertionPointToStart(forOpJOut.getBody());
-    llvm::errs() << "beam 2 loop\n";
 
     // load from signal input
     auto signalInput = rewriter.create<AffineLoadOp>(
@@ -8305,14 +8305,12 @@ struct BeamFormOpLowering : public ConversionPattern {
         loc, weights, outputMap, ValueRange{ivIoutput, ivJoutput});
     auto intermediateVal =
         rewriter.create<arith::MulFOp>(loc, signalInput, weight);
-    llvm::errs() << "load from signal input \n";
 
     // load from output
     auto outputVal =
         rewriter.create<AffineLoadOp>(loc, alloc, ValueRange{ivJoutput});
     auto beamOut =
         rewriter.create<arith::AddFOp>(loc, intermediateVal, outputVal);
-    llvm::errs() << "load from bean output\n";
 
     rewriter.create<AffineStoreOp>(loc, beamOut, alloc, ValueRange{ivJoutput});
 
@@ -8321,7 +8319,6 @@ struct BeamFormOpLowering : public ConversionPattern {
 
     rewriter.replaceOp(op, alloc);
 
-    llvm::errs() << "success loop\n";
     return mlir::success();
   }
 };
