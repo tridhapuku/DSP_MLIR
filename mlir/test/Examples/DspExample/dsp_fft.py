@@ -1,5 +1,5 @@
 def main() {
-  var a = [0.0, 10.0, 340.0, 30.0, 40.0, 110.0, 60.0, 250.0];
+  var a = [1,2,3,4,5,6,7,8];
   var b = fftReal(a);
   var c = fftImag(a);
   print(b);
