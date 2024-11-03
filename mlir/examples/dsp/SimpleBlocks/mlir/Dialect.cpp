@@ -2977,6 +2977,51 @@ mlir::LogicalResult BeamFormOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
+// SpaceModulateOp
+//===----------------------------------------------------------------------===//
+
+void SpaceModulateOp::build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Value signals) {
+    state.addTypes({UnrankedTensorType::get(builder.getF64Type())});
+    state.addOperands({signals});
+}
+
+void SpaceModulateOp::inferShapes() { getResult().setType(getSignal().getType()); }
+
+mlir::LogicalResult SpaceModulateOp::verify() {
+    return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
+// SpaceDemodulateOp
+//===----------------------------------------------------------------------===//
+
+void SpaceDemodulateOp::build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Value binary) {
+    state.addTypes({UnrankedTensorType::get(builder.getF64Type())});
+    state.addOperands({binary});
+}
+
+void SpaceDemodulateOp::inferShapes() { getResult().setType(getBinary().getType()); }
+
+mlir::LogicalResult SpaceDemodulateOp::verify() {
+    return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
+// SpaceDemodulateOp
+//===----------------------------------------------------------------------===//
+
+void SpaceErrCorrectionOp::build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Value signal) {
+    state.addTypes({UnrankedTensorType::get(builder.getF64Type())});
+    state.addOperands({signal});
+}
+
+void SpaceErrCorrectionOp::inferShapes() { getResult().setType(getSignal().getType()); }
+
+mlir::LogicalResult SpaceErrCorrectionOp::verify() {
+    return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
 

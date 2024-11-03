@@ -2281,6 +2281,72 @@ def BeamFormOp : Dsp_Op<"beam_form",
     let hasVerifier = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// SpaceModulateOp
+//===----------------------------------------------------------------------===//
+
+def SpaceModulateOp : Dsp_Op<"space_modulate", 
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+    let summary = "Dsp dialect space modulation operation";
+    let description = [{
+        Takes in string input and convert it to binary.
+    }];
+
+    let arguments = (ins F64Tensor:$signal);
+
+    let results = (outs F64Tensor:$output);
+
+    let builders = [
+        OpBuilder<(ins "Value":$signal)>
+    ];
+
+    let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// SpaceDemodulateOp
+//===----------------------------------------------------------------------===//
+
+def SpaceDemodulateOp : Dsp_Op<"space_demodulate", 
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+    let summary = "Dsp dialect space demodulation operation";
+    let description = [{
+        Takes in binary input and convert it to string.
+    }];
+
+    let arguments = (ins F64Tensor:$binary);
+
+    let results = (outs F64Tensor:$output);
+
+    let builders = [
+        OpBuilder<(ins "Value":$binary)>
+    ];
+
+    let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// SpaceErrCorrectionOp
+//===----------------------------------------------------------------------===//
+
+def SpaceErrCorrectionOp : Dsp_Op<"space_err_correction", 
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+    let summary = "Dsp dialect space error correction operation";
+    let description = [{
+        Remove noise operation for signal transmission in space.
+    }];
+
+    let arguments = (ins F64Tensor:$signal);
+
+    let results = (outs F64Tensor:$output);
+
+    let builders = [
+        OpBuilder<(ins "Value":$signal)>
+    ];
+
+    let hasVerifier = 1;
+}
+
 #endif // TOY_OPS
 
 

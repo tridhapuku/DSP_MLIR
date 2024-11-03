@@ -39,6 +39,7 @@
 #include <numeric>
 #include <optional>
 #include <vector>
+#include <bitset>
 
 using namespace mlir::dsp;
 using namespace dsp;
@@ -924,6 +925,33 @@ private:
        }
        return builder.create<QamDemodulateOp>(location, operands[0], operands[1]);
    }
+   // space_demodulate
+   if(callee == "space_demodulate") {
+       if(call.getArgs().size() != 1) {
+           emitError(location, "MLIR codegen encountered an error: dsp.SpaceDemodulateOp"
+                   "accepts 1 arguments");
+           return nullptr;
+       }
+       return builder.create<SpaceDemodulateOp>(location, operands[0]);
+   }
+   // space_modulate
+   if(callee == "space_modulate") {
+       if(call.getArgs().size() != 1) {
+           emitError(location, "MLIR codegen encountered an error: dsp.SpaceModulateOp"
+                   "accepts 1 arguments");
+           return nullptr;
+       }
+       return builder.create<SpaceModulateOp>(location, operands[0]);
+   }
+   // space_err_correction
+   if(callee == "space_err_correction") {
+       if(call.getArgs().size() != 1) {
+           emitError(location, "MLIR codegen encountered an error: dsp.SpaceErrCorrectionOp"
+                   "accepts 1 arguments");
+           return nullptr;
+       }
+       return builder.create<SpaceErrCorrectionOp>(location, operands[0]);
+   }
     // Builtin calls have their custom operation, meaning this is a
     // straightforward emission.
     // if(callee == "delay"){
@@ -956,6 +984,28 @@ private:
   mlir::Value mlirGen(NumberExprAST &num) {
     return builder.create<ConstantOp>(loc(num.loc()), num.getValue());
   }
+  
+  /// Emit a string exression
+  mlir::Value mlirGen(StringExprAST &expr) {
+    auto string_val = expr.getStringVal();
+    
+    std::vector<double> signals;
+    for(char ch : string_val) {
+        std::bitset<8> bits(static_cast<unsigned char>(ch)), reversed;
+        int n = 8;
+        for(int i=0; i<n; ++i) reversed[i] = bits[n-i-1];
+        for(int i=0; i<n; ++i) signals.push_back(reversed[i]);
+    }
+
+    mlir::Type eleType = builder.getF64Type();
+    auto dataType = mlir::RankedTensorType::get(signals.size(), eleType);
+
+    auto dataAttr = mlir::DenseElementsAttr::get(dataType, llvm::ArrayRef(signals));
+
+    auto type = getType(signals.size());
+
+    return builder.create<ConstantOp>(loc(expr.loc()), type, dataAttr);
+  }
 
   /// Dispatch codegen for the right expression subclass using RTTI.
   mlir::Value mlirGen(ExprAST &expr) {
@@ -970,6 +1020,8 @@ private:
       return mlirGen(cast<CallExprAST>(expr));
     case dsp::ExprAST::Expr_Num:
       return mlirGen(cast<NumberExprAST>(expr));
+    case dsp::ExprAST::Expr_String:
+      return mlirGen(cast<StringExprAST>(expr));
     default:
       emitError(loc(expr.loc()))
           << "MLIR codegen encountered an unhandled expr kind '"
