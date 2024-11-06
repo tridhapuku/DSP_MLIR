@@ -690,6 +690,35 @@ struct SimplifyLMSFilterResponsewithGain
   }
 };
 
+struct SimplifySpaceModDemodulate : public mlir::OpRewritePattern<SpaceDemodulateOp> {
+    SimplifySpaceModDemodulate(mlir::MLIRContext *context) : OpRewritePattern<SpaceDemodulateOp>(context, 1) {}
+
+    mlir::LogicalResult
+        matchAndRewrite(SpaceDemodulateOp op, mlir::PatternRewriter &rewriter) const override {
+
+            // a flag checking if the define operation chain of demod op contains mod op
+            bool opt = false;
+            SpaceModulateOp prev_mod;
+            auto iter = op.getOperand();
+            while(iter.getDefiningOp()) {
+                auto pred = iter.getDefiningOp();
+                // llvm::errs() << pred->getName().getStringRef() << "\n";
+                if(llvm::dyn_cast<SpaceModulateOp>(*pred)) {
+                    opt = true;
+                    prev_mod = llvm::dyn_cast<SpaceModulateOp>(*pred);
+                    break;
+                }
+                iter = (*pred).getOperand(0);
+            }
+
+            if(!opt) return failure();
+
+            auto constVal = prev_mod.getOperand().getDefiningOp();
+            rewriter.replaceOp(op, constVal);
+            return mlir::success();
+        }
+};
+
 // ===================================
 // ===================================
 // ===================================
@@ -792,3 +821,10 @@ void ReshapeOp::getCanonicalizationPatterns(RewritePatternSet &results,
                 FoldConstantReshapeOptPattern>(context);
   }
 }
+
+void SpaceDemodulateOp::getCanonicalizationPatterns(RewritePatternSet &results,
+        MLIRContext *context) {
+            if(getEnableCanonicalOpt()) {
+            results.add<SimplifySpaceModDemodulate>(context);
+            }
+} 

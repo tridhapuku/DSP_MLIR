@@ -2370,6 +2370,7 @@ def SpaceDemodulateOp : Dsp_Op<"space_demodulate",
     ];
 
     let hasVerifier = 1;
+    let hasCanonicalizer = 1;
 }
 
 //===----------------------------------------------------------------------===//
