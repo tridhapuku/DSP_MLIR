@@ -762,6 +762,38 @@ struct SimplifySpaceModDemodulate
   }
 };
 
+struct SimplifyNormLMSFilterResponse : public mlir::OpRewritePattern<NormalizeOp> { 
+    SimplifyNormLMSFilterResponse(mlir::MLIRContext *ctx) : OpRewritePattern<NormalizeOp>(ctx, 1) {}
+
+    mlir::LogicalResult
+        matchAndRewrite(NormalizeOp op, mlir::PatternRewriter &rewriter) const override {
+            bool opt = false;
+
+            Value signal = op.getOperand();
+            Operation* signalOp = signal.getDefiningOp();
+            Operation* filterOp = llvm::dyn_cast<LMSFilterResponseOp>(signalOp);
+
+            if(filterOp) opt = true;
+
+            if(!opt) return failure();
+            
+            Value filterOp_operand0 = filterOp->getOperand(0);
+            Value filterOp_operand1 = filterOp->getOperand(1);
+            Value filterOp_operand2 = filterOp->getOperand(2);
+            Value filterOp_operand3 = filterOp->getOperand(3);
+
+            auto normLMSfilterOpt = rewriter.create<NormLMSFilterResponseOptimizeOp> (
+                    op.getLoc(), filterOp_operand0, filterOp_operand1, filterOp_operand2, filterOp_operand3
+                    );
+
+            rewriter.replaceOp(op, normLMSfilterOpt);
+            if(filterOp->use_empty()) {
+                rewriter.eraseOp(filterOp);
+            }
+
+            return mlir::success();
+        }
+};
 // ===================================
 // ===================================
 // ===================================
@@ -870,8 +902,15 @@ void ReshapeOp::getCanonicalizationPatterns(RewritePatternSet &results, MLIRCont
   }
 }
 
-void SpaceDemodulateOp::getCanonicalizationPatterns(RewritePatternSet &results, MLIRContext *context) {
-  if (getEnableCanonicalOpt()) {
-    results.add<SimplifySpaceModDemodulate>(context);
-  }
+void SpaceDemodulateOp::getCanonicalizationPatterns(RewritePatternSet &results,
+        MLIRContext *context) {
+            if(getEnableCanonicalOpt()) {
+            results.add<SimplifySpaceModDemodulate>(context);
+            }
+} 
+
+void NormalizeOp::getCanonicalizationPatterns(RewritePatternSet &results, MLIRContext *ctx) {
+    if(getEnableCanonicalOpt()) {
+        results.add<SimplifyNormLMSFilterResponse>(ctx);
+    }
 }

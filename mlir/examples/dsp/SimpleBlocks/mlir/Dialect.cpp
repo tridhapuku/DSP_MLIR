@@ -3277,6 +3277,38 @@ mlir::LogicalResult SpaceErrCorrectionOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
+// NormalizeOp
+//===----------------------------------------------------------------------===//
+
+void NormalizeOp::build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Value signal) {
+    state.addTypes({UnrankedTensorType::get(builder.getF64Type())});
+    state.addOperands({signal});
+}
+
+void NormalizeOp::inferShapes() { getResult().setType(getSignal().getType()); }
+
+//===----------------------------------------------------------------------===//
+// NormLMSFilterResponseOptimizeOp
+//===----------------------------------------------------------------------===//
+
+void NormLMSFilterResponseOptimizeOp::build(mlir::OpBuilder &builder,
+        mlir::OperationState &state, mlir::Value lhs,
+        mlir::Value rhs, mlir::Value mu,
+        mlir::Value filterLen) {
+
+    state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+    state.addOperands({lhs, rhs, mu, filterLen});
+}
+
+void NormLMSFilterResponseOptimizeOp::inferShapes() {
+    getResult().setType(getLhs().getType());
+}
+
+mlir::LogicalResult NormLMSFilterResponseOptimizeOp::verify() {
+    return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
 

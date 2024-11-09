@@ -462,7 +462,7 @@ private:
       }
       return builder.create<DiffOp>(location, operands[0], operands[1]);
     }
-    
+       
     // Abs Op
     if(callee == "abs") {
       if (call.getArgs().size() != 1) {
@@ -486,6 +486,26 @@ private:
       double axis = axisVal[0].getValueAsDouble();
 
       return builder.create<ArgMaxOp>(location, operands[0], axis);
+    }
+
+    // Normalize Op
+    if (callee == "normalize") {
+      if (call.getArgs().size() != 1) {
+        emitError(location, "MLIR codegen encountered an error: dsp.normalize "
+                            "accepts only 1 arguments: input tensor");
+        return nullptr;
+      }
+      return builder.create<NormalizeOp>(location, operands[0]);
+    }
+   
+    // Normalize LMS filter Op
+    if (callee == "norm_LMSFilterResponse_opt") {
+      if (call.getArgs().size() != 4) {
+        emitError(location, "MLIR codegen encountered an error: dsp.norm_LMSFilterResponse_opt "
+                            "accepts 4 arguments ");
+        return nullptr;
+      }
+      return builder.create<NormLMSFilterResponseOptimizeOp>(location, operands[0], operands[1], operands[2], operands[3]);
     }
 
     // Shift right Op
