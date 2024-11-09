@@ -799,10 +799,50 @@ mlir::LogicalResult MatmulOp::verify() {
 }
 
 
+//===----------------------------------------------------------------------===//
+ // AbsOp
+ //===----------------------------------------------------------------------===//
+
+ void AbsOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                   mlir::Value input) {
+    state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+    state.addOperands({input});
+ }
+
+ void AbsOp::inferShapes() { getResult().setType(getInput().getType()); }
 
 
+//===----------------------------------------------------------------------===//
+ // ArgMaxOp
+ //===----------------------------------------------------------------------===//
 
+ void ArgMaxOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                   mlir::Value input, int64_t axis) {
+    state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+    state.addAttribute("axis", builder.getI64IntegerAttr(axis));
+    state.addOperands({input});
+ }
 
+ void ArgMaxOp::inferShapes() {
+
+     auto inputType = getInput().getType();
+     auto inputRank = inputType.getRank();
+     auto inputShape = inputType.getShape();
+
+     if(inputRank == 1) {
+         vector<int64_t> outputShape(1, 1);
+         auto outputType = mlir::RankedTensorType::get(outputShape, inputType.getElementType());
+         getResult().setType(outputType);
+         return;
+     }
+
+     int64_t axis = getAxis();
+     int64_t dim = axis==1 ? 0 : 1;
+
+     auto outputType = mlir::RankedTensorType::get(inputShape[dim], inputType.getElementType());
+
+     getResult().setType(outputType);
+}
 
 //===----------------------------------------------------------------------===//
  // PowOp
@@ -3032,20 +3072,20 @@ void QamModulateRealOp::inferShapes() {
 
 mlir::LogicalResult QamModulateRealOp::verify() {
 
-    auto signalType = llvm::dyn_cast<RankedTensorType>(getSignal().getType());
-
-    if(!signalType) {
-        llvm::errs() << "expect a ranked tensor for signal input, get " << getSignal();
-        return mlir::failure();
-    }
-
-    auto signalRank = signalType.getRank();
-
-    if(signalRank != 1 ) {
-        llvm::errs() << "expect 1 dimensional signal, get " << signalRank;
-        return mlir::failure();
-    }
-    
+    //auto signalType = llvm::dyn_cast<RankedTensorType>(getSignal().getType());
+//
+    //if(!signalType) {
+        //llvm::errs() << "expect a ranked tensor for signal input, get " << getSignal();
+        //return mlir::failure();
+    //}
+//
+    //auto signalRank = signalType.getRank();
+//
+    //if(signalRank != 1 ) {
+        //llvm::errs() << "expect 1 dimensional signal, get " << signalRank;
+        //return mlir::failure();
+    //}
+    //
   return mlir::success();
 }
 
@@ -3074,20 +3114,20 @@ void QamModulateImgOp::inferShapes() {
 
 mlir::LogicalResult QamModulateImgOp::verify() {
 
-    auto signalType = llvm::dyn_cast<RankedTensorType>(getSignal().getType());
-
-    if(!signalType) {
-        llvm::errs() << "expect a ranked tensor for signal input, get " << getSignal();
-        return mlir::failure();
-    }
-
-    auto signalRank = signalType.getRank();
-
-    if(signalRank != 1 ) {
-        llvm::errs() << "expect 1 dimensional signal, get " << signalRank;
-        return mlir::failure();
-    }
-    
+    // auto signalType = llvm::dyn_cast<RankedTensorType>(getSignal().getType());
+// 
+    // if(!signalType) {
+        // llvm::errs() << "expect a ranked tensor for signal input, get " << getSignal();
+        // return mlir::failure();
+    // }
+// 
+    // auto signalRank = signalType.getRank();
+// 
+    // if(signalRank != 1 ) {
+        // llvm::errs() << "expect 1 dimensional signal, get " << signalRank;
+        // return mlir::failure();
+    // }
+    // 
   return mlir::success();
 }
 

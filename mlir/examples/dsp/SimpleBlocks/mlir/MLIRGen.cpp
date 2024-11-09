@@ -462,6 +462,31 @@ private:
       }
       return builder.create<DiffOp>(location, operands[0], operands[1]);
     }
+    
+    // Abs Op
+    if(callee == "abs") {
+      if (call.getArgs().size() != 1) {
+        emitError(location, "MLIR codegen encountered an error: dsp.abs "
+                            "accepts only 1 arguments: input tensor.");
+        return nullptr;
+      }
+      return builder.create<AbsOp>(location, operands[0]);
+    }
+
+    // ArgMax Op
+    if(callee == "argmax") {
+      if (call.getArgs().size() != 2) {
+        emitError(location, "MLIR codegen encountered an error: dsp.argmax "
+                            "accepts only 2 arguments: input tensor, axis.");
+        return nullptr;
+      }
+
+      auto axisOp = operands[1].getDefiningOp<mlir::dsp::ConstantOp>();
+      auto axisVal = axisOp.getValue().getValues<mlir::FloatAttr>();
+      double axis = axisVal[0].getValueAsDouble();
+
+      return builder.create<ArgMaxOp>(location, operands[0], axis);
+    }
 
     // Shift right Op
     if (callee == "shiftRight") {

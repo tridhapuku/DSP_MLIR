@@ -2513,7 +2513,42 @@ def DiffOp : Dsp_Op<"diff", [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpIn
    // let hasVerifier = 1;
  }
  
+//===----------------------------------------------------------------------===//
+// AbsOp
+//===----------------------------------------------------------------------===//
 
+def AbsOp : Dsp_Op<"abs", [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+   let summary = "np.abs -> calculate the absolute value element-wise";
+   let description = [{
+       This operation calculates the absolute value element-wise.
+   }]; 
+
+   let arguments = (ins F64Tensor:$input);
+   let results = (outs F64Tensor:$output);
+   
+   let builders = [
+     OpBuilder<(ins "Value":$input)>
+   ];
+ }
+
+
+//===----------------------------------------------------------------------===//
+// ArgMaxOp
+//===----------------------------------------------------------------------===//
+
+def ArgMaxOp : Dsp_Op<"argmax", [Pure , DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+   let summary = "np.argmax -> find the indices of the maximum values along a specifies axis in an array.";
+   let description = [{
+       This operation find the indices of the maximum values along a specifies axis in an array.
+   }]; 
+
+   let arguments = (ins F64Tensor:$input, I64Attr:$axis);
+   let results = (outs F64Tensor:$output);
+   
+   let builders = [
+     OpBuilder<(ins "Value":$input, "int64_t":$axis)>
+   ];
+ }
 
 
 #endif // TOY_OPS
