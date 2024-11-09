@@ -9526,7 +9526,7 @@ struct NormalizeOpLowering : public ConversionPattern {
             auto minSignal = forOp.getResults()[0];
             auto maxSignal = forOp.getResults()[1];
 
-            auto dividend = rewriter.create<arith::SubFOp>(loc, maxSignal, minSignal);
+            auto divisor = rewriter.create<arith::SubFOp>(loc, maxSignal, minSignal);
             // ele-wise normalize
             affine::AffineForOp forOpI = rewriter.create<AffineForOp>(loc, lb, ub, step);
             auto ivI = forOpI.getInductionVar();
@@ -9534,7 +9534,7 @@ struct NormalizeOpLowering : public ConversionPattern {
 
             auto loadedVal = rewriter.create<AffineLoadOp>(loc, signal, ValueRange{ivI});
             auto subVal = rewriter.create<arith::SubFOp>(loc, loadedVal, minSignal);
-            auto resultVal = rewriter.create<arith::DivFOp>(loc, subVal, dividend);
+            auto resultVal = rewriter.create<arith::DivFOp>(loc, subVal, divisor);
 
             rewriter.create<AffineStoreOp>(loc, resultVal, alloc, ValueRange{ivI});
             rewriter.setInsertionPointAfter(forOpI);
@@ -9679,7 +9679,7 @@ struct NormLMSFilterResponseOptimizeOpLowering : public ConversionPattern {
     Value minSignal = forOp1.getResults()[0];
     Value maxSignal = forOp1.getResults()[1];
 
-    Value dividend = rewriter.create<arith::SubFOp>(loc, maxSignal, minSignal);
+    Value divisor = rewriter.create<arith::SubFOp>(loc, maxSignal, minSignal);
 
     // ele-wise normalize
     affine::AffineForOp forOpI = rewriter.create<AffineForOp>(loc, lb, numSamples, step);
@@ -9688,7 +9688,7 @@ struct NormLMSFilterResponseOptimizeOpLowering : public ConversionPattern {
 
     auto loadedVal = rewriter.create<AffineLoadOp>(loc, alloc, ValueRange{ivI});
     auto subVal = rewriter.create<arith::SubFOp>(loc, loadedVal, minSignal);
-    auto resultVal = rewriter.create<arith::DivFOp>(loc, subVal, dividend);
+    auto resultVal = rewriter.create<arith::DivFOp>(loc, subVal, divisor);
 
     rewriter.create<AffineStoreOp>(loc, resultVal, alloc, ValueRange{ivI});
     rewriter.setInsertionPointAfter(forOpI);

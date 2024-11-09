@@ -540,6 +540,7 @@ struct SimplifyFIRFilterRespnseWithSymmFilter
   }
 };
 
+// label: pass 1st
 // Pseudo code:
 //  if the FFT1DRealOp & FFT1DImgOp has same input then replace them with single
 //  %4 = "dsp.fft1dreal"(%3) : (tensor<10xf64>) -> tensor<10xf64>
@@ -767,15 +768,11 @@ struct SimplifyNormLMSFilterResponse : public mlir::OpRewritePattern<NormalizeOp
 
     mlir::LogicalResult
         matchAndRewrite(NormalizeOp op, mlir::PatternRewriter &rewriter) const override {
-            bool opt = false;
 
             Value signal = op.getOperand();
-            Operation* signalOp = signal.getDefiningOp();
-            Operation* filterOp = llvm::dyn_cast<LMSFilterResponseOp>(signalOp);
+            Operation* filterOp = signal.getDefiningOp<LMSFilterResponseOp>();
 
-            if(filterOp) opt = true;
-
-            if(!opt) return failure();
+            if(!filterOp) return failure();
             
             Value filterOp_operand0 = filterOp->getOperand(0);
             Value filterOp_operand1 = filterOp->getOperand(1);
@@ -794,6 +791,61 @@ struct SimplifyNormLMSFilterResponse : public mlir::OpRewritePattern<NormalizeOp
             return mlir::success();
         }
 };
+
+struct SimplifyDSSDPass : public mlir::OpRewritePattern<DivOp> {
+    SimplifyDSSDPass(mlir::MLIRContext *ctx) : OpRewritePattern<DivOp>(ctx, 1) {}
+
+    mlir::LogicalResult
+        matchAndRewrite(DivOp op, mlir::PatternRewriter &rewriter) const override {
+
+#define CHECK(x) if(!x) return failure();
+#define REMOVE(x) if(x->use_empty()) rewriter.eraseOp(x);
+#define DEBUG(x) {llvm::errs() << "check for " << x << "\n";}
+#define PASS llvm::errs() << "pass\n";
+
+            auto loc = op.getLoc();
+
+            // pattern -> CHECK()
+            Operation* sumOp = op.getOperand(0).getDefiningOp<SumOp>();
+            CHECK(sumOp);
+
+            Operation* addOp = sumOp->getOperand(0).getDefiningOp<AddOp>();
+            CHECK(addOp);
+
+            Operation* sqrtOp0 = addOp->getOperand(0).getDefiningOp<SquareOp>();
+            CHECK(sqrtOp0);
+
+            Operation* sqrtOp1 = addOp->getOperand(1).getDefiningOp<SquareOp>();
+            CHECK(sqrtOp1);
+
+            Operation* fftRealOp = sqrtOp0->getOperand(0).getDefiningOp<FFT1DRealOp>();
+            CHECK(fftRealOp);
+
+            // See defining op: suppose to be fftImg, but modified beforhand by <label> pass 1st
+            Operation* fftImgOp = sqrtOp1->getOperand(0).getDefiningOp<FFT1DRealOp>();
+            CHECK(fftImgOp);
+
+            // check if come from same input
+            Value input1 = fftRealOp->getOperand(0);
+            Value input2 = fftImgOp->getOperand(0);
+            CHECK((input1==input2));
+
+            auto newSqrt = rewriter.create<SquareOp>(loc, input1);
+            auto newResult = rewriter.create<SumOp>(loc, newSqrt);
+
+            rewriter.replaceOp(op, newResult);
+
+            REMOVE(fftImgOp);
+            REMOVE(fftRealOp);
+            REMOVE(sqrtOp1);
+            REMOVE(sqrtOp0);
+            REMOVE(addOp);
+            REMOVE(sumOp);
+
+            return mlir::success();
+        }
+};
+
 // ===================================
 // ===================================
 // ===================================
@@ -912,5 +964,11 @@ void SpaceDemodulateOp::getCanonicalizationPatterns(RewritePatternSet &results,
 void NormalizeOp::getCanonicalizationPatterns(RewritePatternSet &results, MLIRContext *ctx) {
     if(getEnableCanonicalOpt()) {
         results.add<SimplifyNormLMSFilterResponse>(ctx);
+    }
+}
+
+void DivOp::getCanonicalizationPatterns(RewritePatternSet &results, MLIRContext *ctx) {
+    if(getEnableCanonicalOpt()) {
+        results.add<SimplifyDSSDPass>(ctx);
     }
 }

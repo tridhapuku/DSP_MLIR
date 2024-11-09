@@ -304,6 +304,8 @@ def DivOp : Dsp_Op<"div",
   let builders = [
     OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
   ];
+
+  let hasCanonicalizer = 1;
 }
 
 //===----------------------------------------------------------------------===//
