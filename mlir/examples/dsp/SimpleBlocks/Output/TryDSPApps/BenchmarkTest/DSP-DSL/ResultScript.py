@@ -15,9 +15,8 @@ import time
 # Run the respective commands on the file
 
 # Path to the input file
-# Apps = "hearingAid.py" , "lowPassFull.py" , " audioCompression.py" ,
-#  "back2backDelay.py" , "lowPassFIRFilterDesign.py" , "EnergyOfSignal.py", "periodogram2Conv1.py", "audioEqualizer.py", "vibrationAnalysis.py", "signalSmoothing.py", "targetDetection.py", "biomedicalSignalProcessing.py", "spaceCommunication.py", "echocancelling", "noisecancelling.py", "digitalModulation", "underWaterCommunication"
-input_file_path = "underWaterCommunication.py"
+# Apps = "hearingAid.py" , "lowPassFull.py" , " audioCompression.py", "lowPassFIRFilterDesign.py" , "EnergyOfSignal.py", "periodogram2Conv1.py", "audioEqualizer.py", "vibrationAnalysis.py", "signalSmoothing.py", "targetDetection.py", "biomedicalSignalProcessing.py", "spaceCommunication.py", "echocancelling", "noisecancelling.py", "digitalModulation", "underWaterCommunication", "voiceActivityDetection", "radarSignalProcessing"
+input_file_path = "radarSignalProcessing.py"
 BasePathForLLVM = "/home/local/ASURITE/apkhedka/ForLLVM/"
 OutputScriptPath = (
     "mlir/examples/dsp/SimpleBlocks/Output/TryDSPApps/BenchmarkTest/DSP-DSL/"

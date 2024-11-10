@@ -3219,20 +3219,6 @@ void QamModulateImgOp::inferShapes() {
 
 mlir::LogicalResult QamModulateImgOp::verify() {
 
-    // auto signalType = llvm::dyn_cast<RankedTensorType>(getSignal().getType());
-// 
-    // if(!signalType) {
-        // llvm::errs() << "expect a ranked tensor for signal input, get " << getSignal();
-        // return mlir::failure();
-    // }
-// 
-    // auto signalRank = signalType.getRank();
-// 
-    // if(signalRank != 1 ) {
-        // llvm::errs() << "expect 1 dimensional signal, get " << signalRank;
-        // return mlir::failure();
-    // }
-    // 
   return mlir::success();
 }
 
@@ -3250,40 +3236,6 @@ void BeamFormOp::build(mlir::OpBuilder &builder, mlir::OperationState &state, in
 void BeamFormOp::inferShapes() { getResult().setType(getTime().getType()); }
 
 mlir::LogicalResult BeamFormOp::verify() {
-    // auto timeType = llvm::dyn_cast<RankedTensorType>(getTime().getType());     
-    // auto weightType = llvm::dyn_cast<RankedTensorType>(getWeights().getType());     
-
-    // if(!timeType) {
-    //     llvm::errs() << "expect a ranked tensor for time input array.";
-    //     return mlir::failure();
-    // }
-    // if(!weightType){
-    //     llvm::errs() << "expect a ranked tensor for weight input array.";
-    //     return mlir::failure();
-    // }
-
-    // auto timeShape = timeType.getShape();
-    // auto timeRank = timeType.getRank();
-    // auto weightShape = weightType.getShape();
-    // auto weightRank = weightType.getRank();
-
-    // if(timeRank != 1) {
-    //     llvm::errs() << "expect input time array to be 1 dim.\n";
-    //     return mlir::failure();
-    // }
-    // if(weightRank != 1) {
-    //     llvm::errs() << "expect input weight array to be 2 dim.\n";
-    //     return mlir::failure();
-    // }
-
-    // auto antennas = getAntennas();
-    // llvm::errs() << "mk type check, antenna value: " << antennas << "\n";
-
-    // auto shape = weightShape[0];
-    // if(shape != antennas) {
-    //     llvm::errs() << "expect weight to have shape: [" << antennas << "]\n";
-    //     return mlir::failure();
-    // }
     return mlir::success();
 }
 
