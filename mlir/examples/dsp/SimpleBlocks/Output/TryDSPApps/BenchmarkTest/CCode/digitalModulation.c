@@ -66,11 +66,10 @@ int main() {
     bits = (int*)malloc(sizeof(int) * INPUT_LENGTH);
     qam_demodulate(bits, symbols);
 
-    // Print results
-    for (int i = 0; i < INPUT_LENGTH; i++) {
-        printf("%d ", bits[i]);
-    }
-    printf("\n");
+
+    printf("%d ", bits[5]);
+    
+    
     
     
     return 0;

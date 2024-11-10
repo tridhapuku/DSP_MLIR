@@ -6,8 +6,8 @@ def main() {
      var N = fs * duration;
      var dtmf_tone = generateDtmf(digit, duration, fs); # generate the dtmf signal
      # print(dtmf_tone);
-     var fft_real = fftReal(dtmf_tone); # take fft real
-     var fft_imag = fftImag(dtmf_tone); # take fft imag
+     var fft_real = fft1dreal(dtmf_tone); # take fft real
+     var fft_imag = fft1dimg(dtmf_tone); # take fft imag
      var squared_fft_real = square(fft_real);
      var squared_fft_imag = square(fft_imag);
      var sum = squared_fft_real + squared_fft_imag;

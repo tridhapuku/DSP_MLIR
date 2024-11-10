@@ -1032,6 +1032,78 @@ struct SimplifyFFTAbs : public OpRewritePattern<FFTRealOp> {
   }
 };
 
+struct SimplifyDFTAbs : public OpRewritePattern<FFT1DRealOp> {
+  SimplifyDFTAbs(MLIRContext *context)
+      : OpRewritePattern<FFT1DRealOp>(context, 1) {}
+
+  LogicalResult matchAndRewrite(FFT1DRealOp realOp,
+                                PatternRewriter &rewriter) const override {
+    // Check if there is a corresponding FFT1DImgOp with the same input.
+    Operation *nextofFFTRealOp = realOp->getNextNode();
+    if (!nextofFFTRealOp || !isa<FFT1DImgOp>(nextofFFTRealOp))
+      return failure();
+
+    DEBUG_PRINT_NO_ARGS();
+    auto fftImagOp = cast<FFT1DImgOp>(nextofFFTRealOp);
+    if (realOp.getInput() != fftImagOp.getInput())
+      return failure();
+
+    Operation *nextofFFTImagOp = fftImagOp->getNextNode();
+    if (!nextofFFTImagOp || !isa<SquareOp>(nextofFFTImagOp))
+      return failure();
+
+    DEBUG_PRINT_NO_ARGS();
+    auto square1Op = cast<SquareOp>(nextofFFTImagOp);
+    if (realOp.getResult() != square1Op.getInput())
+      return failure();
+
+    Operation *nextofSquare1Op = square1Op->getNextNode();
+    if (!nextofSquare1Op || !isa<SquareOp>(nextofSquare1Op))
+      return failure();
+
+    DEBUG_PRINT_NO_ARGS();
+    auto square2Op = cast<SquareOp>(nextofSquare1Op);
+    if (fftImagOp.getResult() != square2Op.getInput())
+      return failure();
+
+    Operation *nextofSquare2Op = square2Op->getNextNode();
+    if (!nextofSquare2Op || !isa<AddOp>(nextofSquare2Op))
+      return failure();
+    // (addOp.getLhs() != squareOp.getResult()) || (addOp.getRhs() !=
+    // square2Op.getResult())   &&  (addOp.getRhs() != squareOp.getResult()) &&
+    // (addOp.getLhs() != square2Op.getResult())
+    DEBUG_PRINT_NO_ARGS();
+    auto addOp = cast<AddOp>(nextofSquare2Op);
+    if ((addOp.getLhs() != square1Op.getResult() ||
+         addOp.getRhs() != square2Op.getResult()) &&
+        (addOp.getRhs() != square1Op.getResult() ||
+         addOp.getLhs() != square2Op.getResult()))
+      return failure();
+
+    Operation *nextofAddOp = addOp->getNextNode();
+    if (!nextofAddOp || !isa<SqrtOp>(nextofAddOp))
+      return failure();
+
+    DEBUG_PRINT_NO_ARGS();
+    auto sqrtOp = cast<SqrtOp>(nextofAddOp);
+    if (sqrtOp.getInput() != addOp.getResult())
+      return failure();
+
+    DEBUG_PRINT_NO_ARGS();
+    auto combinedOp =
+        rewriter.create<FFTAbsOp>(realOp.getLoc(), realOp.getInput());
+    rewriter.replaceOp(sqrtOp, combinedOp.getAmplitude());
+
+    rewriter.eraseOp(addOp);
+    rewriter.eraseOp(square2Op);
+    rewriter.eraseOp(square1Op);
+    rewriter.eraseOp(fftImagOp);
+    rewriter.eraseOp(realOp);
+
+    return success();
+  }
+};
+
 //  Define the canonicalization pattern.
 struct SimplifyFFTRealAndImagToFFT : public OpRewritePattern<FFTRealOp> {
   SimplifyFFTRealAndImagToFFT(MLIRContext *context)
@@ -1081,7 +1153,7 @@ void FFT1DImgOp::getCanonicalizationPatterns(RewritePatternSet &results,
 void FFT1DRealOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                               MLIRContext *context) {
   if (getEnableCanonicalOpt()) {
-    results.add<SimplifyFFTRealAndImg, SimplifyFFTRealAtInputRealSymm>(context);
+    results.add<SimplifyDFTAbs, SimplifyFFTRealAndImg, SimplifyFFTRealAtInputRealSymm>(context);
   }
 }
 

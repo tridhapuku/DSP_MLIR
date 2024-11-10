@@ -16,7 +16,7 @@ import time
 
 # Path to the input file
 # Apps = "hearingAid.py" , "lowPassFull.py" , " audioCompression.py", "lowPassFIRFilterDesign.py" , "EnergyOfSignal.py", "periodogram2Conv1.py", "audioEqualizer.py", "vibrationAnalysis.py", "signalSmoothing.py", "targetDetection.py", "biomedicalSignalProcessing.py", "spaceCommunication.py", "echocancelling", "noisecancelling.py", "digitalModulation", "underWaterCommunication", "voiceActivityDetection", "radarSignalProcessing"
-input_file_path = "radarSignalProcessing.py"
+input_file_path = "dtmfDetection.py"
 BasePathForLLVM = "/home/local/ASURITE/apkhedka/ForLLVM/"
 OutputScriptPath = (
     "mlir/examples/dsp/SimpleBlocks/Output/TryDSPApps/BenchmarkTest/DSP-DSL/"
@@ -96,25 +96,27 @@ print("", end="\t")
 for case in cases:
     print(f"{case['exe']}", end="\t")
 
-# print("\n")
 for key, value in inputValues.items():
-    # Update the specific line in the file
-    # print("Updating for {}".format(value))
-    # print("\n")
     value2 = 1 / value
-    print("\n{}".format(key), end="\t")
-    with open(input_file_path, "w") as file:
+    dur = value / 8192
+    print(f"\n{key}", end="\t")
+    
+    with open(input_file_path, 'r') as file:
+        lines = file.readlines()
+    
+    with open(input_file_path, 'w') as file:
         for line in lines:
             if line.strip().startswith("var input = getRangeOfVector("):
-            # if line.strip().startswith("var N = "):
-                # Replace the second parameter with the current value
                 updated_line = f"\tvar input = getRangeOfVector(0, {value}, 0.000125);\n"
-                # updated_line = f"\tvar input = getRangeOfVector(0, {value}, 1);\n"
-                # updated_line = f"    var N = {value + 1} ;\n"
+                file.write(updated_line)
+            elif line.strip().startswith("var duration ="):
+                updated_line = f"\tvar duration = {dur};\n"
+                file.write(updated_line)
+            elif line.strip().startswith("var frequencies = fftfreq"):
+                updated_line = f"\tvar frequencies = fftfreq({value}, 0.000122);\n"
                 file.write(updated_line)
             else:
                 file.write(line)
-        # print(lines)
 
     # Iterate through the cases and run the commands
     for case in cases:
