@@ -7803,19 +7803,13 @@ struct Diff2MeanOptimizedOpLowering : public ConversionPattern {
   }
 };
 
-
-
-
-
-
-
 struct FindPeaks2Diff2MeanOptimizedOpLowering : public ConversionPattern {
   FindPeaks2Diff2MeanOptimizedOpLowering(MLIRContext *ctx)
-      : ConversionPattern(dsp::FindPeaks2Diff2MeanOptimizedOp::getOperationName(), 1,
-                          ctx) {}
+      : ConversionPattern(
+            dsp::FindPeaks2Diff2MeanOptimizedOp::getOperationName(), 1, ctx) {}
 
-    LogicalResult
-    matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
                   ConversionPatternRewriter &rewriter) const final {
 
     // Get the location of GainOp
@@ -7827,15 +7821,15 @@ struct FindPeaks2Diff2MeanOptimizedOpLowering : public ConversionPattern {
     // allocation & deallocation for the result of this operation
     auto memRefType = convertTensorToMemRef(tensorType);
     auto alloc_output = insertAllocAndDealloc(memRefType, loc, rewriter);
-	
-	auto alloc_output_last = insertAllocAndDealloc(memRefType, loc, rewriter);
-	
+
+    auto alloc_output_last = insertAllocAndDealloc(memRefType, loc, rewriter);
 
     auto countMemRefType = MemRefType::get({}, rewriter.getIndexType());
     auto alloc_peaks_count =
         insertAllocAndDealloc(countMemRefType, loc, rewriter);
 
-    typename dsp::FindPeaks2Diff2MeanOptimizedOp::Adaptor findPeaks2Diff2MeanOptOpAdaptor(operands);
+    typename dsp::FindPeaks2Diff2MeanOptimizedOp::Adaptor
+        findPeaks2Diff2MeanOptOpAdaptor(operands);
 
     Value constant_minus_one = rewriter.create<arith::ConstantOp>(
         loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(-1));
@@ -7892,7 +7886,7 @@ struct FindPeaks2Diff2MeanOptimizedOpLowering : public ConversionPattern {
 
     rewriter.create<AffineStoreOp>(loc, constant_minus_one, alloc_output,
                                    ValueRange{});
-								   
+
     rewriter.create<AffineStoreOp>(loc, constant_minus_one, alloc_output_last,
                                    ValueRange{});
 
@@ -7916,14 +7910,15 @@ struct FindPeaks2Diff2MeanOptimizedOpLowering : public ConversionPattern {
         rewriter.getAffineDimExpr(0) + rewriter.getAffineConstantExpr(1);
     AffineMap addMapForNext = AffineMap::get(1, 0, ExprForNext);
 
-    auto signal_prev =
-        rewriter.create<AffineLoadOp>(loc, findPeaks2Diff2MeanOptOpAdaptor.getSignal(),
-                                      addMapForPrev, ValueRange{current_index});
+    auto signal_prev = rewriter.create<AffineLoadOp>(
+        loc, findPeaks2Diff2MeanOptOpAdaptor.getSignal(), addMapForPrev,
+        ValueRange{current_index});
     auto signal_current = rewriter.create<affine::AffineLoadOp>(
-        loc, findPeaks2Diff2MeanOptOpAdaptor.getSignal(), ValueRange{current_index});
-    auto signal_next =
-        rewriter.create<AffineLoadOp>(loc, findPeaks2Diff2MeanOptOpAdaptor.getSignal(),
-                                      addMapForNext, ValueRange{current_index});
+        loc, findPeaks2Diff2MeanOptOpAdaptor.getSignal(),
+        ValueRange{current_index});
+    auto signal_next = rewriter.create<AffineLoadOp>(
+        loc, findPeaks2Diff2MeanOptOpAdaptor.getSignal(), addMapForNext,
+        ValueRange{current_index});
 
     //%cmp_current_prev = arith.cmpf ogt, %signal_current, %signal_prev : f64
     //%cmp_current_next = arith.cmpf ogt, %signal_current, %signal_next : f64
@@ -7970,9 +7965,9 @@ struct FindPeaks2Diff2MeanOptimizedOpLowering : public ConversionPattern {
         loc, rewriter.getF64Type(), current_index_to_ui);
     rewriter.create<memref::StoreOp>(loc, current_index_to_f64, alloc_output,
                                      ValueRange{});
-    rewriter.create<memref::StoreOp>(loc, current_index_to_f64, alloc_output_last,
-                                     ValueRange{});
-									 
+    rewriter.create<memref::StoreOp>(loc, current_index_to_f64,
+                                     alloc_output_last, ValueRange{});
+
     auto peaks_count_inc =
         rewriter.create<arith::AddIOp>(loc, peaks_count, constant_index_one);
     rewriter.create<AffineStoreOp>(loc, peaks_count_inc, alloc_peaks_count,
@@ -7993,8 +7988,8 @@ struct FindPeaks2Diff2MeanOptimizedOpLowering : public ConversionPattern {
     // symbol identifier" here.
     Value last_peaks_count =
         rewriter.create<arith::SubIOp>(loc, peaks_count, constant_index_one);
-    auto last_peak_index_fp = rewriter.create<memref::LoadOp>(
-        loc, alloc_output_last, ValueRange{});
+    auto last_peak_index_fp =
+        rewriter.create<memref::LoadOp>(loc, alloc_output_last, ValueRange{});
     // f64 to index
     Value last_peak_index_ui = rewriter.create<arith::FPToUIOp>(
         loc, rewriter.getIntegerType(32), last_peak_index_fp);
@@ -8022,8 +8017,8 @@ struct FindPeaks2Diff2MeanOptimizedOpLowering : public ConversionPattern {
         loc, rewriter.getIntegerType(32), current_index);
     Value current_index_to_f64_2 = rewriter.create<arith::UIToFPOp>(
         loc, rewriter.getF64Type(), current_index_to_ui_2);
-    rewriter.create<memref::StoreOp>(loc, current_index_to_f64_2, alloc_output_last,
-                                     ValueRange{});
+    rewriter.create<memref::StoreOp>(loc, current_index_to_f64_2,
+                                     alloc_output_last, ValueRange{});
     auto peaks_count_inc_2 =
         rewriter.create<arith::AddIOp>(loc, peaks_count, constant_index_one);
     rewriter.create<AffineStoreOp>(loc, peaks_count_inc_2, alloc_peaks_count,
@@ -8031,12 +8026,13 @@ struct FindPeaks2Diff2MeanOptimizedOpLowering : public ConversionPattern {
 
     rewriter.setInsertionPointAfter(forOpSignal);
 
-	auto final_loaded_peak_first = rewriter.create<memref::LoadOp>(
-        loc, alloc_output, ValueRange{});
+    auto final_loaded_peak_first =
+        rewriter.create<memref::LoadOp>(loc, alloc_output, ValueRange{});
 
-	auto final_loaded_peak_last = rewriter.create<memref::LoadOp>(
-        loc, alloc_output_last, ValueRange{});
-	Value difference = rewriter.create<arith::SubFOp>(loc, final_loaded_peak_last, final_loaded_peak_first);
+    auto final_loaded_peak_last =
+        rewriter.create<memref::LoadOp>(loc, alloc_output_last, ValueRange{});
+    Value difference = rewriter.create<arith::SubFOp>(
+        loc, final_loaded_peak_last, final_loaded_peak_first);
     auto peaks_count_final = rewriter.create<affine::AffineLoadOp>(
         loc, alloc_peaks_count, ValueRange{});
     // index to f64
@@ -8044,9 +8040,11 @@ struct FindPeaks2Diff2MeanOptimizedOpLowering : public ConversionPattern {
         loc, rewriter.getIntegerType(32), peaks_count_final);
     Value peaks_count_final_to_f64 = rewriter.create<arith::UIToFPOp>(
         loc, rewriter.getF64Type(), peaks_count_final_to_ui);
-	Value peaks_count_minus = rewriter.create<arith::AddFOp>(loc, peaks_count_final_to_f64, constant_minus_one);
-	
-	Value final_output = rewriter.create<arith::DivFOp>(loc, difference, peaks_count_minus);
+    Value peaks_count_minus = rewriter.create<arith::AddFOp>(
+        loc, peaks_count_final_to_f64, constant_minus_one);
+
+    Value final_output =
+        rewriter.create<arith::DivFOp>(loc, difference, peaks_count_minus);
 
     rewriter.create<AffineStoreOp>(loc, final_output, alloc_output,
                                    ValueRange{});
@@ -8056,9 +8054,6 @@ struct FindPeaks2Diff2MeanOptimizedOpLowering : public ConversionPattern {
     return success();
   }
 };
-
-
-
 
 struct LMS2FindPeaksOptimizedOpLowering : public ConversionPattern {
   LMS2FindPeaksOptimizedOpLowering(MLIRContext *ctx)
@@ -9127,7 +9122,7 @@ struct QamModulateImgOpLowering : public ConversionPattern {
     auto outputMem = convertTensorToMemRef(output);
     auto alloc = insertAllocAndDealloc(outputMem, loc, rewriter);
 
-    QamModulateRealOpAdaptor adaptor(operands);
+    QamModulateImgOpAdaptor adaptor(operands);
     Value signal = adaptor.getSignal();
 
     llvm::ArrayRef<int64_t> outputShape = output.getShape();
@@ -9737,68 +9732,77 @@ struct PowOpLowering : public ConversionPattern {
   }
 };
 
-
 //===----------------------------------------------------------------------===//
 // ToyToAffine RewritePatterns: Normalize operations
 //===----------------------------------------------------------------------===//
 
 struct NormalizeOpLowering : public ConversionPattern {
-    NormalizeOpLowering(MLIRContext *ctx) 
-        : ConversionPattern(dsp::NormalizeOp::getOperationName(), 1, ctx) {}
-    
-    LogicalResult
-        matchAndRewrite(Operation *op, ArrayRef<Value> operands, ConversionPatternRewriter &rewriter) const final {
-            auto loc = op->getLoc();
-            
-            auto tensorType = llvm::dyn_cast<RankedTensorType>(*op->result_type_begin());
-            auto memRefType = convertTensorToMemRef(tensorType);
-            auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
-            auto shape = tensorType.getShape()[0];
+  NormalizeOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::NormalizeOp::getOperationName(), 1, ctx) {}
 
-            dsp::NormalizeOpAdaptor adaptor(operands);
-            Value signal = adaptor.getSignal();
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    auto loc = op->getLoc();
 
-            Value min = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(INT64_MAX));
-            Value max = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(INT64_MIN));
-            
-            int64_t lb=0, ub=shape, step=1;
-            // finding min and max;
-            affine::AffineForOp forOp = rewriter.create<AffineForOp>(loc, lb, ub, step, ValueRange{min, max});
-            auto iv = forOp.getInductionVar();
-            rewriter.setInsertionPointToStart(forOp.getBody());
+    auto tensorType =
+        llvm::dyn_cast<RankedTensorType>(*op->result_type_begin());
+    auto memRefType = convertTensorToMemRef(tensorType);
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+    auto shape = tensorType.getShape()[0];
 
-            auto minVal = forOp.getBody()->getArgument(1);
-            auto maxVal = forOp.getBody()->getArgument(2);
+    dsp::NormalizeOpAdaptor adaptor(operands);
+    Value signal = adaptor.getSignal();
 
-            auto cmpVal = rewriter.create<AffineLoadOp>(loc, signal, ValueRange{iv});
-            Value isMin = rewriter.create<arith::CmpFOp>(loc, arith::CmpFPredicate::OLT, cmpVal, minVal);
-            Value isMax = rewriter.create<arith::CmpFOp>(loc, arith::CmpFPredicate::OGT, cmpVal, maxVal);
+    Value min = rewriter.create<arith::ConstantOp>(
+        loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(INT64_MAX));
+    Value max = rewriter.create<arith::ConstantOp>(
+        loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(INT64_MIN));
 
-            auto minOut = rewriter.create<arith::SelectOp>(loc, isMin, cmpVal, minVal);
-            auto maxOut = rewriter.create<arith::SelectOp>(loc, isMax, cmpVal, maxVal);
-            
-            rewriter.create<AffineYieldOp>(loc, ValueRange{minOut.getResult(), maxOut.getResult()});
-            rewriter.setInsertionPointAfter(forOp);
+    int64_t lb = 0, ub = shape, step = 1;
+    // finding min and max;
+    affine::AffineForOp forOp =
+        rewriter.create<AffineForOp>(loc, lb, ub, step, ValueRange{min, max});
+    auto iv = forOp.getInductionVar();
+    rewriter.setInsertionPointToStart(forOp.getBody());
 
-            auto minSignal = forOp.getResults()[0];
-            auto maxSignal = forOp.getResults()[1];
+    auto minVal = forOp.getBody()->getArgument(1);
+    auto maxVal = forOp.getBody()->getArgument(2);
 
-            auto divisor = rewriter.create<arith::SubFOp>(loc, maxSignal, minSignal);
-            // ele-wise normalize
-            affine::AffineForOp forOpI = rewriter.create<AffineForOp>(loc, lb, ub, step);
-            auto ivI = forOpI.getInductionVar();
-            rewriter.setInsertionPointToStart(forOpI.getBody());
+    auto cmpVal = rewriter.create<AffineLoadOp>(loc, signal, ValueRange{iv});
+    Value isMin = rewriter.create<arith::CmpFOp>(loc, arith::CmpFPredicate::OLT,
+                                                 cmpVal, minVal);
+    Value isMax = rewriter.create<arith::CmpFOp>(loc, arith::CmpFPredicate::OGT,
+                                                 cmpVal, maxVal);
 
-            auto loadedVal = rewriter.create<AffineLoadOp>(loc, signal, ValueRange{ivI});
-            auto subVal = rewriter.create<arith::SubFOp>(loc, loadedVal, minSignal);
-            auto resultVal = rewriter.create<arith::DivFOp>(loc, subVal, divisor);
+    auto minOut = rewriter.create<arith::SelectOp>(loc, isMin, cmpVal, minVal);
+    auto maxOut = rewriter.create<arith::SelectOp>(loc, isMax, cmpVal, maxVal);
 
-            rewriter.create<AffineStoreOp>(loc, resultVal, alloc, ValueRange{ivI});
-            rewriter.setInsertionPointAfter(forOpI);
-            
-            rewriter.replaceOp(op, alloc);
-            return mlir::success();
-        }
+    rewriter.create<AffineYieldOp>(
+        loc, ValueRange{minOut.getResult(), maxOut.getResult()});
+    rewriter.setInsertionPointAfter(forOp);
+
+    auto minSignal = forOp.getResults()[0];
+    auto maxSignal = forOp.getResults()[1];
+
+    auto divisor = rewriter.create<arith::SubFOp>(loc, maxSignal, minSignal);
+    // ele-wise normalize
+    affine::AffineForOp forOpI =
+        rewriter.create<AffineForOp>(loc, lb, ub, step);
+    auto ivI = forOpI.getInductionVar();
+    rewriter.setInsertionPointToStart(forOpI.getBody());
+
+    auto loadedVal =
+        rewriter.create<AffineLoadOp>(loc, signal, ValueRange{ivI});
+    auto subVal = rewriter.create<arith::SubFOp>(loc, loadedVal, minSignal);
+    auto resultVal = rewriter.create<arith::DivFOp>(loc, subVal, divisor);
+
+    rewriter.create<AffineStoreOp>(loc, resultVal, alloc, ValueRange{ivI});
+    rewriter.setInsertionPointAfter(forOpI);
+
+    rewriter.replaceOp(op, alloc);
+    return mlir::success();
+  }
 };
 
 //===----------------------------------------------------------------------===//
@@ -9807,8 +9811,8 @@ struct NormalizeOpLowering : public ConversionPattern {
 
 struct NormLMSFilterResponseOptimizeOpLowering : public ConversionPattern {
   NormLMSFilterResponseOptimizeOpLowering(MLIRContext *ctx)
-      : ConversionPattern(dsp::NormLMSFilterResponseOptimizeOp::getOperationName(), 1,
-                          ctx) {}
+      : ConversionPattern(
+            dsp::NormLMSFilterResponseOptimizeOp::getOperationName(), 1, ctx) {}
 
   LogicalResult
   matchAndRewrite(Operation *op, ArrayRef<Value> operands,
@@ -9848,11 +9852,13 @@ struct NormLMSFilterResponseOptimizeOpLowering : public ConversionPattern {
     auto yMemRefType = MemRefType::get({numSamples}, rewriter.getF64Type());
     auto wAlloc = rewriter.create<memref::AllocOp>(loc, yMemRefType);
 
-    Value min = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(INT64_MAX));
-    Value max = rewriter.create<arith::ConstantOp>(loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(INT64_MIN));
+    Value min = rewriter.create<arith::ConstantOp>(
+        loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(INT64_MAX));
+    Value max = rewriter.create<arith::ConstantOp>(
+        loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(INT64_MIN));
 
-    affine::AffineForOp forOp1 =
-        rewriter.create<AffineForOp>(loc, lb, numSamples, step, ValueRange{min, max});
+    affine::AffineForOp forOp1 = rewriter.create<AffineForOp>(
+        loc, lb, numSamples, step, ValueRange{min, max});
     auto iv = forOp1.getInductionVar();
 
     rewriter.setInsertionPointToStart(forOp1.getBody());
@@ -9862,7 +9868,6 @@ struct NormLMSFilterResponseOptimizeOpLowering : public ConversionPattern {
     AffineExpr ExprForXSlice = d0 - d1;
     AffineMap addMapForLMSFilter = AffineMap::get(2, 0, ExprForXSlice);
     IntegerSet set1 = IntegerSet::get(2, 0, {ExprForXSlice}, {false});
-
 
     rewriter.create<AffineStoreOp>(loc, zeroval, alloc, ValueRange{iv});
 
@@ -9875,7 +9880,7 @@ struct NormLMSFilterResponseOptimizeOpLowering : public ConversionPattern {
     auto ifOp = rewriter.create<affine::AffineIfOp>(
         loc, set1, ValueRange{iv, iv2}, false /*no else*/);
     rewriter.setInsertionPointToStart(ifOp.getThenBlock());
-	
+
     Value inputX =
         rewriter.create<AffineLoadOp>(loc, lmsFilterAdaptor.getLhs(),
                                       addMapForLMSFilter, ValueRange{iv, iv2});
@@ -9892,7 +9897,7 @@ struct NormLMSFilterResponseOptimizeOpLowering : public ConversionPattern {
     auto cmpVal = rewriter.create<AffineLoadOp>(loc, alloc, ValueRange{iv});
     Value minVal = forOp1.getBody()->getArgument(1);
     Value maxVal = forOp1.getBody()->getArgument(2);
-    
+
     auto minOut = rewriter.create<arith::MinNumFOp>(loc, cmpVal, minVal);
     auto maxOut = rewriter.create<arith::MaxNumFOp>(loc, cmpVal, maxVal);
     //  get e[n] = d[n] - y[n]
@@ -9900,7 +9905,7 @@ struct NormLMSFilterResponseOptimizeOpLowering : public ConversionPattern {
     Value desiredX = rewriter.create<AffineLoadOp>(
         loc, lmsFilterAdaptor.getRhs(), ValueRange{iv});
     Value ynew = rewriter.create<AffineLoadOp>(loc, alloc, ValueRange{iv});
-	
+
     Value err = rewriter.create<arith::SubFOp>(loc, desiredX, ynew);
 
     affine::AffineForOp forOp3 =
@@ -9916,7 +9921,7 @@ struct NormLMSFilterResponseOptimizeOpLowering : public ConversionPattern {
     Value inputX2 =
         rewriter.create<AffineLoadOp>(loc, lmsFilterAdaptor.getLhs(),
                                       addMapForLMSFilter, ValueRange{iv, iv3});
-	
+
     Value Prevw2 = rewriter.create<AffineLoadOp>(loc, wAlloc, ValueRange{iv3});
 
     // f(u(n),e(n),μ)=μe(n)u∗(n)
@@ -9930,7 +9935,8 @@ struct NormLMSFilterResponseOptimizeOpLowering : public ConversionPattern {
     rewriter.setInsertionPointAfter(ifOp2);
     rewriter.setInsertionPointAfter(forOp3);
 
-    rewriter.create<AffineYieldOp>(loc, ValueRange{minOut.getResult(), maxOut.getResult()});
+    rewriter.create<AffineYieldOp>(
+        loc, ValueRange{minOut.getResult(), maxOut.getResult()});
     rewriter.setInsertionPointAfter(forOp1);
 
     Value minSignal = forOp1.getResults()[0];
@@ -9939,7 +9945,8 @@ struct NormLMSFilterResponseOptimizeOpLowering : public ConversionPattern {
     Value divisor = rewriter.create<arith::SubFOp>(loc, maxSignal, minSignal);
 
     // ele-wise normalize
-    affine::AffineForOp forOpI = rewriter.create<AffineForOp>(loc, lb, numSamples, step);
+    affine::AffineForOp forOpI =
+        rewriter.create<AffineForOp>(loc, lb, numSamples, step);
     auto ivI = forOpI.getInductionVar();
     rewriter.setInsertionPointToStart(forOpI.getBody());
 
@@ -9956,8 +9963,9 @@ struct NormLMSFilterResponseOptimizeOpLowering : public ConversionPattern {
 };
 
 struct Median2SlidingOptimizedOpLowering : public ConversionPattern {
-Median2SlidingOptimizedOpLowering(MLIRContext *ctx)
-      : ConversionPattern(dsp::Median2SlidingOptimizedOp::getOperationName(), 1, ctx) {}
+  Median2SlidingOptimizedOpLowering(MLIRContext *ctx)
+      : ConversionPattern(dsp::Median2SlidingOptimizedOp::getOperationName(), 1,
+                          ctx) {}
 
   LogicalResult
   matchAndRewrite(Operation *op, ArrayRef<Value> operands,
@@ -9978,13 +9986,13 @@ Median2SlidingOptimizedOpLowering(MLIRContext *ctx)
     Value constant_three = rewriter.create<arith::ConstantOp>(
         loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(3));
 
-
     affine::AffineForOp forOp1 =
         rewriter.create<AffineForOp>(loc, lb, ub, step);
     auto iv = forOp1.getInductionVar();
 
     rewriter.setInsertionPointToStart(forOp1.getBody());
-	typename dsp::Median2SlidingOptimizedOp::Adaptor median2SlidingOptimizedOpAdaptor(operands);
+    typename dsp::Median2SlidingOptimizedOp::Adaptor
+        median2SlidingOptimizedOpAdaptor(operands);
 
     Value elem1 = rewriter.create<AffineLoadOp>(
         loc, median2SlidingOptimizedOpAdaptor.getInput(), iv);
@@ -9996,59 +10004,71 @@ Median2SlidingOptimizedOpLowering(MLIRContext *ctx)
         rewriter.getAffineDimExpr(0) + rewriter.getAffineConstantExpr(3);
     AffineExpr ExprForElem5 =
         rewriter.getAffineDimExpr(0) + rewriter.getAffineConstantExpr(4);
-		
 
     AffineMap addMapForElem2 = AffineMap::get(1, 0, ExprForElem2);
     AffineMap addMapForElem3 = AffineMap::get(1, 0, ExprForElem3);
     AffineMap addMapForElem4 = AffineMap::get(1, 0, ExprForElem4);
     AffineMap addMapForElem5 = AffineMap::get(1, 0, ExprForElem5);
-	
+
     Value elem2 = rewriter.create<AffineLoadOp>(
-        loc, median2SlidingOptimizedOpAdaptor.getInput(), addMapForElem2, ValueRange{iv});
+        loc, median2SlidingOptimizedOpAdaptor.getInput(), addMapForElem2,
+        ValueRange{iv});
     Value elem3 = rewriter.create<AffineLoadOp>(
-        loc, median2SlidingOptimizedOpAdaptor.getInput(), addMapForElem3, ValueRange{iv});
+        loc, median2SlidingOptimizedOpAdaptor.getInput(), addMapForElem3,
+        ValueRange{iv});
     Value elem4 = rewriter.create<AffineLoadOp>(
-        loc, median2SlidingOptimizedOpAdaptor.getInput(), addMapForElem4, ValueRange{iv});
+        loc, median2SlidingOptimizedOpAdaptor.getInput(), addMapForElem4,
+        ValueRange{iv});
     Value elem5 = rewriter.create<AffineLoadOp>(
-        loc, median2SlidingOptimizedOpAdaptor.getInput(), addMapForElem5, ValueRange{iv});
+        loc, median2SlidingOptimizedOpAdaptor.getInput(), addMapForElem5,
+        ValueRange{iv});
 
     // sums
-	Value sum23 = rewriter.create<arith::AddFOp>(loc, elem2, elem3);
-	Value sum34 = rewriter.create<arith::AddFOp>(loc, elem3, elem4);
-	
+    Value sum23 = rewriter.create<arith::AddFOp>(loc, elem2, elem3);
+    Value sum34 = rewriter.create<arith::AddFOp>(loc, elem3, elem4);
+
     Value sum123 = rewriter.create<arith::AddFOp>(loc, elem1, sum23);
-	Value sum234 = rewriter.create<arith::AddFOp>(loc, sum23, elem4);
-	Value sum345 = rewriter.create<arith::AddFOp>(loc, sum34, elem5);
+    Value sum234 = rewriter.create<arith::AddFOp>(loc, sum23, elem4);
+    Value sum345 = rewriter.create<arith::AddFOp>(loc, sum34, elem5);
 
     // min
     Value min23 = rewriter.create<arith::MinimumFOp>(loc, elem2, elem3);
-	Value min34 = rewriter.create<arith::MinimumFOp>(loc, elem3, elem4);
-	
+    Value min34 = rewriter.create<arith::MinimumFOp>(loc, elem3, elem4);
+
     Value min123 = rewriter.create<arith::MinimumFOp>(loc, elem1, min23);
-	Value min234 = rewriter.create<arith::MinimumFOp>(loc, min23, elem4);
-	Value min345 = rewriter.create<arith::MinimumFOp>(loc, min34, elem5);
+    Value min234 = rewriter.create<arith::MinimumFOp>(loc, min23, elem4);
+    Value min345 = rewriter.create<arith::MinimumFOp>(loc, min34, elem5);
 
     // max
-	Value max23 = rewriter.create<arith::MaximumFOp>(loc, elem2, elem3);
-	Value max34 = rewriter.create<arith::MaximumFOp>(loc, elem3, elem4);
-	
+    Value max23 = rewriter.create<arith::MaximumFOp>(loc, elem2, elem3);
+    Value max34 = rewriter.create<arith::MaximumFOp>(loc, elem3, elem4);
+
     Value max123 = rewriter.create<arith::MaximumFOp>(loc, elem1, max23);
-	Value max234 = rewriter.create<arith::MaximumFOp>(loc, max23, elem4);
-	Value max345 = rewriter.create<arith::MaximumFOp>(loc, max34, elem5);
+    Value max234 = rewriter.create<arith::MaximumFOp>(loc, max23, elem4);
+    Value max345 = rewriter.create<arith::MaximumFOp>(loc, max34, elem5);
 
     // median
-    Value min_plus_max_123 = rewriter.create<arith::AddFOp>(loc, min123, max123);
-	Value min_plus_max_234 = rewriter.create<arith::AddFOp>(loc, min234, max234);
-	Value min_plus_max_345 = rewriter.create<arith::AddFOp>(loc, min345, max345);
-	
-    Value median123 = rewriter.create<arith::SubFOp>(loc, sum123, min_plus_max_123);
-	Value median234 = rewriter.create<arith::SubFOp>(loc, sum234, min_plus_max_234);
-	Value median345 = rewriter.create<arith::SubFOp>(loc, sum345, min_plus_max_345);
-	
-	// mean of three medians
-	Value two_medians = rewriter.create<arith::AddFOp>(loc, median123, median234);
-	Value three_medians = rewriter.create<arith::AddFOp>(loc, two_medians, median345);
-	Value median_mean = rewriter.create<arith::DivFOp>(loc, three_medians, constant_three);
+    Value min_plus_max_123 =
+        rewriter.create<arith::AddFOp>(loc, min123, max123);
+    Value min_plus_max_234 =
+        rewriter.create<arith::AddFOp>(loc, min234, max234);
+    Value min_plus_max_345 =
+        rewriter.create<arith::AddFOp>(loc, min345, max345);
+
+    Value median123 =
+        rewriter.create<arith::SubFOp>(loc, sum123, min_plus_max_123);
+    Value median234 =
+        rewriter.create<arith::SubFOp>(loc, sum234, min_plus_max_234);
+    Value median345 =
+        rewriter.create<arith::SubFOp>(loc, sum345, min_plus_max_345);
+
+    // mean of three medians
+    Value two_medians =
+        rewriter.create<arith::AddFOp>(loc, median123, median234);
+    Value three_medians =
+        rewriter.create<arith::AddFOp>(loc, two_medians, median345);
+    Value median_mean =
+        rewriter.create<arith::DivFOp>(loc, three_medians, constant_three);
 
     // store in alloc
     rewriter.create<AffineStoreOp>(loc, median_mean, alloc, iv);
@@ -10058,8 +10078,296 @@ Median2SlidingOptimizedOpLowering(MLIRContext *ctx)
   }
 };
 
-}// namespace
+//===----------------------------------------------------------------------===//
+// ToyToAffine RewritePatterns: FIRFilterResSymmThresholdUpOptimizedOp
+// operations
+//===----------------------------------------------------------------------===//
+struct FIRFilterResSymmThresholdUpOptimizedOpLowering
+    : public ConversionPattern {
+  FIRFilterResSymmThresholdUpOptimizedOpLowering(MLIRContext *ctx)
+      : ConversionPattern(
+            dsp::FIRFilterResSymmThresholdUpOptimizedOp::getOperationName(), 1,
+            ctx) {}
 
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    // dsp.FIRFilterResSymmThresholdUpOptimizedOp has 2 operands -- both of type
+    // tensor f64
+
+    // Get the location of FIRFilterResSymmThresholdUpOptimizedOp
+    auto loc = op->getLoc();
+
+    // output for result type
+    auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));
+
+    // allocation & deallocation for the result of this operation
+    auto memRefType = convertTensorToMemRef(tensorType);
+    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+    // Pseudo-Code
+    // y[n] = sum(h[k] .{ x[n-k] + x[n-(L-1-k)]}) + h[L-1/2].x[n-(L-1)/2] , k=0
+    // to L-1/2
+    //  N = lenY , M = lenX ,  L = lenH
+    // for n=0 to N
+    //  sum = 0, temp =0
+    //  for k = 0 to L-1/2
+    // if 0 <= n-k < M
+    // val1 = x[n-k] else, val1 = 0
+    // if 0 <= n+k - (L-1) < M
+    // val2 = x[n+k-(L-1)] else, val2 = 0
+    // temp = val1 + val2
+    //  sum = sum + h[k] . temp
+
+    // middle-one
+    //  if 0 <= n - (L-1)/2 < M
+    //  sum2 = sum + h[L-1/2] . x[n-(n - (L-1)/2)]
+    // y[n] = sum2
+
+    int64_t lb = 0;
+    int64_t ub = tensorType.getShape()[0];
+    int64_t step = 1;
+    DEBUG_PRINT_NO_ARGS();
+    affine::AffineForOp forOp1 =
+        rewriter.create<affine::AffineForOp>(loc, lb, ub, step);
+    rewriter.setInsertionPointToStart(forOp1.getBody());
+    auto iv = forOp1.getInductionVar();
+
+    // for n=0 to N
+    //  sum = 0, temp =0
+    // get filter len
+    //  auto tensorTypeFilter =
+    //  llvm::cast<RankedTensorType>((*op->getOperand(1))); //operand_type_end
+    //  auto tensorTypeFilter =
+    //  llvm::cast<RankedTensorType>((*op->operand_type_begin()));
+    auto operandIt = op->operand_type_begin();
+    auto tensorTypeInput = llvm::cast<RankedTensorType>(*operandIt);
+    int64_t ubForInput = tensorTypeInput.getShape()[0];
+    // get second operand
+    operandIt = operandIt + 1;
+
+    // auto tensorTypeFilter =
+    // llvm::cast<RankedTensorType>((*op->operand_type_begin())); //operandIt
+    auto tensorTypeFilter = llvm::cast<RankedTensorType>(*operandIt);
+    int64_t ubForFilter = tensorTypeFilter.getShape()[0];
+    DEBUG_PRINT_NO_ARGS();
+    // llvm::errs() << "ubForFilter= " << ubForFilter << "\n";
+    // create a constant for sum
+    Value constant0 = rewriter.create<arith::ConstantOp>(
+        loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(0));
+    affine::AffineForOp forOp2 = rewriter.create<affine::AffineForOp>(
+        loc, lb, ubForFilter / 2, step, ValueRange{constant0});
+    rewriter.setInsertionPointToStart(forOp2.getBody());
+    auto iv2 = forOp2.getInductionVar();
+
+    auto getIterArg =
+        forOp2.getBody()->getArgument(1); // forOp1.getIterOperands();
+    DEBUG_PRINT_NO_ARGS();
+    FIRFilterResSymmThresholdUpOptimizedOpAdaptor
+        firFilterResSymmThresholdUpOpAdaptor(operands);
+
+    // if 0 <= n-k < M
+    // val1 = x[n-k] else, val1 = 0
+    // For n-k
+    // if 0 <= n-k < M or, 0 <= n-k <= M -1
+    AffineExpr d0, d1, s0, s1;
+    bindDims(rewriter.getContext(), d0, d1);
+    AffineExpr ExprNMinusK = d0 - d1;
+    AffineMap mapNMinusK = AffineMap::get(2, 0, ExprNMinusK);
+    // n-k <= M -1 or, n-k-(M-1) <= 0
+    bindSymbols(rewriter.getContext(), s0, s1);
+    Value constantMMinus1Indx =
+        rewriter.create<arith::ConstantIndexOp>(loc, ubForInput - 1);
+
+    AffineExpr ExprNMinusKMinusMPlus1 = s0 - d0 + d1;
+    IntegerSet setForIf = IntegerSet::get(
+        2, 1, {ExprNMinusK, ExprNMinusKMinusMPlus1}, {false, false});
+    DEBUG_PRINT_NO_ARGS();
+
+    // if 0 <= n-k <= M -1
+    // use typeRange too:
+    Type floatType = rewriter.getF64Type();
+    //  if n-k >= 0 && n-k <= M -1 or, M-1 -n + k >= 0
+    auto ifOp = rewriter.create<affine::AffineIfOp>(
+        loc, TypeRange{floatType}, setForIf,
+        ValueRange{iv, iv2, constantMMinus1Indx}, true /*else*/);
+    rewriter.setInsertionPointToStart(ifOp.getThenBlock());
+
+    // val1 = x[n-k] else, val1 = 0
+    // load x[n-k]
+    DEBUG_PRINT_NO_ARGS();
+    Value loadInput = rewriter.create<AffineLoadOp>(
+        loc, firFilterResSymmThresholdUpOpAdaptor.getLhs(), mapNMinusK,
+        ValueRange{iv, iv2});
+    rewriter.create<AffineYieldOp>(loc, ValueRange{loadInput});
+    // else block
+    rewriter.setInsertionPointToStart(ifOp.getElseBlock());
+    Value const0ForElse = rewriter.create<arith::ConstantOp>(
+        loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(0));
+    rewriter.create<AffineYieldOp>(loc, ValueRange{const0ForElse});
+    rewriter.setInsertionPointAfter(ifOp);
+
+    // if 0 <= n+k - (L-1) < M
+    // val2 = x[n+k-(L-1)] else, val2 = 0
+    // val2 lower bound
+    //  AffineExpr ExprNMinKMinLPlus1 = d0 - d1 - s0; //s0 = (L-1) => -s0 = -L+1
+    //  AffineExpr ExprLowerBoundVal2 = d0 - d1 - s0; //s0 = (L-1) => -s0 = -L+1
+    // Val2 LowerBound: n+k - (L-1) >= 0
+    AffineExpr ExprLowerBoundVal2 =
+        rewriter.getAffineDimExpr(0) + rewriter.getAffineDimExpr(1) -
+        rewriter.getAffineConstantExpr(ubForFilter - 1);
+    // Val2 UpperBound: n+k - (L-1) <= M -1 ie, M - 1 + L -1 -k -n >= 0 ie,
+    // (M+L-2) - k -n >= 0
+    //  AffineExpr ExprUpperBoundVal2 = s0 + s1 + d1 - d0; //s1 = M+L-2 = L-1 +
+    //  M -1
+    AffineExpr ExprUpperBoundVal2 =
+        rewriter.getAffineConstantExpr(ubForInput + ubForFilter - 2) -
+        rewriter.getAffineDimExpr(1) - rewriter.getAffineDimExpr(0);
+    // s0 = L -1
+    //  Value s0LMin1Indx = rewriter.create<arith::ConstantIndexOp>(loc,
+    //  ubForFilter - 1); s1 = M + L -2 for val2 upperBound Value
+    //  s1MPlusLPlus2Indx = rewriter.create<arith::ConstantIndexOp>(loc,
+    //  ubForInput + ubForFilter - 2); Value s1MMin1Indx =
+    //  rewriter.create<arith::ConstantIndexOp>(loc, ubForInput - 1);
+
+    IntegerSet setForIf2 = IntegerSet::get(
+        2, 0, {ExprLowerBoundVal2, ExprUpperBoundVal2}, {false, false});
+
+    auto ifOp2 = rewriter.create<affine::AffineIfOp>(
+        loc, TypeRange{floatType}, setForIf2, ValueRange{iv, iv2},
+        true /*else*/);
+    rewriter.setInsertionPointToStart(ifOp2.getThenBlock());
+
+    // val2 = x[n+k-(L-1)] else, val2 = 0
+    AffineMap addMap2 = AffineMap::get(2, 0, ExprLowerBoundVal2);
+    // load x[n+k-(L-1)]
+    DEBUG_PRINT_NO_ARGS();
+    Value loadInputForVal2 = rewriter.create<AffineLoadOp>(
+        loc, firFilterResSymmThresholdUpOpAdaptor.getLhs(), addMap2,
+        ValueRange{iv, iv2});
+    rewriter.create<AffineYieldOp>(loc, ValueRange{loadInputForVal2});
+    // else block
+    rewriter.setInsertionPointToStart(ifOp2.getElseBlock());
+    Value const0ForElse2 = rewriter.create<arith::ConstantOp>(
+        loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(0));
+    rewriter.create<AffineYieldOp>(loc, ValueRange{const0ForElse2});
+    rewriter.setInsertionPointAfter(ifOp2);
+
+    // temp = val1 + val2
+    //  sum = sum + h[k] . temp
+
+    Value Val1Plus2 = rewriter.create<arith::AddFOp>(loc, ifOp.getResult(0),
+                                                     ifOp2.getResult(0));
+
+    // load filter and then mult and then sum
+    Value loadFilter = rewriter.create<affine::AffineLoadOp>(
+        loc, firFilterResSymmThresholdUpOpAdaptor.getRhs(), iv2);
+
+    Value filterMulInput =
+        rewriter.create<arith::MulFOp>(loc, Val1Plus2, loadFilter);
+    Value sumNext =
+        rewriter.create<arith::AddFOp>(loc, filterMulInput, getIterArg);
+    rewriter.create<AffineYieldOp>(loc, ValueRange{sumNext});
+    // rewriter.setInsertionPointToEnd(forOp2->getBlock());
+    rewriter.setInsertionPointAfter(forOp2);
+    DEBUG_PRINT_NO_ARGS();
+    // Middle - point
+    // if 0 <= n - (L-1)/2 < M
+    // sum2 = sum + h[L-1/2] . x[n-(L-1)/2)]
+    // y[n] = sum2
+
+    // if 0 <= n - (L-1)/2 < M
+    // AffineExpr ExprLowerBoundVal3 = d0 - s0; //s0 = (L-1)/2
+    // AffineExpr ExprUpperBoundVal3 = d0 - s1; //s1 = M+ (L-1)/2
+    int64_t midFilterLen = (ubForFilter - 1) / 2;
+    AffineExpr ExprLowerBoundVal3 =
+        rewriter.getAffineDimExpr(0) -
+        rewriter.getAffineConstantExpr(midFilterLen);
+    // UpperBound: n - (L-1)/2 <= M - 1 ie, M-1 + mid - n
+    AffineExpr ExprUpperBoundVal3 =
+        rewriter.getAffineConstantExpr(ubForInput + midFilterLen - 1) -
+        rewriter.getAffineDimExpr(0);
+
+    AffineMap addMap3 = AffineMap::get(1, 0, ExprLowerBoundVal3);
+
+    IntegerSet setForIf3 = IntegerSet::get(
+        1, 0, {ExprLowerBoundVal3, ExprUpperBoundVal3}, {false, false});
+
+    auto ifOp3 = rewriter.create<affine::AffineIfOp>(
+        loc, TypeRange{floatType}, setForIf3, ValueRange{iv}, true /*else*/);
+    rewriter.setInsertionPointToStart(ifOp3.getThenBlock());
+
+    // val3 = x[n-(L-1)/2)] else, val3 = 0
+    // load x[n-(L-1)/2)]
+    DEBUG_PRINT_NO_ARGS();
+    Value loadInputForVal3 = rewriter.create<AffineLoadOp>(
+        loc, firFilterResSymmThresholdUpOpAdaptor.getLhs(), addMap3,
+        ValueRange{iv});
+    rewriter.create<AffineYieldOp>(loc, ValueRange{loadInputForVal3});
+    // else block
+    rewriter.setInsertionPointToStart(ifOp3.getElseBlock());
+    Value const0ForElse3 = rewriter.create<arith::ConstantOp>(
+        loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(0));
+    rewriter.create<AffineYieldOp>(loc, ValueRange{const0ForElse3});
+    rewriter.setInsertionPointAfter(ifOp3);
+
+    // sum2 = sum + h[L-1/2] . x[n-(L-1)/2)]
+    //  y[n] = sum2
+    // load filter and then mult and then sum
+    Value midFilterLenIndx =
+        rewriter.create<arith::ConstantIndexOp>(loc, midFilterLen);
+
+    Value loadFilterMid = rewriter.create<affine::AffineLoadOp>(
+        loc, firFilterResSymmThresholdUpOpAdaptor.getRhs(), midFilterLenIndx);
+    Value filterMulInput2 =
+        rewriter.create<arith::MulFOp>(loc, ifOp3.getResult(0), loadFilterMid);
+    Value sum2 = rewriter.create<arith::AddFOp>(loc, filterMulInput2,
+                                                forOp2.getResult(0));
+    // rewriter.create<AffineStoreOp>(loc, forOp2.getResult(0) , alloc, iv);
+
+    // Optimize here, compare with threshold, then if returnoriginal then store
+    // same value else 1
+
+    auto thresholdMemRef = firFilterResSymmThresholdUpOpAdaptor.getThreshold();
+    auto returnOriginalMemRef = firFilterResSymmThresholdUpOpAdaptor.getReturnoriginal();
+
+    auto threshold =
+        rewriter.create<AffineLoadOp>(loc, thresholdMemRef, ValueRange{});
+    auto returnOriginal =
+        rewriter.create<AffineLoadOp>(loc, returnOriginalMemRef, ValueRange{});
+Value constant00 = rewriter.create<arith::ConstantOp>(
+        loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(0));
+
+    Value constant11 = rewriter.create<arith::ConstantOp>(
+        loc, rewriter.getF64Type(), rewriter.getF64FloatAttr(1));
+    // Compare a[i] >= threshold
+    auto cmp1 = rewriter.create<arith::CmpFOp>(loc, arith::CmpFPredicate::OGE,
+                                               sum2, threshold);
+    // Compare if return original is true or false and return 1 or original
+    // value
+    auto cmpro = rewriter.create<arith::CmpFOp>(loc, arith::CmpFPredicate::OEQ,
+                                                constant11, returnOriginal);
+
+    // Use select to choose between inputX and 1
+    auto selectreturn =
+        rewriter.create<arith::SelectOp>(loc, cmpro, sum2, constant11);
+
+    // Use select to choose between 0 and selectreturn
+    auto selectOp =
+        rewriter.create<arith::SelectOp>(loc, cmp1, selectreturn, constant00);
+
+    // Store the result
+    rewriter.create<AffineStoreOp>(loc, selectOp, alloc, iv);
+
+    // rewriter.create<AffineStoreOp>(loc, sum2, alloc, iv);
+    rewriter.setInsertionPointAfter(forOp1);
+    DEBUG_PRINT_NO_ARGS();
+    // ifOp->dump();
+    rewriter.replaceOp(op, alloc);
+    return success();
+  }
+};
+
+} // namespace
 
 //===----------------------------------------------------------------------===//
 // ToyToAffineLoweringPass
@@ -10136,10 +10444,11 @@ void ToyToAffineLoweringPass::runOnOperation() {
       BeamFormOpLowering, SpaceModulateOpLowering, SpaceDemodulateOpLowering,
       SpaceErrCorrectionOpLowering, FindPeaksOpLowering, MaxOpLowering,
       MeanOpLowering, DiffOpLowering, GetSingleElemAtIdxOpLowering,
-      Diff2MeanOptimizedOpLowering, LMS2FindPeaksOptimizedOpLowering,
-	  FindPeaks2Diff2MeanOptimizedOpLowering, MedianFilterOpLowering,
-	  Median2SlidingOptimizedOpLowering>(
-      &getContext());
+      Diff2MeanOptimizedOpLowering, Median2SlidingOptimizedOpLowering,
+      NormalizeOpLowering, AbsOpLowering, MedianFilterOpLowering,
+      LMS2FindPeaksOptimizedOpLowering, FindPeaks2Diff2MeanOptimizedOpLowering,
+      NormLMSFilterResponseOptimizeOpLowering,
+      FIRFilterResSymmThresholdUpOptimizedOpLowering>(&getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the
   // conversion. The conversion will signal failure if any of our `illegal`
