@@ -2850,6 +2850,44 @@ def FFTAbsOp : Dsp_Op<"FFTAbsOp", [Pure, DeclareOpInterfaceMethods<ShapeInferenc
   ]; 
 }
 
+//===----------------------------------------------------------------------===//
+// DFTAbsOp
+//===----------------------------------------------------------------------===//
+
+def DFTAbsOp : Dsp_Op<"DFTAbsOp", [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "DFTAbsOp";
+  let description = [{
+      ------------------
+  }];
+
+  let arguments = (ins F64Tensor:$input);
+  let results = (outs F64Tensor:$amplitude);
+
+  let builders = [
+    OpBuilder<(ins "Value":$input)>
+  ]; 
+}
+
+//===----------------------------------------------------------------------===//
+// DFTAbsThresholdUpOp
+//===----------------------------------------------------------------------===//
+
+def DFTAbsThresholdUpOp : Dsp_Op<"DFTAbsThresholdUpOp", [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "DFTAbsThresholdUpOp";
+  let description = [{
+      ------------------
+  }];
+
+  let arguments = (ins F64Tensor:$input, F64Tensor:$threshold, F64Tensor:$returnoriginal);
+  let results = (outs F64Tensor:$amplitude);
+
+  let builders = [
+    OpBuilder<(ins "Value":$input, "Value":$threshold, "Value":$returnoriginal)>
+  ]; 
+  let hasVerifier = 1;
+}
+
+
 #endif // TOY_OPS
 
 
