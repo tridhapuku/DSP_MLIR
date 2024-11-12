@@ -1177,7 +1177,7 @@ struct SimplifyCorrel2Max : public mlir::OpRewritePattern<MaxOp> {
       return failure();
 
     mlir::Value prev_correlateOp_operand1 = prev_correlateOp.getOperand(0);
-	mlir::Value prev_correlateOp_operand2 = prev_correlateOp.getOperand(1);
+	  mlir::Value prev_correlateOp_operand2 = prev_correlateOp.getOperand(1);
 
     auto optimizedOp = rewriter.create<dsp::Correl2MaxOptimizedOp>(
         op.getLoc(), prev_correlateOp_operand1, prev_correlateOp_operand2);
@@ -1188,6 +1188,83 @@ struct SimplifyCorrel2Max : public mlir::OpRewritePattern<MaxOp> {
   }
 };
 
+// Pseudo-Code
+// Find pattern on DivOp
+//  %3 = "dsp.getRangeOfVector"(%0, %1, %2) : (tensor<f64>, tensor<f64>, tensor<f64>) -> tensor<*xf64>
+//  %4 = "dsp.fft1dreal"(%3) : (tensor<*xf64>) -> tensor<*xf64>
+//  %5 = "dsp.fft1dimg"(%3) : (tensor<*xf64>) -> tensor<*xf64>
+//  %6 = dsp.square(%4 : tensor<*xf64>) to tensor<*xf64>
+//  %7 = dsp.square(%5 : tensor<*xf64>) to tensor<*xf64>
+//  %8 = dsp.add %6, %7 : tensor<*xf64>
+//  %9 = dsp.sum(%8 : tensor<*xf64>) to tensor<*xf64>
+//  %10 = "dsp.len"(%3) : (tensor<*xf64>) -> tensor<*xf64>
+//  %11 = dsp.div %9, %10 : tensor<*xf64> 
+//  fft_real = fft1dreal(input)
+//  sq1 = square(fft_real)
+//  sq_abs = AddOp (sq1, square(fft_img)) // this is actually + sign
+//  result1 = sum(sq_abs)
+//  len1  = len(result1)
+//  result2 = DivOp(sum1, len1)
+//  
+// if result2 is coming from DivOp operation
+// output pattern is sq= square(input)
+// ans = sum(sq)
+
+struct SimplifyEnergyOfSignal : public mlir::OpRewritePattern<DivOp> {
+  //
+  SimplifyEnergyOfSignal(mlir::MLIRContext *context)
+      : OpRewritePattern<DivOp>(context, 1) {}
+
+  mlir::LogicalResult
+  matchAndRewrite(DivOp op, mlir::PatternRewriter &rewriter) const override {
+
+    //Get operands of DivOp
+    mlir::Value divOp_operand0 = op.getOperand(0);
+    mlir::Value divOp_operand1 = op.getOperand(1);
+
+    //check if FirstOperand is coming from sumOp & 2nd operand from LenOp
+    SumOp prev_SumOp = divOp_operand0.getDefiningOp<SumOp>();
+    LengthOp prev_LenOp = divOp_operand1.getDefiningOp<LengthOp>();
+    if (!prev_SumOp || !prev_LenOp)
+      return failure();
+
+    //check if sumOp operand is coming from AddOp
+    mlir::Value sumOp_operand0 = prev_SumOp.getOperand();
+    AddOp prev_AddOp = sumOp_operand0.getDefiningOp<AddOp>();
+    if (!prev_AddOp )
+      return failure();
+
+    //check if addOp opernad is coming from squareOp
+    mlir::Value addOp_operand0 = prev_AddOp.getOperand(0);
+    mlir::Value addOp_operand1 = prev_AddOp.getOperand(1);
+    SquareOp prev_SqOp0 = addOp_operand0.getDefiningOp<SquareOp>();
+    SquareOp prev_SqOp1 = addOp_operand1.getDefiningOp<SquareOp>();
+    if (!prev_SqOp0 || !prev_SqOp1)
+      return failure();
+
+    //check if squareOp is coming from fft1dreal & other from fft1dImg 
+    mlir::Value sqOp_operand0 = prev_SqOp0.getOperand();
+    mlir::Value sqOp_operand1 = prev_SqOp1.getOperand();
+    FFT1DRealOp prev_fftRealOp = sqOp_operand0.getDefiningOp<FFT1DRealOp>();
+    FFT1DImgOp prev_fftImgOp = sqOp_operand1.getDefiningOp<FFT1DImgOp>();
+
+    if (!prev_fftRealOp || !prev_fftImgOp)
+      return failure();
+
+    // get the opernad of fftReal 
+    mlir::Value input = prev_fftRealOp.getOperand();
+
+    // if result2 is coming from DivOp operation
+    // output pattern is sq= square(input)
+    // ans = sum(sq)
+    auto ansSqOp = rewriter.create<SquareOp>(op.getLoc(), input);
+    auto ansSumOp = rewriter.create<SumOp>(op.getLoc(), ansSqOp.getResult());
+
+    // Repalce the use of original gain operation with this newGainOp
+    rewriter.replaceOp(op, ansSumOp.getResult());
+    return mlir::success();
+  }
+};
 
 // ===================================
 // ===================================
@@ -1323,7 +1400,7 @@ void NormalizeOp::getCanonicalizationPatterns(RewritePatternSet &results,
 void DivOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                         MLIRContext *ctx) {
   if (getEnableCanonicalOpt()) {
-    results.add<SimplifyDSSDPass>(ctx);
+    results.add</* SimplifyDSSDPass, */SimplifyEnergyOfSignal>(ctx);
   }
 }
 
@@ -1348,3 +1425,5 @@ void MaxOp::getCanonicalizationPatterns(RewritePatternSet &results,
     results.add<SimplifyCorrel2Max>(context);
   }
 }
+
+
