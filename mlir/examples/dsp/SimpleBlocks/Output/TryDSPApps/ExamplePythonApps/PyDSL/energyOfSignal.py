@@ -33,8 +33,5 @@ def main() {
   print(res);
   # var final1 = getElemAtIndx(fft_real , [6]); 
   # print(final1);
-
-
-
 }
 
