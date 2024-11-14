@@ -1400,7 +1400,9 @@ void NormalizeOp::getCanonicalizationPatterns(RewritePatternSet &results,
 void DivOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                         MLIRContext *ctx) {
   if (getEnableCanonicalOpt()) {
-    results.add</* SimplifyDSSDPass, */SimplifyEnergyOfSignal>(ctx);
+    results.add<SimplifyDSSDPass
+    // SimplifyEnergyOfSignal
+    >(ctx);
   }
 }
 

@@ -3440,7 +3440,10 @@ void QamModulateImgOp::inferShapes() {
       RankedTensorType::get(outputShape, signalType.getElementType()));
 }
 
-mlir::LogicalResult QamModulateImgOp::verify() { return mlir::success(); }
+mlir::LogicalResult QamModulateImgOp::verify() {
+
+  return mlir::success();
+}
 
 //===----------------------------------------------------------------------===//
 // BeamFormOp
@@ -3457,7 +3460,9 @@ void BeamFormOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
 
 void BeamFormOp::inferShapes() { getResult().setType(getTime().getType()); }
 
-mlir::LogicalResult BeamFormOp::verify() { return mlir::success(); }
+mlir::LogicalResult BeamFormOp::verify() {
+    return mlir::success();
+}
 
 //===----------------------------------------------------------------------===//
 // SpaceModulateOp
