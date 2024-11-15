@@ -1266,6 +1266,104 @@ struct SimplifyEnergyOfSignal : public mlir::OpRewritePattern<DivOp> {
   }
 };
 
+struct SimplifyConvolutionThm : public mlir::OpRewritePattern<IFFT1DOp> {
+  //
+  SimplifyConvolutionThm(mlir::MLIRContext *context)
+      : OpRewritePattern<IFFT1DOp>(context, 1) {}
+
+  mlir::LogicalResult
+  matchAndRewrite(IFFT1DOp op, mlir::PatternRewriter &rewriter) const override {
+#define CHECK(x)                                                               \
+  if (!x)                                                                      \
+    return failure();
+#define REMOVE(x)                                                              \
+  if (x->use_empty())                                                          \
+    rewriter.eraseOp(x);
+#define DEBUG(x)                                                               \
+  { llvm::errs() << "check for " << x << "\n"; }
+#define PASS llvm::errs() << "pass\n";
+#define ADD(x) {ops.push_back(x);}
+
+    auto loc = op.getLoc();
+    llvm::SmallVector<mlir::Operation* , 4> ops;
+
+    // init op = ifft1d
+    // pattern -> CHECK()
+    Operation *subOp = op.getOperand(0).getDefiningOp<SubOp>();
+    CHECK(subOp);
+    ADD(subOp);
+
+    Operation *addOp = op->getOperand(1).getDefiningOp<AddOp>();
+    CHECK(addOp);
+    ADD(addOp);
+
+    Operation *mulLreal = subOp->getOperand(0).getDefiningOp<MulOp>(); 
+    CHECK(mulLreal);
+    ADD(mulLreal);
+
+    Operation *mulRreal = subOp->getOperand(1).getDefiningOp<MulOp>(); 
+    CHECK(mulLreal);
+    ADD(mulRreal);
+
+    Operation *mulLImg = addOp->getOperand(0).getDefiningOp<MulOp>(); 
+    CHECK(mulLImg);
+    ADD(mulLImg);
+
+    Operation *mulRImg = addOp->getOperand(1).getDefiningOp<MulOp>(); 
+    CHECK(mulRImg);
+    ADD(mulRImg);
+
+    // 1st fft1dreal and fft1dimg is being replaced by fft1dop by other canonicalization
+    Operation *fft1DOp_a1 = mulLreal->getOperand(0).getDefiningOp<FFT1DOp>(); // real1
+    CHECK(fft1DOp_a1);
+    ADD(fft1DOp_a1);
+
+    Operation *fft1DOp_a2 = mulRreal->getOperand(0).getDefiningOp<FFT1DOp>(); // real2
+    CHECK(fft1DOp_a2);
+    ADD(fft1DOp_a2);
+
+    CHECK((fft1DOp_a1 == fft1DOp_a2));
+
+    // 2nd fft1dreal and fft1dimg is being replaced by fft1dop by other canonicalization
+    Operation *fft1DOp_b1 = mulLreal->getOperand(1).getDefiningOp<FFT1DOp>(); // img1
+    CHECK(fft1DOp_b1);
+    ADD(fft1DOp_b1);
+
+    Operation *fft1DOp_b2 = mulRreal->getOperand(1).getDefiningOp<FFT1DOp>(); // img2
+    CHECK(fft1DOp_b2);
+    ADD(fft1DOp_b2);
+
+    CHECK((fft1DOp_b1 == fft1DOp_b2));
+
+    Operation *padOp_1 = fft1DOp_a1->getOperand(0).getDefiningOp<PaddingOp>(); 
+    CHECK(padOp_1);
+    ADD(padOp_1);
+
+    Operation *padOp_2 = fft1DOp_b1->getOperand(0).getDefiningOp<PaddingOp>(); 
+    CHECK(padOp_2);
+    ADD(padOp_2);
+
+    // check if come from same input
+    Value input1 = padOp_1->getOperand(0);
+    CHECK(input1);
+  
+    Value input2 = padOp_2->getOperand(0);
+    CHECK(input2);
+
+    auto newResult = rewriter.create<FIRFilterResponseOp>(loc, input1, input2);
+
+    rewriter.replaceOp(op, newResult.getResult());
+
+    while(!ops.empty()){
+      REMOVE(ops.back());
+      ops.pop_back();
+    }
+
+    return mlir::success();
+  }
+};
+
+
 // ===================================
 // ===================================
 // ===================================
@@ -1428,4 +1526,9 @@ void MaxOp::getCanonicalizationPatterns(RewritePatternSet &results,
   }
 }
 
-
+void IFFT1DOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                         MLIRContext *context) {
+  if (getEnableCanonicalOpt()) {
+    results.add<SimplifyConvolutionThm>(context);
+  }
+}

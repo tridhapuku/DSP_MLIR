@@ -961,17 +961,8 @@ def IFFT1DOp : Dsp_Op<"ifft1d",
   let arguments = (ins F64Tensor:$real ,  F64Tensor:$img);
   // let results = (outs F64Tensor:$real, F64Tensor:$img); //(ins F64Tensor:$lhs, F64Tensor:$rhs);
   let results = (outs F64Tensor);
-  // let results = (outs F64Tensor:$real);
-  // let assemblyFormat = [{
-  //   `(` $input `:` type($input) `)` attr-dict `to` type(results)
-  // }];
 
-  // let assemblyFormat = [{
-  //   `(` $input `:` type($input) `)` attr-dict `to` `(` type($real) `,` type($img) `)`
-  // }];
-
-  // Enable registering canonicalization patterns with this operation.
-  // let hasCanonicalizer = 1;
+  let hasCanonicalizer = 1;
 
   // Allow building a IFFT1D with from the input operand.
   let builders = [
